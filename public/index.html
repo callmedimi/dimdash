@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DimDash — داشبورد مدرن سرورهای محلی و ایزوله</title>
+  <meta name="description" content="Ultra-fast, air-gapped homelab dashboard with live telemetry and YAML configuration">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Fixed Right Sidebar Navigation (v2 Architecture) -->
+    <aside class="sidebar-nav" id="sidebarNav">
+      <div class="sidebar-logo" id="sidebarLogo" title="داشبورد سرورهای دیم‌دش">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="2" width="20" height="8" rx="2"></rect>
+          <rect x="2" y="14" width="20" height="8" rx="2"></rect>
+          <line x1="6" y1="6" x2="6.01" y2="6"></line>
+          <line x1="6" y1="18" x2="6.01" y2="18"></line>
+        </svg>
+      </div>
+
+      <nav class="sidebar-menu">
+        <button class="sidebar-btn active" id="sideNavAll" data-tooltip="همه سرویس‌ها">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+        </button>
+
+        <button class="sidebar-btn" id="sideNavRefresh" data-tooltip="بررسی پروب‌ها">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+        </button>
+
+        <a href="/admin" class="sidebar-btn" id="sideNavAdmin" data-tooltip="پنل مدیریت پیشرفته">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="sidebar-btn" id="sideNavTheme" data-tooltip="استودیوی تم">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </button>
+
+        <button class="sidebar-btn" id="sideNavLock" data-tooltip="ویرایش سریع داشبورد">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Viewport Container -->
+    <div class="viewport-container">
+      <!-- Top Header Navigation -->
+      <header class="top-header">
+        <div class="brand-section">
+          <div>
+            <h1 class="brand-title" id="dashTitle">DimDash</h1>
+            <span class="airgap-badge">Air-Gapped LAN</span>
+          </div>
+        </div>
+
+        <!-- Quick Search Bar -->
+        <div class="search-wrapper">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="searchBar" class="search-input" placeholder="جستجوی سریع برنامه‌ها و سرورها..." autocomplete="off">
+          <span class="search-hotkey">/</span>
+        </div>
+
+        <!-- Header Controls -->
+        <div class="header-actions">
+          <div class="clock-display">
+            <span class="clock-time" id="clockTime">--:--:--</span>
+            <span class="clock-date" id="clockDate">---</span>
+          </div>
+
+          <a href="/admin" class="btn btn-secondary" title="ورود به پنل مدیریت جامع">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            <span>پنل مدیریت</span>
+          </a>
+
+          <button id="addTileBtn" class="btn btn-primary" title="افزودن برنامه جدید">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>افزودن کاشی</span>
+          </button>
+
+          <button id="addCategoryBtn" class="btn btn-secondary" title="افزودن دسته‌بندی جدید">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>دسته‌بندی</span>
+          </button>
+
+          <button id="adminToggleBtn" class="btn btn-icon admin-toggle" title="حالت ویرایش سریع داشبورد">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Telemetry Stats Overview Bar (v2 Feature) -->
+      <section class="stats-overview-bar" id="statsOverviewBar">
+        <div class="stats-group">
+          <div class="stat-item">
+            <span class="stat-dot total"></span>
+            <span class="stat-label">کل سرویس‌ها:</span>
+            <span class="stat-val" id="statTotalVal">0</span>
+          </div>
+
+          <div class="stat-item">
+            <span class="stat-dot online"></span>
+            <span class="stat-label">آنلاین:</span>
+            <span class="stat-val" style="color: #10b981;" id="statOnlineVal">0</span>
+          </div>
+
+          <div class="stat-item">
+            <span class="stat-dot warning"></span>
+            <span class="stat-label">هشدار:</span>
+            <span class="stat-val" style="color: #f59e0b;" id="statWarningVal">0</span>
+          </div>
+
+          <div class="stat-item">
+            <span class="stat-dot offline"></span>
+            <span class="stat-label">آفلاین:</span>
+            <span class="stat-val" style="color: #ef4444;" id="statOfflineVal">0</span>
+          </div>
+        </div>
+
+        <div class="stats-actions">
+          <button class="quick-probe-btn" id="btnTestAllProbes">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+            <span>بررسی فوری تمام پروب‌ها</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Sub-Navigation Category Filter Tabs -->
+      <nav class="sub-nav">
+        <div class="category-tabs" id="categoryTabs">
+          <!-- Rendered dynamically -->
+        </div>
+      </nav>
+
+      <!-- Main Content Area -->
+      <main class="main-content" id="contentArea">
+        <!-- Rendered dynamically -->
+      </main>
+    </div>
+  </div>
+
+  <!-- --------------------------------------------------------------------------
+       MODALS
+       -------------------------------------------------------------------------- -->
+
+  <!-- PIN Modal -->
+  <div class="modal-backdrop" id="pinModal">
+    <div class="modal-window" style="max-width: 380px;">
+      <div class="modal-header">
+        <h3 class="modal-title">احراز هویت ادمین</h3>
+        <button class="btn btn-icon" onclick="closeAllModals()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.88rem; color: var(--text-muted);">لطفاً پین ادمین را برای ویرایش چیدمان وارد کنید:</p>
+        <div class="form-group">
+          <input type="password" id="adminPinInput" class="form-input" placeholder="پین ادمین" autofocus>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeAllModals()">انصراف</button>
+        <button class="btn btn-primary" id="pinSubmitBtn">تأیید و ورود</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add / Edit Tile Modal -->
+  <div class="modal-backdrop" id="tileModal">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3 class="modal-title" id="tileModalTitle">افزودن برنامه</h3>
+        <button class="btn btn-icon" onclick="closeAllModals()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">نام برنامه *</label>
+            <input type="text" id="tileTitleInput" class="form-input" placeholder="مثلاً: Proxmox یا Pi-hole">
+          </div>
+          <div class="form-group">
+            <label class="form-label">دسته‌بندی</label>
+            <select id="tileCategorySelect" class="form-select"></select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">توضیح کوتاه یا زیرعنوان</label>
+          <input type="text" id="tileSubtitleInput" class="form-input" placeholder="مثلاً: Hypervisor / 192.168.1.10">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">آدرس لینک مقصد (URL) *</label>
+          <input type="text" id="tileUrlInput" class="form-input" placeholder="https://192.168.1.10:8006">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">رنگ پس‌زمینه کاشی (اختیاری)</label>
+            <input type="text" id="tileColorInput" class="form-input" placeholder="rgba(99, 102, 241, 0.15)">
+          </div>
+          <div class="form-group" style="justify-content: flex-end; padding-bottom: 0.5rem;">
+            <label class="form-checkbox-label">
+              <input type="checkbox" id="tileNewTabInput" checked>
+              <span>باز شدن در برگه جدید مرورگر</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Icon Picker -->
+        <div class="form-group">
+          <label class="form-label">انتخاب آیکون وکتور</label>
+          <div class="icon-picker-grid" id="tileIconPicker"></div>
+        </div>
+
+        <!-- Generic Probe / Monitoring Engine Config -->
+        <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1rem;">
+          <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem; color: #a5b4fc;">تنظیمات پروب و مانیتورینگ زنده (بدون وابستگی به ابزار ثالث)</h4>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">نوع بررسی سلامت</label>
+              <select id="probeTypeSelect" class="form-select">
+                <option value="none">بدون پروب (همیشه آنلاین)</option>
+                <option value="ping_tcp">پینگ پورت TCP (بررسی در دسترس بودن پورت)</option>
+                <option value="http_status">بررسی وضعیت HTTP/HTTPS (200 OK و آپ‌تایم)</option>
+                <option value="json_metric">استخراج آمار از خروجی JSON (REST API)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">IP یا نام هاست مقصد</label>
+              <input type="text" id="probeHostInput" class="form-input" placeholder="192.168.1.10">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">پورت</label>
+              <input type="number" id="probePortInput" class="form-input" placeholder="مثلاً: 80, 443, 8006, 5432">
+            </div>
+            <div class="form-group">
+              <label class="form-label">مسیر (برای HTTP یا JSON)</label>
+              <input type="text" id="probePathInput" class="form-input" placeholder="/api/health یا /metrics">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">مسیر فیلد در JSON (اختیاری)</label>
+              <input type="text" id="probeJsonPathInput" class="form-input" placeholder="data.cpu یا status">
+            </div>
+            <div class="form-group">
+              <label class="form-label">برچسب و واحد متریک</label>
+              <div style="display:flex; gap:0.5rem;">
+                <input type="text" id="probeMetricLabelInput" class="form-input" placeholder="CPU">
+                <input type="text" id="probeMetricUnitInput" class="form-input" placeholder="%" style="max-width:70px;">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row" style="margin-top: 0.5rem;">
+            <div class="form-group">
+              <label class="form-label">بازه بررسی (ثانیه)</label>
+              <input type="number" id="probeIntervalInput" class="form-input" value="15" min="5" max="300">
+            </div>
+            <div class="form-group" style="justify-content: flex-end; padding-bottom: 0.5rem;">
+              <label class="form-checkbox-label">
+                <input type="checkbox" id="probeIgnoreSslInput" checked>
+                <span>چشم‌پوشی از خطای SSL خودامضا (Self-Signed)</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeAllModals()">انصراف</button>
+        <button class="btn btn-primary" id="tileSaveBtn">ذخیره کاشی</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add / Edit Category Modal -->
+  <div class="modal-backdrop" id="categoryModal">
+    <div class="modal-window" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="categoryModalTitle">دسته‌بندی</h3>
+        <button class="btn btn-icon" onclick="closeAllModals()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">نام دسته‌بندی</label>
+          <input type="text" id="catNameInput" class="form-input" placeholder="مثلاً: سرویس‌های هوش مصنوعی">
+        </div>
+        <div class="form-group">
+          <label class="form-label">رنگ نشانگر</label>
+          <input type="color" id="catColorInput" class="form-input" value="#6366f1" style="height: 42px; padding: 2px;">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeAllModals()">انصراف</button>
+        <button class="btn btn-primary" id="catSaveBtn">ذخیره دسته‌بندی</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Theme Studio Modal -->
+  <div class="modal-backdrop" id="themeModal">
+    <div class="modal-window" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3 class="modal-title">استودیوی تم و ظاهر</h3>
+        <button class="btn btn-icon" onclick="closeAllModals()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">عنوان داشبورد</label>
+          <input type="text" id="themeTitleInput" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">رنگ جلوه اصلی (Accent Color)</label>
+          <input type="color" id="themeAccentInput" class="form-input" style="height: 42px; padding: 2px;">
+        </div>
+        <div class="form-group">
+          <label class="form-label">میزان محوشدگی شیشه (Glass Blur): <span id="themeBlurVal">16px</span></label>
+          <input type="range" id="themeBlurInput" min="4" max="32" step="2" class="form-input" style="padding:0;">
+        </div>
+        <div class="form-group">
+          <label class="form-label">تراکم نمایش کاشی‌ها (Density)</label>
+          <select id="themeDensitySelect" class="form-select">
+            <option value="compact">فشرده (Compact)</option>
+            <option value="normal">استاندارد (Normal)</option>
+            <option value="expanded">بزرگ (Expanded)</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeAllModals()">انصراف</button>
+        <button class="btn btn-primary" id="themeSaveBtn">ذخیره تم</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- YAML & Backup Modal -->
+  <div class="modal-backdrop" id="yamlModal">
+    <div class="modal-window" style="max-width: 650px;">
+      <div class="modal-header">
+        <h3 class="modal-title">پشتیبان‌گیری و ساختار داده</h3>
+        <button class="btn btn-icon" onclick="closeAllModals()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.85rem; color:var(--text-muted);">داده‌های زیر مستقیماً با فایل <code>data/config.yaml</code> روی دیسک سرور همگام هستند.</p>
+        <textarea id="yamlRawText" class="form-textarea" rows="12" readonly style="font-family: monospace; font-size: 0.8rem;"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeAllModals()">بستن</button>
+        <button class="btn btn-primary" id="yamlDownloadBtn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>دانلود فایل JSON پشتیبان</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="js/icons.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

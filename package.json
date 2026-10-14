@@ -1,0 +1,24 @@
+{
+  "name": "dimdash",
+  "version": "1.0.0",
+  "description": "Ultra-fast, air-gapped homelab dashboard and application launcher with live telemetry and YAML configuration",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "keywords": [
+    "dashboard",
+    "homelab",
+    "heimdall",
+    "air-gapped",
+    "yaml",
+    "monitoring"
+  ],
+  "author": "DimDash Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",
+    "yaml": "^2.4.5"
+  }
+}

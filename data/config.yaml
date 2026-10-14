@@ -1,0 +1,174 @@
+version: "1.0"
+
+settings:
+  dashboard_title: "DimDash Homelab"
+  admin_pin: "" # If empty, editing is unlocked. Set a PIN/password to protect editing.
+  theme:
+    accent_color: "#6366f1"
+    glass_opacity: 0.82
+    glass_blur: 16
+    background_type: "gradient" # "gradient", "solid", "image"
+    background_value: "radial-gradient(ellipse at 20% 20%, #1e1b4b 0%, #0f172a 60%, #020617 100%)"
+    tile_density: "normal" # "compact", "normal", "expanded"
+    card_radius: 16 # px
+  search:
+    enabled: true
+    focus_hotkey: "/"
+    instant_filter: true
+
+categories:
+  - id: "infra"
+    name: "سرورها و زیرساخت"
+    color: "#6366f1"
+    icon: "server"
+    is_collapsed: false
+    tiles:
+      - id: "proxmox-pve"
+        title: "Proxmox VE"
+        subtitle: "Hypervisor & VMs"
+        target_url: "https://192.168.1.10:8006"
+        icon_type: "preset"
+        icon_value: "proxmox"
+        bg_color: "rgba(229, 112, 0, 0.15)"
+        open_in_new_tab: true
+        probe:
+          type: "ping_tcp"
+          host: "127.0.0.1" # Default fallback for local testing
+          port: 3080
+          interval: 15
+
+      - id: "truenas-storage"
+        title: "TrueNAS"
+        subtitle: "ZFS Storage Pool"
+        target_url: "http://192.168.1.12"
+        icon_type: "preset"
+        icon_value: "truenas"
+        bg_color: "rgba(0, 149, 213, 0.15)"
+        open_in_new_tab: true
+        probe:
+          type: "http_status"
+          host: "127.0.0.1"
+          port: 3080
+          path: "/api/health"
+          interval: 20
+
+      - id: "portainer-mgmt"
+        title: "Portainer"
+        subtitle: "Docker Management"
+        target_url: "http://192.168.1.15:9000"
+        icon_type: "preset"
+        icon_value: "portainer"
+        bg_color: "rgba(19, 190, 249, 0.15)"
+        open_in_new_tab: true
+        probe:
+          type: "none"
+
+  - id: "network"
+    name: "شبکه و امنیت"
+    color: "#10b981"
+    icon: "shield"
+    is_collapsed: false
+    tiles:
+      - id: "pihole-dns"
+        title: "Pi-hole"
+        subtitle: "DNS & Ad Blocking"
+        target_url: "http://192.168.1.5:8080/admin"
+        icon_type: "preset"
+        icon_value: "pihole"
+        bg_color: "rgba(231, 30, 40, 0.15)"
+        open_in_new_tab: true
+        probe:
+          type: "http_status"
+          host: "127.0.0.1"
+          port: 3000
+          path: "/api/health"
+          interval: 20
+
+      - id: "vaultwarden-pw"
+        title: "Vaultwarden"
+        subtitle: "Password Manager"
+        target_url: "https://vault.local"
+        icon_type: "preset"
+        icon_value: "vaultwarden"
+        bg_color: "rgba(23, 93, 220, 0.15)"
+        open_in_new_tab: true
+        probe:
+          type: "none"
+
+      - id: "wireguard-vpn"
+        title: "WireGuard"
+        subtitle: "VPN Tunnel Gateway"
+        target_url: "http://192.168.1.1:51820"
+        icon_type: "preset"
+        icon_value: "wireguard"
+        bg_color: "rgba(136, 23, 26, 0.15)"
+        open_in_new_tab: true
+        probe:
+          type: "none"
+
+  - id: "media"
+    name: "رسانه و دانلود"
+    color: "#f59e0b"
+    icon: "play"
+    is_collapsed: false
+    tiles:
+      - id: "plex-server"
+        title: "Plex Media"
+        subtitle: "Movies & TV Shows"
+        target_url: "http://192.168.1.20:32400/web"
+        icon_type: "preset"
+        icon_value: "plex"
+        bg_color: "rgba(229, 160, 13, 0.15)"
+        open_in_new_tab: true
+        probe:
+          type: "none"
+
+      - id: "qbittorrent-app"
+        title: "qBittorrent"
+        subtitle: "Torrent Client"
+        target_url: "http://192.168.1.20:8085"
+        icon_type: "preset"
+        icon_value: "qbittorrent"
+        bg_color: "rgba(47, 103, 155, 0.15)"
+        open_in_new_tab: true
+        probe:
+          type: "none"
+
+      - id: "nextcloud-cloud"
+        title: "Nextcloud"
+        subtitle: "Personal Cloud & Sync"
+        target_url: "https://cloud.local"
+        icon_type: "preset"
+        icon_value: "nextcloud"
+        bg_color: "rgba(0, 130, 201, 0.15)"
+        open_in_new_tab: true
+        probe:
+          type: "none"
+
+  - id: "monitoring"
+    name: "مانیتورینگ و وضعیت"
+    color: "#ec4899"
+    icon: "activity"
+    is_collapsed: false
+    tiles:
+      - id: "grafana-dash"
+        title: "Grafana"
+        subtitle: "Metrics & Telemetry"
+        target_url: "http://192.168.1.30:3000"
+        icon_type: "preset"
+        icon_value: "grafana"
+        bg_color: "rgba(244, 104, 0, 0.15)"
+        open_in_new_tab: true
+        probe:
+          type: "none"
+
+      - id: "home-assistant"
+        title: "Home Assistant"
+        subtitle: "Smart Home Automation"
+        target_url: "http://192.168.1.40:8123"
+        icon_type: "preset"
+        icon_value: "homeassistant"
+        bg_color: "rgba(3, 169, 244, 0.15)"
+        open_in_new_tab: true
+        probe:
+          type: "none"

@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  dimdash:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dimdash:latest
+    container_name: dimdash
+    restart: unless-stopped
+    ports:
+      - "3080:3080"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3080
+      - TZ=Asia/Tehran
