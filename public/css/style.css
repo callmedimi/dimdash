@@ -1967,15 +1967,98 @@ body.arrange-mode-active .tile-card {
   background: rgba(99, 102, 241, 0.08);
 }
 
-/* Responsive adjustments */
+/* Responsive adjustments: Mobile Bottom Glassmorphic Navigation Dock */
 @media (max-width: 900px) {
   .sidebar-nav {
-    display: none;
+    display: flex !important;
+    position: fixed !important;
+    top: auto !important;
+    bottom: 12px !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    width: calc(100% - 20px) !important;
+    max-width: 480px !important;
+    height: 58px !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-around !important;
+    padding: 0 0.4rem !important;
+    border-radius: 20px !important;
+    background: rgba(15, 23, 42, 0.88) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border: 1px solid var(--border-glass) !important;
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.55), 0 0 1px rgba(255, 255, 255, 0.2) !important;
+    z-index: 9999 !important;
   }
+
+  /* Hide the brand logo from dock to keep icons uncluttered on mobile */
+  .sidebar-nav > .sidebar-item-with-submenu:first-child {
+    display: none !important;
+  }
+
+  /* Horizontal menu buttons */
+  .sidebar-menu {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-around !important;
+    gap: 0.25rem !important;
+    width: auto !important;
+    flex: 1 !important;
+  }
+
+  .sidebar-footer {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 0.25rem !important;
+    border-top: none !important;
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+  }
+
+  .sidebar-btn {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 12px !important;
+  }
+
+  /* Hide hover tooltips on touch screens */
+  .sidebar-btn::after {
+    display: none !important;
+  }
+
+  /* Submenus popup elegantly ABOVE the dock */
+  .sidebar-submenu {
+    position: fixed !important;
+    top: auto !important;
+    bottom: 78px !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) translateY(12px) scale(0.96) !important;
+    width: calc(100% - 32px) !important;
+    max-width: 360px !important;
+    max-height: calc(100vh - 120px) !important;
+    overflow-y: auto !important;
+    border-radius: 18px !important;
+    box-shadow: 0 -10px 35px rgba(0, 0, 0, 0.65), 0 0 1px rgba(255, 255, 255, 0.2) !important;
+    transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.22s ease !important;
+  }
+
+  .sidebar-item-with-submenu.open .sidebar-submenu,
+  .sidebar-item-with-submenu:hover .sidebar-submenu {
+    transform: translateX(-50%) translateY(0) scale(1) !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+
   .viewport-container {
-    margin-right: 0;
-    margin-left: 0;
-    padding: 1rem 0.75rem;
+    margin-right: 0 !important;
+    margin-left: 0 !important;
+    padding: 1rem 0.75rem 85px 0.75rem !important;
   }
   .top-header {
     padding: 0.75rem 1rem;
@@ -1998,8 +2081,29 @@ body.arrange-mode-active .tile-card {
   }
   .main-content,
   #contentArea {
-    padding: 1rem 0.5rem;
+    padding: 1rem 0.5rem 80px 0.5rem !important;
     gap: 1rem;
+  }
+  .widgets-section {
+    padding: 0 0.75rem 80px 0.75rem !important;
+  }
+}
+
+@media (max-width: 440px) {
+  .sidebar-nav {
+    width: calc(100% - 12px) !important;
+    bottom: 8px !important;
+    height: 54px !important;
+    padding: 0 0.25rem !important;
+  }
+  .sidebar-btn {
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 10px !important;
+  }
+  .sidebar-btn svg {
+    width: 17px !important;
+    height: 17px !important;
   }
 }
 
