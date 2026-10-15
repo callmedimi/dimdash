@@ -19,6 +19,9 @@ RUN mkdir -p /app/data/uploads && chown -R node:node /app
 COPY --from=deps --chown=node:node /app/node_modules ./node_modules
 COPY --chown=node:node . .
 
+# Keep a clean copy of defaults for auto-seeding empty mounted volumes
+RUN mkdir -p /app/defaults && cp -r /app/data/* /app/defaults/
+
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
