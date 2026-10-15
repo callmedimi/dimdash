@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   dimdash:
     build:
@@ -9,10 +7,31 @@ services:
     container_name: dimdash
     restart: unless-stopped
     ports:
-      - "3080:3080"
+      - "${PORT:-3080}:3080"
     volumes:
+      # Persistent storage for YAML configuration, uploads, custom icons & wallpapers
       - ./data:/app/data
+      # Optional: Read-only access to host Docker daemon for live container telemetry gauge
+      # - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       - NODE_ENV=production
       - PORT=3080
-      - TZ=Asia/Tehran
+      - TZ=${TZ:-Asia/Tehran}
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'        # Maximum 50% of 1 CPU core
+          memory: 128M        # Ultra-low RAM limit (idle consumption is ~45MB)
+        reservations:
+          memory: 48M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"       # Prevent logs from filling up server storage
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3080/api/health', (r) => {if (r.statusCode !== 200) process.exit(1);})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s

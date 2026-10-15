@@ -1,0 +1,32 @@
+# DimDash Third-Party Server Deployment
+# Run anywhere with: docker compose -f docker-compose.server.yml up -d
+
+services:
+  dimdash:
+    # Change USERNAME to your GitHub username after GHCR build
+    image: ghcr.io/${GH_USER:-callmedimi}/dimdash:latest
+    container_name: dimdash
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3080}:3080"
+    volumes:
+      # Persistent homelab configuration and uploads directory
+      - ./data:/app/data
+      # Optional: Read-only host docker socket for container telemetry gauge
+      # - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - NODE_ENV=production
+      - PORT=3080
+      - TZ=${TZ:-Asia/Tehran}
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 128M
+        reservations:
+          memory: 48M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
