@@ -7,6 +7,7 @@ services:
     image: ghcr.io/${GH_USER:-callmedimi}/dimdash:latest
     container_name: dimdash
     restart: unless-stopped
+    user: "root"
     ports:
       - "${PORT:-3080}:3080"
     volumes:
