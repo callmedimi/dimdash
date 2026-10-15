@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="104" viewBox="0 0 120 104">
+  <defs>
+    <style>
+      .hex {
+        fill: none;
+        stroke: #6366f1;
+        stroke-width: 1.2;
+        stroke-opacity: 0.35;
+      }
+      .node {
+        fill: #38bdf8;
+        opacity: 0.5;
+      }
+    </style>
+  </defs>
+  <path class="hex" d="M60 0 L120 26 L120 78 L60 104 L0 78 L0 26 Z" />
+  <circle cx="60" cy="0" r="2.5" class="node"/>
+  <circle cx="120" cy="26" r="2.5" class="node"/>
+  <circle cx="120" cy="78" r="2.5" class="node"/>
+  <circle cx="60" cy="104" r="2.5" class="node"/>
+  <circle cx="0" cy="78" r="2.5" class="node"/>
+  <circle cx="0" cy="26" r="2.5" class="node"/>
+  <circle cx="60" cy="52" r="1.5" fill="#10b981" opacity="0.4"/>
+</svg>

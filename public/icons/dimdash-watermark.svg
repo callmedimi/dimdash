@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="100%" height="100%">
+  <defs>
+    <linearGradient id="cyberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8" stop-opacity="0.9"/>
+      <stop offset="50%" stop-color="#06b6d4" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0.85"/>
+    </linearGradient>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#0f172a" stop-opacity="0.05"/>
+    </linearGradient>
+    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <g transform="translate(400, 400)">
+    <!-- Outer Decorative Concentric Circuit Circles -->
+    <circle r="360" fill="none" stroke="url(#cyberGrad)" stroke-width="1.5" stroke-dasharray="14 10" opacity="0.4" />
+    <circle r="340" fill="none" stroke="#38bdf8" stroke-width="1" stroke-dasharray="6 14 2 14" opacity="0.3" />
+    <circle r="310" fill="none" stroke="#818cf8" stroke-width="2" opacity="0.2" />
+
+    <!-- Outer Hexagonal Tech Ring -->
+    <polygon points="0,-290 251,-145 251,145 0,290 -251,145 -251,-145" 
+             fill="url(#shieldGrad)" stroke="url(#cyberGrad)" stroke-width="3.5" filter="url(#neonGlow)"/>
+
+    <!-- Inner Rotating Tech Ticks -->
+    <polygon points="0,-260 225,-130 225,130 0,260 -225,130 -225,-130" 
+             fill="none" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="20 15" opacity="0.5"/>
+
+    <!-- Corner Node Points -->
+    <circle cx="0" cy="-290" r="6" fill="#818cf8" />
+    <circle cx="251" cy="-145" r="6" fill="#06b6d4" />
+    <circle cx="251" cy="145" r="6" fill="#10b981" />
+    <circle cx="0" cy="290" r="6" fill="#818cf8" />
+    <circle cx="-251" cy="145" r="6" fill="#06b6d4" />
+    <circle cx="-251" cy="-145" r="6" fill="#10b981" />
+
+    <!-- Center Server Cluster Icon Graphic -->
+    <g transform="translate(0, -45)">
+      <!-- Server Unit 1 -->
+      <rect x="-120" y="-100" width="240" height="48" rx="8" fill="#1e293b" fill-opacity="0.6" stroke="url(#cyberGrad)" stroke-width="2.5"/>
+      <circle cx="-90" cy="-76" r="5" fill="#10b981"/>
+      <circle cx="-70" cy="-76" r="5" fill="#38bdf8"/>
+      <circle cx="-50" cy="-76" r="5" fill="#818cf8"/>
+      <line x1="0" y1="-76" x2="90" y2="-76" stroke="#94a3b8" stroke-width="2.5" stroke-dasharray="6 4" opacity="0.7"/>
+
+      <!-- Server Unit 2 -->
+      <rect x="-120" y="-36" width="240" height="48" rx="8" fill="#1e293b" fill-opacity="0.6" stroke="url(#cyberGrad)" stroke-width="2.5"/>
+      <circle cx="-90" cy="-12" r="5" fill="#10b981"/>
+      <circle cx="-70" cy="-12" r="5" fill="#38bdf8"/>
+      <circle cx="-50" cy="-12" r="5" fill="#f59e0b"/>
+      <line x1="0" y1="-12" x2="90" y2="-12" stroke="#94a3b8" stroke-width="2.5" stroke-dasharray="6 4" opacity="0.7"/>
+
+      <!-- Server Unit 3 -->
+      <rect x="-120" y="28" width="240" height="48" rx="8" fill="#1e293b" fill-opacity="0.6" stroke="url(#cyberGrad)" stroke-width="2.5"/>
+      <circle cx="-90" cy="52" r="5" fill="#10b981"/>
+      <circle cx="-70" cy="52" r="5" fill="#10b981"/>
+      <circle cx="-50" cy="52" r="5" fill="#38bdf8"/>
+      <line x1="0" y1="52" x2="90" y2="52" stroke="#94a3b8" stroke-width="2.5" stroke-dasharray="6 4" opacity="0.7"/>
+
+      <!-- Network Data Streams Flowing Down -->
+      <path d="M-60,82 L-60,115 L0,140 L60,115 L60,82" fill="none" stroke="#06b6d4" stroke-width="2" stroke-dasharray="4 4" opacity="0.8"/>
+      <circle cx="0" cy="140" r="4" fill="#38bdf8"/>
+    </g>
+
+    <!-- Typography (Bold Sci-Fi & Geometric) -->
+    <text x="0" y="150" font-family="'Inter', 'Vazirmatn', sans-serif" font-weight="900" font-size="44" 
+          letter-spacing="14" fill="#ffffff" text-anchor="middle" opacity="0.95">DIMDASH</text>
+    
+    <text x="0" y="185" font-family="'Inter', 'Vazirmatn', sans-serif" font-weight="600" font-size="14" 
+          letter-spacing="6" fill="#38bdf8" text-anchor="middle" opacity="0.85">AIR-GAPPED HOMELAB SYSTEM</text>
+
+    <!-- Bottom Shield Ribbon Accent -->
+    <line x1="-140" y1="210" x2="140" y2="210" stroke="url(#cyberGrad)" stroke-width="2" opacity="0.6"/>
+    <polygon points="-8,210 0,202 8,210 0,218" fill="#38bdf8" />
+  </g>
+</svg>

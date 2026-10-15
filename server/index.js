@@ -5,6 +5,8 @@ const os = require('os');
 const ConfigManager = require('./configManager');
 const Prober = require('./prober');
 const DEFAULT_ICONS = require('./defaultIcons');
+const systemStats = require('./systemStats');
+const ClusterManager = require('./clusterManager');
 
 const app = express();
 const PORT = process.env.PORT || 3080;
@@ -16,9 +18,12 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Initialize Config & Prober
+// Initialize Config & Prober & ClusterManager & MetricsHistory
 const configManager = new ConfigManager(path.join(dataDir, 'config.yaml'));
 const prober = new Prober(configManager);
+const clusterManager = new ClusterManager(configManager, systemStats);
+const MetricsHistoryCollector = require('./metricsHistory');
+const metricsHistory = new MetricsHistoryCollector(dataDir);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -46,16 +51,38 @@ configManager.on('change', (cfg) => {
   broadcastSSE('config', sanitizeConfig(cfg));
 });
 
-// Periodic SSE probe status push
+// Periodic SSE probe status push (every 5s)
 setInterval(() => {
   if (sseClients.size > 0) {
     broadcastSSE('probes', prober.getAllResults());
   }
 }, 5000);
 
+// Periodic SSE system telemetry push (every 2s)
+setInterval(() => {
+  if (sseClients.size > 0) {
+    broadcastSSE('system_telemetry', clusterManager.getAllTelemetry());
+  }
+}, 2000);
+
+// Instant push on agent telemetry updates
+clusterManager.on('telemetry_updated', () => {
+  if (sseClients.size > 0) {
+    broadcastSSE('system_telemetry', clusterManager.getAllTelemetry());
+  }
+});
+
 function sanitizeConfig(cfg) {
   const clone = JSON.parse(JSON.stringify(cfg));
   clone.settings = clone.settings || {};
+  clone.categories = Array.isArray(clone.categories) ? clone.categories : [];
+  clone.widgets = Array.isArray(clone.widgets) ? clone.widgets : [];
+  clone.servers = Array.isArray(clone.servers) && clone.servers.length > 0
+    ? clone.servers.map(s => {
+        const { token, ...safe } = s;
+        return { ...safe, hasToken: !!token };
+      })
+    : [{ id: 'local', name: 'Master Node (Local)', type: 'local', color: '#6366f1' }];
   clone.is_pin_protected = !!clone.settings.admin_pin;
   // Mask admin PIN from client
   delete clone.settings.admin_pin;
@@ -113,6 +140,16 @@ app.post('/api/config', (req, res) => {
   if (!config.settings) config.settings = {};
   if (!config.settings.admin_pin && currentPin) {
     config.settings.admin_pin = currentPin;
+  }
+
+  // Preserve server tokens if client didn't supply them
+  if (Array.isArray(config.servers) && Array.isArray(currentConfig.servers)) {
+    config.servers.forEach(srv => {
+      if (!srv.token) {
+        const existing = currentConfig.servers.find(s => s.id === srv.id);
+        if (existing?.token) srv.token = existing.token;
+      }
+    });
   }
 
   const result = configManager.saveConfig(config);
@@ -225,6 +262,17 @@ app.get('/api/icons', (req, res) => {
   res.json(DEFAULT_ICONS);
 });
 
+app.get('/api/icons/heimdall', (req, res) => {
+  const filePath = path.join(__dirname, '../data/heimdall_apps.json');
+  if (fs.existsSync(filePath)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      return res.json(data);
+    } catch (_) {}
+  }
+  res.json([]);
+});
+
 app.post('/api/upload', (req, res) => {
   try {
     const { filename, base64Data } = req.body;
@@ -248,6 +296,32 @@ app.post('/api/upload', (req, res) => {
   }
 });
 
+app.post('/api/servers/:id/telemetry', (req, res) => {
+  const serverId = req.params.id;
+  const token = req.headers['x-server-token'] || (req.headers['authorization'] || '').replace('Bearer ', '').trim();
+  const result = clusterManager.handleAgentPush(serverId, req.body, token);
+  if (result.success) {
+    metricsHistory.recordRemoteSample(serverId, req.body);
+    res.json({ success: true });
+  } else {
+    res.status(result.status || 400).json({ error: result.error });
+  }
+});
+
+app.get('/api/servers', (req, res) => {
+  res.json(clusterManager.getAllTelemetry().servers);
+});
+
+app.get('/api/system-telemetry', (req, res) => {
+  res.json(clusterManager.getAllTelemetry());
+});
+
+app.get('/api/metrics/history', (req, res) => {
+  const range = req.query.range || '1h';
+  const server = req.query.server || 'local';
+  res.json(metricsHistory.getHistory(server, range));
+});
+
 app.get('/api/events', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -257,6 +331,7 @@ app.get('/api/events', (req, res) => {
   // Send initial state
   res.write(`event: config\ndata: ${JSON.stringify(sanitizeConfig(configManager.getConfig()))}\n\n`);
   res.write(`event: probes\ndata: ${JSON.stringify(prober.getAllResults())}\n\n`);
+  res.write(`event: system_telemetry\ndata: ${JSON.stringify(clusterManager.getAllTelemetry())}\n\n`);
 
   sseClients.add(res);
 

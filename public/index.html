@@ -1,27 +1,46 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DimDash — داشبورد مدرن سرورهای محلی و ایزوله</title>
+  <title>DimDash — Air-Gapped Homelab Dashboard</title>
   <meta name="description" content="Ultra-fast, air-gapped homelab dashboard with live telemetry and YAML configuration">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <!-- Transparent Background Logo / Watermark Overlay -->
+  <div id="bgLogoOverlay" class="bg-logo-overlay" style="display:none;"></div>
+
   <div id="app">
-    <!-- Fixed Right Sidebar Navigation (v2 Architecture) -->
+    <!-- Fixed Right Sidebar Navigation with Submenus -->
     <aside class="sidebar-nav" id="sidebarNav">
-      <div class="sidebar-logo" id="sidebarLogo" title="داشبورد سرورهای دیم‌دش">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="2" y="2" width="20" height="8" rx="2"></rect>
-          <rect x="2" y="14" width="20" height="8" rx="2"></rect>
-          <line x1="6" y1="6" x2="6.01" y2="6"></line>
-          <line x1="6" y1="18" x2="6.01" y2="18"></line>
-        </svg>
+      <!-- Top: Logo / Brand with Flyout Info -->
+      <div class="sidebar-item-with-submenu">
+        <div class="sidebar-logo" id="sidebarLogo" title="DimDash Homelab">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="2" width="20" height="8" rx="2"></rect>
+            <rect x="2" y="14" width="20" height="8" rx="2"></rect>
+            <line x1="6" y1="6" x2="6.01" y2="6"></line>
+            <line x1="6" y1="18" x2="6.01" y2="18"></line>
+          </svg>
+        </div>
+        <!-- Brand Info Submenu -->
+        <div class="sidebar-submenu brand-flyout">
+          <div class="brand-flyout-header">
+            <h2 class="brand-title" id="dashTitle">DimDash</h2>
+            <span class="airgap-badge">🛡️ Air-Gapped LAN</span>
+          </div>
+          <div class="brand-flyout-clock">
+            <span class="clock-time" id="clockTime">--:--:--</span>
+            <span class="clock-date" id="clockDate">---</span>
+          </div>
+        </div>
       </div>
 
+      <!-- Main Navigation Menu -->
       <nav class="sidebar-menu">
-        <button class="sidebar-btn active" id="sideNavAll" data-tooltip="همه سرویس‌ها">
+        <!-- 1. Apps / Tiles Page -->
+        <button class="sidebar-btn active" id="sideNavAll" data-tooltip="Apps & Tiles">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="7" height="7"></rect>
             <rect x="14" y="3" width="7" height="7"></rect>
@@ -30,24 +49,102 @@
           </svg>
         </button>
 
-        <button class="sidebar-btn" id="sideNavRefresh" data-tooltip="بررسی پروب‌ها">
+        <!-- 2. Gauges & Charts Page -->
+        <button class="sidebar-btn" id="sideNavCharts" data-tooltip="Gauges & Monitoring">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="23 4 23 10 17 10"></polyline>
-            <polyline points="1 20 1 14 7 14"></polyline>
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
           </svg>
         </button>
 
-        <a href="/admin" class="sidebar-btn" id="sideNavAdmin" data-tooltip="پنل مدیریت پیشرفته">
+        <!-- 3. Spotlight Search Trigger -->
+        <button class="sidebar-btn" id="sideNavSearch" data-tooltip="Quick Search (/)">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-        </a>
+        </button>
+
+        <!-- 4. Creation / Add Items (+) with Flyout Submenu -->
+        <div class="sidebar-item-with-submenu">
+          <button class="sidebar-btn sidebar-btn-add" id="sideNavAddTrigger" data-tooltip="Add & Create">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+          <!-- Submenu for Add Operations -->
+          <div class="sidebar-submenu" id="sidebarAddSubmenu">
+            <div class="submenu-header">Create & Manage</div>
+            <button class="submenu-item" id="addTileBtn">
+              <span class="submenu-icon">🧩</span>
+              <div class="submenu-text">
+                <strong>Add New Tile</strong>
+                <small>App, service, port or URL</small>
+              </div>
+            </button>
+            <button class="submenu-item" id="addCategoryBtn">
+              <span class="submenu-icon">📁</span>
+              <div class="submenu-text">
+                <strong>Add Category</strong>
+                <small>Group and organize services</small>
+              </div>
+            </button>
+            <button class="submenu-item" id="addHeaderWidgetBtn">
+              <span class="submenu-icon">⚡</span>
+              <div class="submenu-text">
+                <strong>Add Gauge / Widget</strong>
+                <small>Live CPU, RAM, Disk, Net metrics</small>
+              </div>
+            </button>
+            <button class="submenu-item" id="btnAddChartFromMenu">
+              <span class="submenu-icon">📈</span>
+              <div class="submenu-text">
+                <strong>Manage Charts</strong>
+                <small>Enable or add time-series charts</small>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- 5. Operations & Tools with Flyout Submenu -->
+        <div class="sidebar-item-with-submenu">
+          <button class="sidebar-btn" id="sideNavToolsTrigger" data-tooltip="Tools & Actions">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+          </button>
+          <div class="sidebar-submenu" id="sidebarToolsSubmenu">
+            <div class="submenu-header">Tools & Actions</div>
+            <button class="submenu-item" id="btnHeaderArrange">
+              <span class="submenu-icon">🔀</span>
+              <div class="submenu-text">
+                <strong>Arrange & Reorder</strong>
+                <small>Drag & drop tiles, gauges and charts</small>
+              </div>
+            </button>
+            <button class="submenu-item" id="sideNavRefresh">
+              <span class="submenu-icon">🔄</span>
+              <div class="submenu-text">
+                <strong>Probe All Services</strong>
+                <small>Instant port & HTTP health check</small>
+              </div>
+            </button>
+            <button class="submenu-item" id="sideNavClustersBtn">
+              <span class="submenu-icon">🖥️</span>
+              <div class="submenu-text">
+                <strong>Manage Clusters & Nodes</strong>
+                <small>Agent nodes & HTTP pull remotes</small>
+              </div>
+            </button>
+          </div>
+        </div>
       </nav>
 
+      <!-- Sidebar Footer: Theme, Admin, Lock -->
       <div class="sidebar-footer">
-        <button class="sidebar-btn" id="sideNavTheme" data-tooltip="استودیوی تم">
+        <button class="sidebar-btn" id="sideNavTheme" data-tooltip="Theme Studio">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="5"></circle>
             <line x1="12" y1="1" x2="12" y2="3"></line>
@@ -61,8 +158,15 @@
           </svg>
         </button>
 
-        <button class="sidebar-btn" id="sideNavLock" data-tooltip="ویرایش سریع داشبورد">
+        <a href="/admin" class="sidebar-btn" id="sideNavAdmin" data-tooltip="Admin Console">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </a>
+
+        <button class="sidebar-btn admin-toggle" id="adminToggleBtn" data-tooltip="Admin Authentication">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
             <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
           </svg>
@@ -70,104 +174,104 @@
       </div>
     </aside>
 
-    <!-- Main Viewport Container -->
-    <div class="viewport-container">
-      <!-- Top Header Navigation -->
-      <header class="top-header">
-        <div class="brand-section">
-          <div>
-            <h1 class="brand-title" id="dashTitle">DimDash</h1>
-            <span class="airgap-badge">Air-Gapped LAN</span>
-          </div>
-        </div>
-
-        <!-- Quick Search Bar -->
-        <div class="search-wrapper">
-          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <!-- Spotlight Search Overlay -->
+    <div class="spotlight-overlay" id="spotlightSearchOverlay">
+      <div class="spotlight-box">
+        <div class="spotlight-input-row">
+          <svg class="spotlight-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <input type="text" id="searchBar" class="search-input" placeholder="جستجوی سریع برنامه‌ها و سرورها..." autocomplete="off">
-          <span class="search-hotkey">/</span>
+          <input type="text" id="searchBar" class="spotlight-input" placeholder="Search services, apps and servers..." autocomplete="off">
+          <button class="spotlight-close-btn" id="spotlightCloseBtn" title="Close">&times;</button>
         </div>
+        <div class="spotlight-hint">Type to search across services, or press Esc to close</div>
+      </div>
+    </div>
 
-        <!-- Header Controls -->
-        <div class="header-actions">
-          <div class="clock-display">
-            <span class="clock-time" id="clockTime">--:--:--</span>
-            <span class="clock-date" id="clockDate">---</span>
-          </div>
+    <!-- Main Viewport Container -->
+    <div class="viewport-container">
 
-          <a href="/admin" class="btn btn-secondary" title="ورود به پنل مدیریت جامع">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="7" height="7"></rect>
-              <rect x="14" y="3" width="7" height="7"></rect>
-              <rect x="14" y="14" width="7" height="7"></rect>
-              <rect x="3" y="14" width="7" height="7"></rect>
-            </svg>
-            <span>پنل مدیریت</span>
-          </a>
-
-          <button id="addTileBtn" class="btn btn-primary" title="افزودن برنامه جدید">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            <span>افزودن کاشی</span>
-          </button>
-
-          <button id="addCategoryBtn" class="btn btn-secondary" title="افزودن دسته‌بندی جدید">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            <span>دسته‌بندی</span>
-          </button>
-
-          <button id="adminToggleBtn" class="btn btn-icon admin-toggle" title="حالت ویرایش سریع داشبورد">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-            </svg>
-          </button>
+      <!-- Arrange Mode Floating Bar -->
+      <div class="arrange-floating-bar" id="arrangeFloatingBar" style="display:none;">
+        <div class="arrange-bar-title">
+          <span class="arrange-badge-pulse"></span>
+          <strong>Arrange & Reorder Mode Active</strong>
+          <span class="arrange-hint">— Drag & drop tiles, gauges or categories anywhere on the board.</span>
         </div>
-      </header>
+        <div class="arrange-bar-actions">
+          <button class="btn btn-primary btn-sm" id="btnFinishArrange">Save & Finish Arranging</button>
+        </div>
+      </div>
 
-      <!-- Telemetry Stats Overview Bar (v2 Feature) -->
+      <!-- Telemetry Stats Overview Bar (Minimal Floating Glass Capsule) -->
       <section class="stats-overview-bar" id="statsOverviewBar">
         <div class="stats-group">
-          <div class="stat-item">
+          <div class="stat-item" title="Total Configured Services">
             <span class="stat-dot total"></span>
-            <span class="stat-label">کل سرویس‌ها:</span>
+            <span class="stat-label">Total</span>
             <span class="stat-val" id="statTotalVal">0</span>
           </div>
 
-          <div class="stat-item">
+          <div class="stat-item" title="Online and Healthy">
             <span class="stat-dot online"></span>
-            <span class="stat-label">آنلاین:</span>
+            <span class="stat-label">Online</span>
             <span class="stat-val" style="color: #10b981;" id="statOnlineVal">0</span>
           </div>
 
-          <div class="stat-item">
+          <div class="stat-item" title="Degraded or High Latency">
             <span class="stat-dot warning"></span>
-            <span class="stat-label">هشدار:</span>
+            <span class="stat-label">Warning</span>
             <span class="stat-val" style="color: #f59e0b;" id="statWarningVal">0</span>
           </div>
 
-          <div class="stat-item">
+          <div class="stat-item" title="Unreachable or Offline">
             <span class="stat-dot offline"></span>
-            <span class="stat-label">آفلاین:</span>
+            <span class="stat-label">Offline</span>
             <span class="stat-val" style="color: #ef4444;" id="statOfflineVal">0</span>
           </div>
         </div>
 
         <div class="stats-actions">
-          <button class="quick-probe-btn" id="btnTestAllProbes">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <button class="quick-probe-btn" id="btnTestAllProbes" title="Trigger instant health check for all probes">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
             </svg>
-            <span>بررسی فوری تمام پروب‌ها</span>
+            <span>Probe All</span>
           </button>
+        </div>
+      </section>
+
+      <!-- Modular Live Monitoring & Gauges Section -->
+      <section class="widgets-section" id="widgetsSection">
+        <div class="widgets-header">
+          <div class="widgets-header-title">
+            <span class="widgets-pulse-dot"></span>
+            <span class="widgets-title-text">Live Monitoring Gauges & Clusters</span>
+            <span class="widgets-count" id="widgetsCount">0 active gauges</span>
+          </div>
+          <div class="widgets-header-actions">
+            <button class="btn btn-sm btn-secondary" id="btnManageClustersBtn" title="Manage Servers & Clusters">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+              <span>Clusters</span>
+            </button>
+            <button class="btn btn-sm btn-primary" id="btnAddWidgetBtn" title="Add new monitoring gauge">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              <span>+ Add Gauge</span>
+            </button>
+            <button class="btn btn-icon btn-sm" id="btnToggleWidgetsCollapse" title="Toggle Gauges Section">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Horizontal Multi-Cluster Tabs Bar -->
+        <div class="cluster-selector-bar" id="clusterSelectorBar">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <div class="widgets-grid" id="widgetsContainer">
+          <!-- Rendered dynamically -->
         </div>
       </section>
 
@@ -182,6 +286,246 @@
       <main class="main-content" id="contentArea">
         <!-- Rendered dynamically -->
       </main>
+
+      <!-- Server Monitor Time-Series Dashboard (Inspired by morezaGeek/Server-Monitor) -->
+      <section id="serverMonitorView" class="server-monitor-view" style="display: none;">
+        <!-- Top Control Bar -->
+        <div class="sm-control-bar">
+          <div class="sm-time-ranges">
+            <button class="sm-time-btn active" data-range="1h">1h</button>
+            <button class="sm-time-btn" data-range="2h">2h</button>
+            <button class="sm-time-btn" data-range="6h">6h</button>
+            <button class="sm-time-btn" data-range="12h">12h</button>
+            <button class="sm-time-btn" data-range="1d">1d</button>
+            <button class="sm-time-btn" data-range="2d">2d</button>
+            <button class="sm-time-btn" data-range="1w">1w</button>
+            <button class="sm-time-btn" data-range="1m">1m</button>
+            <button class="sm-time-btn" data-range="custom" title="Select Custom Range">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              <span>Custom</span>
+            </button>
+          </div>
+
+          <div class="sm-control-actions">
+            <!-- Server / Cluster Select -->
+            <div class="sm-control-item">
+              <span class="sm-control-label">Server:</span>
+              <select id="smClusterSelect" class="sm-select">
+                <option value="local">Master (Local)</option>
+              </select>
+            </div>
+
+            <!-- Smoothing Select -->
+            <div class="sm-control-item">
+              <span class="sm-control-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h2a4 4 0 0 1 4 4 4 4 0 0 0 4 4h0a4 4 0 0 0 4-4 4 4 0 0 1 4-4h4"></path></svg>
+                Smooth:
+              </span>
+              <select id="smSmoothingSelect" class="sm-select">
+                <option value="light" selected>Light</option>
+                <option value="medium">Medium</option>
+                <option value="none">None</option>
+              </select>
+            </div>
+
+            <!-- Auto-refresh status -->
+            <div class="sm-auto-refresh">
+              <span class="pulse-dot"></span>
+              <span>Auto-refresh every 10s</span>
+            </div>
+
+            <!-- Manual Refresh Button -->
+            <button class="btn btn-icon btn-sm" id="smBtnRefreshNow" title="Refresh Telemetry Now">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+            </button>
+
+            <!-- Add / Manage Chart Button -->
+            <button class="btn btn-sm btn-primary" id="btnOpenAddChartModal" title="Manage & Add Charts">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              <span>+ Add Chart</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Charts Grid (Reorderable & Removable) -->
+        <div class="sm-charts-grid" id="smChartsGrid">
+          
+          <!-- 1. CPU Usage Card -->
+          <div class="sm-chart-card accent-purple" id="smCardCpu" data-chart-key="cpu" draggable="true">
+            <div class="sm-card-header">
+              <div class="sm-card-title-group">
+                <span class="sm-drag-handle" title="Drag to reorder chart">⠿</span>
+                <span class="sm-card-title">CPU Usage</span>
+                <div class="sm-card-legend">
+                  <span class="legend-item"><span class="legend-dot" style="background:#818cf8;"></span> CPU Avg</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#f97316;"></span> Core 0</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#06b6d4;"></span> Core 1</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#ec4899;"></span> Core 2</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#10b981;"></span> Core 3</span>
+                </div>
+              </div>
+              <div class="sm-card-controls">
+                <div class="sm-param-box">Max: <span class="param-val">100</span> %</div>
+                <span class="sm-badge sm-badge-purple" id="badgeCpuAvg">Avg: --%</span>
+                <button class="sm-card-btn" onclick="toggleChartFullscreen('smCardCpu')" title="Toggle Fullscreen">⤢</button>
+                <button class="sm-card-btn sm-card-btn-delete" data-chart-key="cpu" title="Remove Chart">🗑</button>
+              </div>
+            </div>
+            <div class="sm-canvas-wrapper">
+              <canvas id="canvasCpuChart" data-chart-key="cpu"></canvas>
+            </div>
+          </div>
+
+          <!-- 2. Load Average Card -->
+          <div class="sm-chart-card accent-rose" id="smCardLoad" data-chart-key="load" draggable="true">
+            <div class="sm-card-header">
+              <div class="sm-card-title-group">
+                <span class="sm-drag-handle" title="Drag to reorder chart">⠿</span>
+                <span class="sm-card-title">Load Average</span>
+                <div class="sm-card-legend">
+                  <span class="legend-item"><span class="legend-dot" style="background:#ef4444;"></span> 1 Min</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#38bdf8;"></span> 5 Min</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#10b981;"></span> 15 Min</span>
+                </div>
+              </div>
+              <div class="sm-card-controls">
+                <span class="sm-badge sm-badge-rose" id="badgeLoadAvg">Avg: -- / -- / --</span>
+                <button class="sm-card-btn" onclick="toggleChartFullscreen('smCardLoad')" title="Toggle Fullscreen">⤢</button>
+                <button class="sm-card-btn sm-card-btn-delete" data-chart-key="load" title="Remove Chart">🗑</button>
+              </div>
+            </div>
+            <div class="sm-canvas-wrapper">
+              <canvas id="canvasLoadChart" data-chart-key="load"></canvas>
+            </div>
+          </div>
+
+          <!-- 3. Memory Usage Card -->
+          <div class="sm-chart-card accent-magenta" id="smCardMem" data-chart-key="memory" draggable="true">
+            <div class="sm-card-header">
+              <div class="sm-card-title-group">
+                <span class="sm-drag-handle" title="Drag to reorder chart">⠿</span>
+                <span class="sm-card-title">Memory Usage</span>
+                <div class="sm-card-legend">
+                  <span class="legend-item"><span class="legend-dot" style="background:#a855f7;"></span> Used %</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#10b981;"></span> Free %</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#eab308;"></span> Shared %</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#06b6d4;"></span> Buff/Cache %</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#14b8a6;"></span> Available %</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#ec4899;"></span> Swap %</span>
+                </div>
+              </div>
+              <div class="sm-card-controls">
+                <span class="sm-badge sm-badge-magenta" id="badgeMemAvg">Avg: --%</span>
+                <button class="sm-card-btn" onclick="toggleChartFullscreen('smCardMem')" title="Toggle Fullscreen">⤢</button>
+                <button class="sm-card-btn sm-card-btn-delete" data-chart-key="memory" title="Remove Chart">🗑</button>
+              </div>
+            </div>
+            <div class="sm-canvas-wrapper">
+              <canvas id="canvasMemoryChart" data-chart-key="memory"></canvas>
+            </div>
+          </div>
+
+          <!-- 4. Network I/O Card -->
+          <div class="sm-chart-card accent-cyan" id="smCardNet" data-chart-key="network" draggable="true">
+            <div class="sm-card-header">
+              <div class="sm-card-title-group">
+                <span class="sm-drag-handle" title="Drag to reorder chart">⠿</span>
+                <span class="sm-card-title">Network I/O</span>
+                <div class="sm-card-legend">
+                  <span class="legend-item"><span class="legend-dot" style="background:#10b981;"></span> Download (RX)</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#06b6d4;"></span> Upload (TX)</span>
+                </div>
+              </div>
+              <div class="sm-card-controls">
+                <div class="sm-param-box">Max: <span class="param-val">400</span> Mbps</div>
+                <span class="sm-badge sm-badge-cyan" id="badgeNetSpeed">⬇️ 0.0 Mbps | ⬆️ 0.0 Mbps</span>
+                <button class="sm-card-btn" onclick="toggleChartFullscreen('smCardNet')" title="Toggle Fullscreen">⤢</button>
+                <button class="sm-card-btn sm-card-btn-delete" data-chart-key="network" title="Remove Chart">🗑</button>
+              </div>
+            </div>
+            <div class="sm-canvas-wrapper">
+              <canvas id="canvasNetChart" data-chart-key="network"></canvas>
+            </div>
+          </div>
+
+          <!-- 5. TCP / UDP Connections Card -->
+          <div class="sm-chart-card accent-amber" id="smCardConn" data-chart-key="connections" draggable="true">
+            <div class="sm-card-header">
+              <div class="sm-card-title-group">
+                <span class="sm-drag-handle" title="Drag to reorder chart">⠿</span>
+                <span class="sm-card-title">🔗 TCP / UDP Connections</span>
+                <div class="sm-card-legend">
+                  <span class="legend-item"><span class="legend-dot" style="background:#f59e0b;"></span> TCP</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#ef4444;"></span> UDP</span>
+                </div>
+              </div>
+              <div class="sm-card-controls">
+                <select class="sm-select-mini" id="smNetIfaceSelect">
+                  <option value="all">All Interfaces</option>
+                  <option value="eth0" selected>eth0</option>
+                  <option value="lo">lo</option>
+                </select>
+                <span class="sm-badge sm-badge-amber" id="badgeConnCount">TCP: -- | UDP: --</span>
+                <button class="sm-card-btn" onclick="toggleChartFullscreen('smCardConn')" title="Toggle Fullscreen">⤢</button>
+                <button class="sm-card-btn sm-card-btn-delete" data-chart-key="connections" title="Remove Chart">🗑</button>
+              </div>
+            </div>
+            <div class="sm-canvas-wrapper">
+              <canvas id="canvasConnChart" data-chart-key="connections"></canvas>
+            </div>
+          </div>
+
+          <!-- 6. Disk Usage & Speed Card -->
+          <div class="sm-chart-card accent-orange" id="smCardDisk" data-chart-key="disk" draggable="true">
+            <div class="sm-card-header">
+              <div class="sm-card-title-group">
+                <span class="sm-drag-handle" title="Drag to reorder chart">⠿</span>
+                <span class="sm-card-title">Disk Usage & Speed</span>
+                <div class="sm-card-legend">
+                  <span class="legend-item"><span class="legend-dot" style="background:#f97316;"></span> Disk %</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#06b6d4;"></span> Read MB/s</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#ef4444;"></span> Write MB/s</span>
+                </div>
+              </div>
+              <div class="sm-card-controls">
+                <span class="sm-badge sm-badge-orange" id="badgeDiskAvg">Avg: --%</span>
+                <button class="sm-card-btn" onclick="toggleChartFullscreen('smCardDisk')" title="Toggle Fullscreen">⤢</button>
+                <button class="sm-card-btn sm-card-btn-delete" data-chart-key="disk" title="Remove Chart">🗑</button>
+              </div>
+            </div>
+            <div class="sm-canvas-wrapper">
+              <canvas id="canvasDiskChart" data-chart-key="disk"></canvas>
+            </div>
+          </div>
+
+          <!-- 7. Disk IOPS Card -->
+          <div class="sm-chart-card accent-sky" id="smCardIops" data-chart-key="diskIops" draggable="true">
+            <div class="sm-card-header">
+              <div class="sm-card-title-group">
+                <span class="sm-drag-handle" title="Drag to reorder chart">⠿</span>
+                <span class="sm-card-title">Disk IOPS</span>
+                <div class="sm-card-legend">
+                  <span class="legend-item"><span class="legend-dot" style="background:#8b5cf6;"></span> Read IOPS</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#f59e0b;"></span> Write IOPS</span>
+                </div>
+              </div>
+              <div class="sm-card-controls">
+                <span class="sm-badge sm-badge-sky" id="badgeIopsLive">Live IOPS</span>
+                <button class="sm-card-btn" onclick="toggleChartFullscreen('smCardIops')" title="Toggle Fullscreen">⤢</button>
+                <button class="sm-card-btn sm-card-btn-delete" data-chart-key="diskIops" title="Remove Chart">🗑</button>
+              </div>
+            </div>
+            <div class="sm-canvas-wrapper">
+              <canvas id="canvasIopsChart" data-chart-key="diskIops"></canvas>
+            </div>
+          </div>
+
+        </div>
+      </section>
     </div>
   </div>
 
@@ -189,22 +533,43 @@
        MODALS
        -------------------------------------------------------------------------- -->
 
+  <!-- Chart Manage / Add Modal -->
+  <div class="modal-backdrop" id="chartManageModal">
+    <div class="modal-window" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3 class="modal-title">📈 Server Telemetry Charts</h3>
+        <button class="btn btn-icon" onclick="closeAllModals()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;">
+          Enable or disable real-time metric charts. Active charts can be freely reordered by dragging them on the dashboard:
+        </p>
+        <div class="chart-toggles-list" id="chartTogglesList">
+          <!-- Dynamically populated in serverCharts.js -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="closeAllModals()">Apply & Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- PIN Modal -->
   <div class="modal-backdrop" id="pinModal">
     <div class="modal-window" style="max-width: 380px;">
       <div class="modal-header">
-        <h3 class="modal-title">احراز هویت ادمین</h3>
+        <h3 class="modal-title">Admin Authentication</h3>
         <button class="btn btn-icon" onclick="closeAllModals()">&times;</button>
       </div>
       <div class="modal-body">
-        <p style="font-size: 0.88rem; color: var(--text-muted);">لطفاً پین ادمین را برای ویرایش چیدمان وارد کنید:</p>
+        <p style="font-size: 0.88rem; color: var(--text-muted);">Please enter admin PIN to unlock configuration mode:</p>
         <div class="form-group">
-          <input type="password" id="adminPinInput" class="form-input" placeholder="پین ادمین" autofocus>
+          <input type="password" id="adminPinInput" class="form-input" placeholder="Admin PIN" autofocus>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeAllModals()">انصراف</button>
-        <button class="btn btn-primary" id="pinSubmitBtn">تأیید و ورود</button>
+        <button class="btn btn-secondary" onclick="closeAllModals()">Cancel</button>
+        <button class="btn btn-primary" id="pinSubmitBtn">Unlock</button>
       </div>
     </div>
   </div>
@@ -213,88 +578,98 @@
   <div class="modal-backdrop" id="tileModal">
     <div class="modal-window">
       <div class="modal-header">
-        <h3 class="modal-title" id="tileModalTitle">افزودن برنامه</h3>
+        <h3 class="modal-title" id="tileModalTitle">Add / Edit Tile</h3>
         <button class="btn btn-icon" onclick="closeAllModals()">&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">نام برنامه *</label>
-            <input type="text" id="tileTitleInput" class="form-input" placeholder="مثلاً: Proxmox یا Pi-hole">
+            <label class="form-label">Service Title *</label>
+            <input type="text" id="tileTitleInput" class="form-input" placeholder="e.g. Proxmox, Pi-hole, Plex">
           </div>
           <div class="form-group">
-            <label class="form-label">دسته‌بندی</label>
+            <label class="form-label">Category</label>
             <select id="tileCategorySelect" class="form-select"></select>
           </div>
         </div>
 
         <div class="form-group">
-          <label class="form-label">توضیح کوتاه یا زیرعنوان</label>
-          <input type="text" id="tileSubtitleInput" class="form-input" placeholder="مثلاً: Hypervisor / 192.168.1.10">
+          <label class="form-label">Subtitle / Node Info</label>
+          <input type="text" id="tileSubtitleInput" class="form-input" placeholder="e.g. Hypervisor / 192.168.1.10">
         </div>
 
         <div class="form-group">
-          <label class="form-label">آدرس لینک مقصد (URL) *</label>
+          <label class="form-label">Target URL *</label>
           <input type="text" id="tileUrlInput" class="form-input" placeholder="https://192.168.1.10:8006">
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">رنگ پس‌زمینه کاشی (اختیاری)</label>
+            <label class="form-label">Custom Background Color (Optional)</label>
             <input type="text" id="tileColorInput" class="form-input" placeholder="rgba(99, 102, 241, 0.15)">
           </div>
           <div class="form-group" style="justify-content: flex-end; padding-bottom: 0.5rem;">
             <label class="form-checkbox-label">
               <input type="checkbox" id="tileNewTabInput" checked>
-              <span>باز شدن در برگه جدید مرورگر</span>
+              <span>Open in new tab</span>
             </label>
           </div>
         </div>
 
-        <!-- Icon Picker -->
+        <!-- Icon Picker & Custom Upload -->
         <div class="form-group">
-          <label class="form-label">انتخاب آیکون وکتور</label>
-          <div class="icon-picker-grid" id="tileIconPicker"></div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+            <label class="form-label">Select Icon or Upload Custom</label>
+            <label class="btn btn-secondary" style="font-size:0.75rem; padding:0.25rem 0.6rem; cursor:pointer;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              <span>Upload Custom Icon</span>
+              <input type="file" id="tileCustomIconFile" accept="image/*" style="display:none;">
+            </label>
+          </div>
+          <input type="text" id="tileIconSearchInput" class="form-input" placeholder="Search 680+ Heimdall & system icons (e.g. plex, pihole, sonarr...)" style="margin-bottom:0.5rem; font-size:0.82rem;">
+          <div class="icon-grid-large" id="tileIconPicker"></div>
+          <input type="hidden" id="selectedIconType" value="preset">
+          <input type="hidden" id="selectedIconValue" value="server">
         </div>
 
         <!-- Generic Probe / Monitoring Engine Config -->
         <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1rem;">
-          <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem; color: #a5b4fc;">تنظیمات پروب و مانیتورینگ زنده (بدون وابستگی به ابزار ثالث)</h4>
+          <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem; color: #a5b4fc;">Live Health Probe & Monitoring Engine</h4>
           
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">نوع بررسی سلامت</label>
+              <label class="form-label">Probe Type</label>
               <select id="probeTypeSelect" class="form-select">
-                <option value="none">بدون پروب (همیشه آنلاین)</option>
-                <option value="ping_tcp">پینگ پورت TCP (بررسی در دسترس بودن پورت)</option>
-                <option value="http_status">بررسی وضعیت HTTP/HTTPS (200 OK و آپ‌تایم)</option>
-                <option value="json_metric">استخراج آمار از خروجی JSON (REST API)</option>
+                <option value="none">No Probe (Always Online)</option>
+                <option value="ping_tcp">Ping TCP Port (Port availability check)</option>
+                <option value="http_status">HTTP/HTTPS Status (200 OK & Uptime check)</option>
+                <option value="json_metric">JSON REST API (Extract metric fields)</option>
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label">IP یا نام هاست مقصد</label>
+              <label class="form-label">Target IP / Hostname</label>
               <input type="text" id="probeHostInput" class="form-input" placeholder="192.168.1.10">
             </div>
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">پورت</label>
-              <input type="number" id="probePortInput" class="form-input" placeholder="مثلاً: 80, 443, 8006, 5432">
+              <label class="form-label">Port</label>
+              <input type="number" id="probePortInput" class="form-input" placeholder="e.g. 80, 443, 8006, 5432">
             </div>
             <div class="form-group">
-              <label class="form-label">مسیر (برای HTTP یا JSON)</label>
-              <input type="text" id="probePathInput" class="form-input" placeholder="/api/health یا /metrics">
+              <label class="form-label">Path (for HTTP/JSON)</label>
+              <input type="text" id="probePathInput" class="form-input" placeholder="/api/health or /metrics">
             </div>
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">مسیر فیلد در JSON (اختیاری)</label>
-              <input type="text" id="probeJsonPathInput" class="form-input" placeholder="data.cpu یا status">
+              <label class="form-label">JSON Field Path (Optional)</label>
+              <input type="text" id="probeJsonPathInput" class="form-input" placeholder="data.cpu or status">
             </div>
             <div class="form-group">
-              <label class="form-label">برچسب و واحد متریک</label>
+              <label class="form-label">Metric Label & Unit</label>
               <div style="display:flex; gap:0.5rem;">
                 <input type="text" id="probeMetricLabelInput" class="form-input" placeholder="CPU">
                 <input type="text" id="probeMetricUnitInput" class="form-input" placeholder="%" style="max-width:70px;">
@@ -304,13 +679,13 @@
 
           <div class="form-row" style="margin-top: 0.5rem;">
             <div class="form-group">
-              <label class="form-label">بازه بررسی (ثانیه)</label>
+              <label class="form-label">Check Interval (sec)</label>
               <input type="number" id="probeIntervalInput" class="form-input" value="15" min="5" max="300">
             </div>
             <div class="form-group" style="justify-content: flex-end; padding-bottom: 0.5rem;">
               <label class="form-checkbox-label">
                 <input type="checkbox" id="probeIgnoreSslInput" checked>
-                <span>چشم‌پوشی از خطای SSL خودامضا (Self-Signed)</span>
+                <span>Ignore self-signed SSL certificate errors</span>
               </label>
             </div>
           </div>
@@ -318,8 +693,8 @@
 
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeAllModals()">انصراف</button>
-        <button class="btn btn-primary" id="tileSaveBtn">ذخیره کاشی</button>
+        <button class="btn btn-secondary" onclick="closeAllModals()">Cancel</button>
+        <button class="btn btn-primary" id="tileSaveBtn">Save Tile</button>
       </div>
     </div>
   </div>
@@ -328,58 +703,204 @@
   <div class="modal-backdrop" id="categoryModal">
     <div class="modal-window" style="max-width: 440px;">
       <div class="modal-header">
-        <h3 class="modal-title" id="categoryModalTitle">دسته‌بندی</h3>
+        <h3 class="modal-title" id="categoryModalTitle">Category Settings</h3>
         <button class="btn btn-icon" onclick="closeAllModals()">&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label class="form-label">نام دسته‌بندی</label>
-          <input type="text" id="catNameInput" class="form-input" placeholder="مثلاً: سرویس‌های هوش مصنوعی">
+          <label class="form-label">Category Name</label>
+          <input type="text" id="catNameInput" class="form-input" placeholder="e.g. Media, Network, Development">
         </div>
         <div class="form-group">
-          <label class="form-label">رنگ نشانگر</label>
+          <label class="form-label">Indicator Color</label>
           <input type="color" id="catColorInput" class="form-input" value="#6366f1" style="height: 42px; padding: 2px;">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Island Size & Layout on Board</label>
+          <select id="catLayoutSelect" class="form-input">
+            <option value="vertical">Column Board / Compact Island (Default — sits side-by-side)</option>
+            <option value="wide">Wide Island (2 Columns side-by-side)</option>
+            <option value="horizontal">Full Row (Full-width spanning island)</option>
+          </select>
+          <span style="font-size:0.75rem; color:#94a3b8; margin-top:4px; display:block;">
+            Each island can be single-column, double-column wide, or full-width row.
+          </span>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeAllModals()">انصراف</button>
-        <button class="btn btn-primary" id="catSaveBtn">ذخیره دسته‌بندی</button>
+        <button class="btn btn-secondary" onclick="closeAllModals()">Cancel</button>
+        <button class="btn btn-primary" id="catSaveBtn">Save Category</button>
       </div>
     </div>
   </div>
 
   <!-- Theme Studio Modal -->
   <div class="modal-backdrop" id="themeModal">
-    <div class="modal-window" style="max-width: 500px;">
+    <div class="modal-window" style="max-width: 560px;">
       <div class="modal-header">
-        <h3 class="modal-title">استودیوی تم و ظاهر</h3>
+        <h3 class="modal-title">Theme, Wallpaper & Appearance Studio</h3>
         <button class="btn btn-icon" onclick="closeAllModals()">&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label class="form-label">عنوان داشبورد</label>
+          <label class="form-label">Dashboard Title</label>
           <input type="text" id="themeTitleInput" class="form-input">
         </div>
-        <div class="form-group">
-          <label class="form-label">رنگ جلوه اصلی (Accent Color)</label>
-          <input type="color" id="themeAccentInput" class="form-input" style="height: 42px; padding: 2px;">
+
+        <!-- Wallpaper Management -->
+        <div class="form-group" style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.85rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label class="form-label" style="font-weight:600; color:#fff;">Dashboard Background (Wallpaper)</label>
+            <div style="display:flex; gap:0.4rem;">
+              <label class="btn btn-secondary" style="font-size:0.75rem; padding:0.25rem 0.6rem; cursor:pointer;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                <span>Upload Wallpaper</span>
+                <input type="file" id="themeCustomWallpaperFile" accept="image/*" style="display:none;">
+              </label>
+              <button class="btn btn-secondary" style="font-size:0.75rem; padding:0.25rem 0.6rem; color:#ef4444;" id="btnUnsetWallpaperBtn" title="Remove wallpaper and use pure dark theme">
+                <span>Remove Wallpaper</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="wallpaper-picker-grid" id="themeWallpaperGrid">
+            <div class="wallpaper-card" data-val="/wallpapers/twilight_pines.jpg" style="background-image: url('/wallpapers/twilight_pines.jpg');">
+              <span class="wallpaper-card-title">🌲 Twilight Pines (Heimdall)</span>
+            </div>
+            <div class="wallpaper-card" data-val="/wallpapers/crystal_poly.jpg" style="background-image: url('/wallpapers/crystal_poly.jpg');">
+              <span class="wallpaper-card-title">💎 Crystal Poly (Low-Poly)</span>
+            </div>
+            <div class="wallpaper-card" data-val="/wallpapers/cyber_space.jpg" style="background-image: url('/wallpapers/cyber_space.jpg');">
+              <span class="wallpaper-card-title">🌌 Deep Cyber Space</span>
+            </div>
+            <div class="wallpaper-card" data-val="none" style="background: #020617; border: 2px dashed rgba(255,255,255,0.2);">
+              <span class="wallpaper-card-title">🖤 Pure Dark (Clean)</span>
+            </div>
+          </div>
+          <input type="hidden" id="selectedBgType" value="gradient">
+          <input type="hidden" id="selectedBgValue" value="">
         </div>
-        <div class="form-group">
-          <label class="form-label">میزان محوشدگی شیشه (Glass Blur): <span id="themeBlurVal">16px</span></label>
-          <input type="range" id="themeBlurInput" min="4" max="32" step="2" class="form-input" style="padding:0;">
+
+        <!-- Dimming Overlay Slider -->
+        <div class="form-group" id="wallpaperDimGroup">
+          <label class="form-label">Wallpaper Dimming (Card Contrast): <span id="themeDimVal">45%</span></label>
+          <input type="range" id="themeDimInput" min="10" max="85" step="5" value="45" class="form-input" style="padding:0;">
         </div>
-        <div class="form-group">
-          <label class="form-label">تراکم نمایش کاشی‌ها (Density)</label>
-          <select id="themeDensitySelect" class="form-select">
-            <option value="compact">فشرده (Compact)</option>
-            <option value="normal">استاندارد (Normal)</option>
-            <option value="expanded">بزرگ (Expanded)</option>
-          </select>
+
+        <!-- Card Layout Style -->
+        <div class="form-row" style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.85rem;">
+          <div class="form-group">
+            <label class="form-label">Card & Island Layout Style</label>
+            <select id="themeCardStyleSelect" class="form-select">
+              <option value="boards">Grouped Boards (Independent floating islands)</option>
+              <option value="pill">Horizontal Capsule Pills (Heimdall style)</option>
+              <option value="card">Full Vertical Cards (With sparklines)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Theme Accent Color</label>
+            <input type="color" id="themeAccentInput" class="form-input" style="height: 40px; padding: 2px;">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Glass Blur Effect: <span id="themeBlurVal">16px</span></label>
+            <input type="range" id="themeBlurInput" min="4" max="32" step="2" class="form-input" style="padding:0;">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Display Density</label>
+            <select id="themeDensitySelect" class="form-select">
+              <option value="compact">Compact</option>
+              <option value="normal">Standard</option>
+              <option value="expanded">Expanded</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Transparent Logo / Watermark Overlay on Background -->
+        <div class="form-group" style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.85rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.4rem;">
+            <label class="form-label" style="font-weight:600; color:#fff; display:flex; align-items:center; gap:6px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polygon points="12 8 8 12 12 16 16 12 12 8"></polygon>
+              </svg>
+              <span>Transparent Background Logo (Watermark)</span>
+            </label>
+            <div style="display:flex; gap:0.4rem; align-items:center;">
+              <label class="btn btn-secondary" style="font-size:0.72rem; padding:0.25rem 0.55rem; cursor:pointer;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                <span>Upload Logo / Image</span>
+                <input type="file" id="themeCustomBgLogoFile" accept="image/*,.svg" style="display:none;">
+              </label>
+              <button class="btn btn-secondary" style="font-size:0.72rem; padding:0.25rem 0.55rem; color:#ef4444;" id="btnClearBgLogoBtn" type="button" title="Remove background watermark">
+                <span>Remove Logo</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="flex:2;">
+              <label class="form-label" style="font-size:0.75rem;">Logo URL or Local File Path</label>
+              <input type="text" id="themeBgLogoUrlInput" class="form-input" placeholder="e.g. /icons/dimdash-watermark.svg">
+            </div>
+            <div class="form-group">
+              <label class="form-label" style="font-size:0.75rem;">Presets</label>
+              <select id="themeBgLogoPresetSelect" class="form-select">
+                <option value="">(Select preset logo...)</option>
+                <option value="/icons/dimdash-watermark.svg">DimDash Cyber Logo</option>
+                <option value="/icons/hex-grid.svg">Geometric Hex Grid</option>
+                <option value="/icons/heimdall/Nextcloud/nextcloud.svg">Nextcloud Logo</option>
+                <option value="/icons/heimdall/Proxmox/proxmox.svg">Proxmox Logo</option>
+                <option value="/icons/heimdall/HomeAssistant/homeassistant.svg">Home Assistant Logo</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" style="font-size:0.75rem;">Transparency Opacity: <span id="themeBgLogoOpacityVal">18%</span></label>
+              <input type="range" id="themeBgLogoOpacityInput" min="0" max="100" step="2" value="18" class="form-input" style="padding:0;">
+            </div>
+            <div class="form-group">
+              <label class="form-label" style="font-size:0.75rem;">Logo Position</label>
+              <select id="themeBgLogoPosSelect" class="form-select">
+                <option value="center" selected>Center</option>
+                <option value="bottom-right">Bottom Right</option>
+                <option value="bottom-left">Bottom Left</option>
+                <option value="top-right">Top Right</option>
+                <option value="top-left">Top Left</option>
+                <option value="top-center">Top Center</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" style="font-size:0.75rem;">Logo Size</label>
+              <select id="themeBgLogoSizeSelect" class="form-select">
+                <option value="contain">Contain (Auto Fit)</option>
+                <option value="350px">Medium (350px)</option>
+                <option value="550px" selected>Large (550px)</option>
+                <option value="800px">Extra Large (800px)</option>
+                <option value="200px">Small (200px)</option>
+                <option value="cover">Cover (Full Screen)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" style="font-size:0.75rem;">Repeat</label>
+              <select id="themeBgLogoRepeatSelect" class="form-select">
+                <option value="no-repeat" selected>Single Floating (No Repeat)</option>
+                <option value="repeat">Tiled Pattern (Watermark Grid)</option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeAllModals()">انصراف</button>
-        <button class="btn btn-primary" id="themeSaveBtn">ذخیره تم</button>
+        <button class="btn btn-secondary" onclick="closeAllModals()">Cancel</button>
+        <button class="btn btn-primary" id="themeSaveBtn">Save & Apply</button>
       </div>
     </div>
   </div>
@@ -388,23 +909,192 @@
   <div class="modal-backdrop" id="yamlModal">
     <div class="modal-window" style="max-width: 650px;">
       <div class="modal-header">
-        <h3 class="modal-title">پشتیبان‌گیری و ساختار داده</h3>
+        <h3 class="modal-title">Backup & YAML Configuration</h3>
         <button class="btn btn-icon" onclick="closeAllModals()">&times;</button>
       </div>
       <div class="modal-body">
-        <p style="font-size:0.85rem; color:var(--text-muted);">داده‌های زیر مستقیماً با فایل <code>data/config.yaml</code> روی دیسک سرور همگام هستند.</p>
+        <p style="font-size:0.85rem; color:var(--text-muted);">The following data is synced directly with <code>data/config.yaml</code> on disk.</p>
         <textarea id="yamlRawText" class="form-textarea" rows="12" readonly style="font-family: monospace; font-size: 0.8rem;"></textarea>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeAllModals()">بستن</button>
+        <button class="btn btn-secondary" onclick="closeAllModals()">Close</button>
         <button class="btn btn-primary" id="yamlDownloadBtn">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>
             <line x1="12" y1="15" x2="12" y2="3"></line>
           </svg>
-          <span>دانلود فایل JSON پشتیبان</span>
+          <span>Download JSON Backup</span>
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add / Edit Widget Modal -->
+  <div class="modal-backdrop" id="widgetModal">
+    <div class="modal-window" style="max-width: 580px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="widgetModalTitle">Add Monitoring Gauge / Widget</h3>
+        <button class="btn btn-icon" onclick="closeAllModals()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Select Gauge or Widget Type:</label>
+          <div class="widget-type-selector" id="widgetTypeSelector">
+            <div class="widget-type-card active" data-type="cpu_gauge" data-default-title="CPU Usage">
+              <span class="widget-type-icon">⚡</span>
+              <div class="widget-type-name">CPU Gauge</div>
+              <div class="widget-type-desc">Real-time CPU load, cores & Load Avg</div>
+            </div>
+            <div class="widget-type-card" data-type="ram_gauge" data-default-title="Memory (RAM)">
+              <span class="widget-type-icon">🧠</span>
+              <div class="widget-type-name">Memory (RAM)</div>
+              <div class="widget-type-desc">GB breakdown & memory percentage</div>
+            </div>
+            <div class="widget-type-card" data-type="disk_gauge" data-default-title="Disk Storage">
+              <span class="widget-type-icon">💾</span>
+              <div class="widget-type-name">Disk Storage</div>
+              <div class="widget-type-desc">Used, free space & root partition</div>
+            </div>
+            <div class="widget-type-card" data-type="network_traffic" data-default-title="Network I/O">
+              <span class="widget-type-icon">🌐</span>
+              <div class="widget-type-name">Network I/O</div>
+              <div class="widget-type-desc">Live download & upload transfer rates</div>
+            </div>
+            <div class="widget-type-card" data-type="docker_stats" data-default-title="Docker Containers">
+              <span class="widget-type-icon">🐳</span>
+              <div class="widget-type-name">Docker Containers</div>
+              <div class="widget-type-desc">Active and stopped container counts</div>
+            </div>
+            <div class="widget-type-card" data-type="host_info" data-default-title="Host Info & Uptime">
+              <span class="widget-type-icon">🖥️</span>
+              <div class="widget-type-name">Host Info & Uptime</div>
+              <div class="widget-type-desc">Hostname, kernel version and system uptime</div>
+            </div>
+            <div class="widget-type-card" data-type="service_health" data-default-title="Service Health">
+              <span class="widget-type-icon">🛡️</span>
+              <div class="widget-type-name">Service Health</div>
+              <div class="widget-type-desc">Overall online/offline ratio across all services</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Widget Title</label>
+            <input type="text" id="widgetTitleInput" class="form-input" placeholder="e.g. Host CPU Load" value="CPU Usage">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Source Server / Cluster</label>
+            <select id="widgetServerSelect" class="form-input">
+              <option value="local">Master (Local)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Widget Size</label>
+            <select id="widgetSizeSelect" class="form-input">
+              <option value="normal">Standard (Single Column)</option>
+              <option value="wide">Wide (Two Columns)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Accent & Indicator Color</label>
+            <input type="color" id="widgetColorInput" class="form-input" value="#6366f1" style="height: 42px; padding: 2px;">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeAllModals()">Cancel</button>
+        <button class="btn btn-primary" id="btnSaveWidget">Add Widget</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Server / Cluster Manager Modal -->
+  <div class="modal-backdrop" id="serverManagerModal">
+    <div class="modal-window" style="max-width: 680px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Server & Cluster Management</h3>
+        <button class="btn btn-icon" onclick="closeAllModals()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="cluster-manager-desc" style="font-size:0.83rem; color:#94a3b8; margin-bottom:1rem; line-height:1.6;">
+          Connect unlimited cluster nodes via <strong>Agent Push</strong> or <strong>HTTP Pull (Glances / Prometheus Node Exporter)</strong> to stream live metrics directly to your dashboard.
+        </div>
+
+        <!-- Current Servers List -->
+        <h4 style="font-size:0.9rem; color:#e2e8f0; margin-bottom:0.5rem;">Configured Nodes & Clusters:</h4>
+        <div class="cluster-list-group" id="clusterListContainer">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <!-- Add New Server / Cluster Box -->
+        <div class="cluster-add-box" style="margin-top:1.25rem; border-top:1px solid rgba(255,255,255,0.08); padding-top:1rem;">
+          <h4 style="font-size:0.95rem; color:#a5b4fc; margin-bottom:0.75rem;">+ Connect New Server or Cluster</h4>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Server / Cluster Name</label>
+              <input type="text" id="newServerNameInput" class="form-input" placeholder="e.g. NAS Storage or GPU Node">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Unique ID (Alphanumeric)</label>
+              <input type="text" id="newServerIdInput" class="form-input" placeholder="e.g. srv-nas">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Telemetry Ingestion Method</label>
+              <select id="newServerTypeSelect" class="form-input">
+                <option value="agent_push">Method 1: Automatic Agent Push (Recommended)</option>
+                <option value="http_pull">Method 2: Remote HTTP Pull (Glances / Node Exporter)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Cluster Accent Color</label>
+              <input type="color" id="newServerColorInput" class="form-input" value="#10b981" style="height:42px; padding:2px;">
+            </div>
+          </div>
+
+          <!-- Fields for Agent Push -->
+          <div id="agentPushFields">
+            <div class="form-group">
+              <label class="form-label">Security Token (For Agent Authentication)</label>
+              <input type="text" id="newServerTokenInput" class="form-input" placeholder="e.g. nas-secret-token">
+            </div>
+            <div class="agent-install-box" style="background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:0.75rem; margin-top:0.5rem;">
+              <span style="font-size:0.75rem; color:#a5b4fc; display:block; margin-bottom:4px;">Quick Agent Setup Command (Bash / Curl):</span>
+              <code id="agentSnippetBash" style="font-size:0.72rem; color:#38bdf8; word-break:break-all; display:block; user-select:all; padding:4px; background:rgba(0,0,0,0.4); border-radius:4px;">
+                curl -s http://&lt;DIMDASH_IP&gt;:3080/scripts/dimdash-agent.sh | bash -s -- --master http://&lt;DIMDASH_IP&gt;:3080 --server-id &lt;SERVER_ID&gt;
+              </code>
+            </div>
+          </div>
+
+          <!-- Fields for HTTP Pull -->
+          <div id="httpPullFields" style="display:none;">
+            <div class="form-row">
+              <div class="form-group" style="flex:2;">
+                <label class="form-label">Metrics Webhook / Exporter URL</label>
+                <input type="text" id="newServerUrlInput" class="form-input" placeholder="http://192.168.1.30:3080/api/system-telemetry or glances:61208">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Poll Interval (sec)</label>
+                <input type="number" id="newServerIntervalInput" class="form-input" value="5" min="2" max="60">
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:1rem; display:flex; justify-content:flex-end;">
+            <button class="btn btn-primary" id="btnSaveNewServer">Connect & Save Server</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeAllModals()">Close</button>
       </div>
     </div>
   </div>
@@ -412,6 +1102,7 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <script src="js/icons.js"></script>
+  <script src="js/serverCharts.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

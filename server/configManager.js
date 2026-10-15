@@ -38,6 +38,10 @@ class ConfigManager extends EventEmitter {
       
       parsed.settings = parsed.settings || {};
       parsed.categories = Array.isArray(parsed.categories) ? parsed.categories : [];
+      parsed.widgets = Array.isArray(parsed.widgets) ? parsed.widgets : [];
+      parsed.servers = Array.isArray(parsed.servers) && parsed.servers.length > 0 ? parsed.servers : [
+        { id: 'local', name: 'Master Node (Local)', type: 'local', color: '#6366f1' }
+      ];
       
       this.currentConfig = parsed;
       return this.currentConfig;
@@ -48,7 +52,9 @@ class ConfigManager extends EventEmitter {
         this.currentConfig = {
           version: "1.0",
           settings: { dashboard_title: "DimDash" },
-          categories: []
+          categories: [],
+          widgets: [],
+          servers: [{ id: 'local', name: 'Master Node (Local)', type: 'local', color: '#6366f1' }]
         };
       }
       return this.currentConfig;
@@ -68,6 +74,10 @@ class ConfigManager extends EventEmitter {
       newConfig.version = newConfig.version || "1.0";
       newConfig.settings = newConfig.settings || {};
       newConfig.categories = Array.isArray(newConfig.categories) ? newConfig.categories : [];
+      newConfig.widgets = Array.isArray(newConfig.widgets) ? newConfig.widgets : [];
+      newConfig.servers = Array.isArray(newConfig.servers) && newConfig.servers.length > 0 ? newConfig.servers : [
+        { id: 'local', name: 'Master Node (Local)', type: 'local', color: '#6366f1' }
+      ];
 
       const yamlStr = YAML.stringify(newConfig, { indent: 2 });
       const tempPath = `${this.configPath}.tmp`;

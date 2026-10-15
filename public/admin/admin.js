@@ -1,6 +1,7 @@
 /**
  * DimDash Admin Studio Controller (v2.0)
- * Air-gapped management console, data tables, live theme studio, bulk operations
+ * Air-gapped homelab management console, data tables, live theme studio,
+ * widgets management, and automatic transparent logo processing.
  */
 
 const AdminState = {
@@ -9,6 +10,7 @@ const AdminState = {
   stats: {},
   selectedTileIds: new Set(),
   currentEditingTile: null,
+  currentEditingWidget: null,
   currentTab: 'overview'
 };
 
@@ -22,6 +24,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Toast notification for admin
 function showAdminToast(msg, type = 'info') {
   const container = document.getElementById('adminToastContainer');
+  if (!container) return;
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
   toast.innerHTML = `<span>${msg}</span>`;
@@ -29,7 +32,7 @@ function showAdminToast(msg, type = 'info') {
   setTimeout(() => {
     toast.style.opacity = '0';
     setTimeout(() => toast.remove(), 300);
-  }, 3000);
+  }, 3200);
 }
 
 // Tab Switching
@@ -56,13 +59,14 @@ function switchTab(tabId) {
   if (targetSection) targetSection.classList.add('active');
 
   const titles = {
-    overview: ['داشبورد آمار و وضعیت کلی', 'نمای کلی از وضعیت سرورها، پروب‌ها و منابع سیستم ایزوله'],
-    tiles: ['مدیریت برنامه‌ها و کاشی‌ها', 'مشاهده، ویرایش، حذف دسته‌ای و تست پروب تمام سرویس‌ها'],
-    categories: ['مدیریت دسته‌بندی‌ها', 'دسته‌بندی سرویس‌ها و تنظیم رنگ‌بندی‌های اختصاصی'],
-    theme: ['استودیوی طراحی و تم زنده', 'تنظیم رنگ‌های سمانتیک، میزان محوشدگی شیشه و تراکم چیدمان'],
-    probes: ['پروب‌ها و مانیتورینگ سلامت', 'جدول بررسی بلادرنگ تاخیر شبکه و وضعیت دسترسی به پورت‌ها'],
-    backup: ['پشتیبان‌گیری و ساختار داده', 'خروجی گرفتن و بازیابی فایل‌های پیکربندی'],
-    security: ['امنیت و احراز هویت', 'مدیریت و تنظیم رمز عبور یا پین ادمین']
+    overview: ['System Overview & Diagnostics', 'Real-time status of homelab services, active health probes, and isolated node telemetry.'],
+    tiles: ['App Tiles & Services', 'Manage, edit, bulk remove, and test health probes for all services.'],
+    categories: ['Category Groups & Boards', 'Organize services into custom category boards and set accent colors.'],
+    widgets: ['Widgets & Hardware Gauges', 'Configure real-time monitoring cards, telemetry sources, and gauge displays.'],
+    theme: ['Theme & Appearance Studio', 'Customize accent colors, glassmorphic frosted blur, layout styles, and watermarks.'],
+    probes: ['Service Health Probes', 'Monitor HTTP response codes, TCP port reachability, and network latencies.'],
+    backup: ['Backup & Synchronization', 'Export and restore configuration files or edit the raw JSON blueprint.'],
+    security: ['Security & PIN Protection', 'Configure master PIN authentication to protect sensitive management actions.']
   };
 
   if (titles[tabId]) {
@@ -87,11 +91,12 @@ async function loadAdminData() {
     renderOverview();
     renderTilesTable();
     renderCategoriesTable();
+    renderWidgetsTable();
     initThemeStudio();
     renderProbesTable();
     initBackupEditor();
   } catch (err) {
-    showAdminToast('خطا در بارگذاری اطلاعات: ' + err.message, 'error');
+    showAdminToast('Failed to load dashboard data: ' + err.message, 'error');
   }
 }
 
@@ -124,9 +129,9 @@ function renderOverview() {
   const uptimeSec = stats.uptime || 0;
   const hours = Math.floor(uptimeSec / 3600);
   const minutes = Math.floor((uptimeSec % 3600) / 60);
-  document.getElementById('serverUptimeVal').textContent = `${hours} ساعت و ${minutes} دقیقه`;
-  document.getElementById('serverMemVal').textContent = `${stats.memoryUsageMb || '--'} مگابایت`;
-  document.getElementById('serverCpuVal').textContent = `${stats.cpuCount || '--'} هسته`;
+  document.getElementById('serverUptimeVal').textContent = `${hours}h ${minutes}m`;
+  document.getElementById('serverMemVal').textContent = `${stats.memoryUsageMb || '--'} MB`;
+  document.getElementById('serverCpuVal').textContent = `${stats.cpuCount || '--'} Cores`;
 }
 
 // TAB 2: TILES TABLE
@@ -138,7 +143,7 @@ function renderTilesTable() {
 
   // Populate category filter options
   const cats = AdminState.config?.categories || [];
-  catFilter.innerHTML = '<option value="all">همه دسته‌ها</option>';
+  catFilter.innerHTML = '<option value="all">All Categories</option>';
   cats.forEach(c => {
     catFilter.innerHTML += `<option value="${c.id}">${c.name}</option>`;
   });
@@ -173,11 +178,11 @@ function renderTilesTable() {
     const iconMarkup = IconCatalog.render(tile.icon_type, tile.icon_value);
 
     let statusPillClass = 'status-pill none';
-    let statusLabel = 'فعال';
+    let statusLabel = 'Active';
     if (tile.probe && tile.probe.type !== 'none') {
-      if (status === 'online') { statusPillClass = 'status-pill online'; statusLabel = 'آنلاین'; }
-      else if (status === 'warning') { statusPillClass = 'status-pill warning'; statusLabel = 'هشدار'; }
-      else { statusPillClass = 'status-pill offline'; statusLabel = 'آفلاین'; }
+      if (status === 'online') { statusPillClass = 'status-pill online'; statusLabel = 'Online'; }
+      else if (status === 'warning') { statusPillClass = 'status-pill warning'; statusLabel = 'Warning'; }
+      else { statusPillClass = 'status-pill offline'; statusLabel = 'Offline'; }
     }
 
     const latencyText = (probe.latency) ? `${probe.latency}ms` : '--';
@@ -198,13 +203,13 @@ function renderTilesTable() {
         <td><span style="font-family:monospace; color:#a5b4fc;">${latencyText}</span></td>
         <td>
           <div class="table-actions-cell">
-            <button class="btn btn-icon btn-action-test" data-tile-id="${tile.id}" title="تست پروب">
+            <button class="btn btn-icon btn-action-test" data-tile-id="${tile.id}" title="Test Probe">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
             </button>
-            <button class="btn btn-icon btn-action-edit" data-cat-id="${cat.id}" data-tile-id="${tile.id}" title="ویرایش">
+            <button class="btn btn-icon btn-action-edit" data-cat-id="${cat.id}" data-tile-id="${tile.id}" title="Edit">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
             </button>
-            <button class="btn btn-icon btn-action-del" data-cat-id="${cat.id}" data-tile-id="${tile.id}" title="حذف">
+            <button class="btn btn-icon btn-action-del" data-cat-id="${cat.id}" data-tile-id="${tile.id}" title="Delete">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
           </div>
@@ -213,7 +218,7 @@ function renderTilesTable() {
     `;
   });
 
-  tbody.innerHTML = rowsHtml || '<tr><td colspan="9" style="text-align:center; color:#64748b; padding:2rem;">هیچ برنامه‌ای یافت نشد.</td></tr>';
+  tbody.innerHTML = rowsHtml || '<tr><td colspan="9" style="text-align:center; color:#64748b; padding:2rem;">No matching services found.</td></tr>';
   attachTableEventListeners();
 }
 
@@ -231,15 +236,15 @@ function attachTableEventListeners() {
     btn.addEventListener('click', async () => {
       const id = btn.dataset.tileId;
       btn.style.opacity = '0.5';
-      showAdminToast('در حال بررسی پروب...', 'info');
+      showAdminToast('Probing service...', 'info');
       try {
         const res = await fetch(`/api/probes/${id}`);
         const data = await res.json();
         AdminState.probes[id] = data;
         renderTilesTable();
-        showAdminToast(`وضعیت: ${data.status} (${data.latency || 0}ms)`, data.status === 'online' ? 'success' : 'error');
+        showAdminToast(`Status: ${data.status} (${data.latency || 0}ms)`, data.status === 'online' ? 'success' : 'error');
       } catch (err) {
-        showAdminToast('خطا: ' + err.message, 'error');
+        showAdminToast('Probe error: ' + err.message, 'error');
       } finally {
         btn.style.opacity = '1';
       }
@@ -254,7 +259,7 @@ function attachTableEventListeners() {
 
   document.querySelectorAll('.btn-action-del').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm('آیا از حذف این برنامه اطمینان دارید؟')) return;
+      if (!confirm('Are you sure you want to delete this service?')) return;
       await deleteSingleTile(btn.dataset.catId, btn.dataset.tileId);
     });
   });
@@ -265,7 +270,7 @@ function updateBulkBar() {
   const count = AdminState.selectedTileIds.size;
   if (count > 0) {
     bar.classList.add('show');
-    document.getElementById('bulkSelectedText').textContent = `${count} مورد انتخاب شده`;
+    document.getElementById('bulkSelectedText').textContent = `${count} services selected`;
   } else {
     bar.classList.remove('show');
   }
@@ -288,13 +293,13 @@ function renderCategoriesTable() {
           </div>
         </td>
         <td style="font-weight:600; color:#fff;">${c.name}</td>
-        <td><span class="category-pill">${tileCount} برنامه</span></td>
+        <td><span class="category-pill">${tileCount} Services</span></td>
         <td>
           <div class="table-actions-cell">
-            <button class="btn btn-icon" onclick="editCategoryName('${c.id}')" title="ویرایش">
+            <button class="btn btn-icon" onclick="editCategoryName('${c.id}')" title="Rename Category">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
             </button>
-            <button class="btn btn-icon" onclick="deleteCategory('${c.id}')" title="حذف">
+            <button class="btn btn-icon" onclick="deleteCategory('${c.id}')" title="Delete Category">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
           </div>
@@ -303,10 +308,157 @@ function renderCategoriesTable() {
     `;
   });
 
-  tbody.innerHTML = html || '<tr><td colspan="4" style="text-align:center; color:#64748b; padding:2rem;">هیچ دسته‌ای تعریف نشده است.</td></tr>';
+  tbody.innerHTML = html || '<tr><td colspan="4" style="text-align:center; color:#64748b; padding:2rem;">No categories defined yet.</td></tr>';
 }
 
-// TAB 4: THEME STUDIO
+// TAB 4: WIDGETS TABLE
+function renderWidgetsTable() {
+  const tbody = document.getElementById('adminWidgetsTbody');
+  if (!tbody) return;
+
+  const widgets = AdminState.config?.widgets || [];
+
+  const typeLabels = {
+    cpu_gauge: 'CPU Utilization Gauge',
+    ram_gauge: 'Memory (RAM) Gauge',
+    disk_gauge: 'Disk Storage Gauge',
+    network_traffic: 'Network Traffic I/O',
+    docker_stats: 'Docker Containers',
+    host_info: 'Host Telemetry & Uptime'
+  };
+
+  let html = '';
+  widgets.forEach((w, index) => {
+    const label = typeLabels[w.type] || w.type;
+    const color = w.color || '#6366f1';
+    const serverName = w.server_id === 'local' ? 'Local Master' : (w.server_id || 'local');
+    const size = w.size || 'normal';
+
+    html += `
+      <tr>
+        <td>
+          <span style="font-family:monospace; font-size:0.82rem; color:#a5b4fc; background:rgba(99,102,241,0.12); padding:0.2rem 0.6rem; border-radius:6px;">
+            ${label}
+          </span>
+        </td>
+        <td style="font-weight:600; color:#fff;">${w.title || 'Untitled Widget'}</td>
+        <td><span style="color:#38bdf8; font-size:0.82rem;">${serverName}</span></td>
+        <td>
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <span style="width:14px; height:14px; border-radius:50%; background:${color}; box-shadow:0 0 8px ${color};"></span>
+            <span style="font-family:monospace; font-size:0.8rem; color:#94a3b8;">${color}</span>
+          </div>
+        </td>
+        <td><span class="category-pill">${size}</span></td>
+        <td>
+          <div class="table-actions-cell">
+            <button class="btn btn-icon" onclick="moveWidget(${index}, -1)" title="Move Up" ${index === 0 ? 'disabled style="opacity:0.3;"' : ''}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg>
+            </button>
+            <button class="btn btn-icon" onclick="moveWidget(${index}, 1)" title="Move Down" ${index === widgets.length - 1 ? 'disabled style="opacity:0.3;"' : ''}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <button class="btn btn-icon" onclick="openWidgetEditModal(${index})" title="Edit">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            </button>
+            <button class="btn btn-icon" onclick="deleteWidget(${index})" title="Delete">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  });
+
+  tbody.innerHTML = html || '<tr><td colspan="6" style="text-align:center; color:#64748b; padding:2rem;">No widgets configured yet. Click "Add Widget" to create one.</td></tr>';
+}
+
+function openWidgetEditModal(index = null) {
+  const modal = document.getElementById('adminWidgetModal');
+  const widgets = AdminState.config?.widgets || [];
+
+  const titleInput = document.getElementById('mWidgetTitle');
+  const typeSelect = document.getElementById('mWidgetType');
+  const sizeSelect = document.getElementById('mWidgetSize');
+  const colorInput = document.getElementById('mWidgetColor');
+  const colorHex = document.getElementById('mWidgetColorHex');
+
+  if (colorInput && colorHex) {
+    colorInput.oninput = (e) => { colorHex.value = e.target.value; };
+    colorHex.oninput = (e) => { colorInput.value = e.target.value; };
+  }
+
+  if (index !== null && widgets[index]) {
+    AdminState.currentEditingWidget = index;
+    const w = widgets[index];
+    document.getElementById('adminWidgetModalTitle').textContent = 'Edit Monitoring Gauge';
+    titleInput.value = w.title || '';
+    typeSelect.value = w.type || 'cpu_gauge';
+    sizeSelect.value = w.size || 'normal';
+    colorInput.value = w.color || '#6366f1';
+    colorHex.value = w.color || '#6366f1';
+  } else {
+    AdminState.currentEditingWidget = null;
+    document.getElementById('adminWidgetModalTitle').textContent = 'Add Monitoring Gauge';
+    titleInput.value = '';
+    typeSelect.value = 'cpu_gauge';
+    sizeSelect.value = 'normal';
+    colorInput.value = '#6366f1';
+    colorHex.value = '#6366f1';
+  }
+
+  modal.classList.add('open');
+
+  document.getElementById('btnWidgetModalSave').onclick = async () => {
+    const title = titleInput.value.trim();
+    if (!title) return showAdminToast('Widget title is required', 'error');
+
+    AdminState.config.widgets = AdminState.config.widgets || [];
+
+    const widgetData = {
+      id: AdminState.currentEditingWidget !== null ? (AdminState.config.widgets[AdminState.currentEditingWidget].id || 'widget-' + Date.now()) : ('widget-' + Date.now()),
+      server_id: document.getElementById('mWidgetServer').value || 'local',
+      type: typeSelect.value,
+      title,
+      color: colorInput.value,
+      size: sizeSelect.value
+    };
+
+    if (AdminState.currentEditingWidget !== null) {
+      AdminState.config.widgets[AdminState.currentEditingWidget] = widgetData;
+    } else {
+      AdminState.config.widgets.push(widgetData);
+    }
+
+    await saveConfigToServer('Widget settings updated');
+    closeWidgetModal();
+    renderWidgetsTable();
+  };
+}
+
+function closeWidgetModal() {
+  document.getElementById('adminWidgetModal')?.classList.remove('open');
+}
+
+async function deleteWidget(index) {
+  if (!confirm('Are you sure you want to remove this widget?')) return;
+  AdminState.config.widgets.splice(index, 1);
+  await saveConfigToServer('Widget removed');
+  renderWidgetsTable();
+}
+
+async function moveWidget(index, direction) {
+  const targetIndex = index + direction;
+  const widgets = AdminState.config.widgets;
+  if (targetIndex < 0 || targetIndex >= widgets.length) return;
+  const temp = widgets[index];
+  widgets[index] = widgets[targetIndex];
+  widgets[targetIndex] = temp;
+  await saveConfigToServer('Widgets reordered');
+  renderWidgetsTable();
+}
+
+// TAB 5: THEME STUDIO
 function initThemeStudio() {
   const theme = AdminState.config?.settings?.theme || {};
   document.getElementById('adminThemeTitleInput').value = AdminState.config?.settings?.dashboard_title || 'DimDash Homelab';
@@ -315,6 +467,83 @@ function initThemeStudio() {
   document.getElementById('adminThemeBlurInput').value = theme.glass_blur || 16;
   document.getElementById('adminBlurVal').textContent = `${theme.glass_blur || 16}px`;
   document.getElementById('adminThemeDensitySelect').value = theme.tile_density || 'normal';
+  if (document.getElementById('adminCardStyleSelect')) {
+    document.getElementById('adminCardStyleSelect').value = theme.card_style || 'pill';
+  }
+  if (document.getElementById('adminWpDimInput')) {
+    document.getElementById('adminWpDimInput').value = theme.wallpaper_dim ?? 45;
+    document.getElementById('adminWpDimVal').textContent = `${theme.wallpaper_dim ?? 45}%`;
+  }
+
+  AdminState.tempWp = {
+    type: theme.background_type || 'image',
+    value: theme.background_value || '/wallpapers/twilight_pines.jpg'
+  };
+
+  function updateActiveWallpaperCard() {
+    document.querySelectorAll('#adminWallpaperGrid .wallpaper-card').forEach(card => {
+      const wp = card.dataset.wp;
+      if (AdminState.tempWp.type === 'image' && AdminState.tempWp.value === wp) {
+        card.style.borderColor = 'var(--accent-color, #6366f1)';
+        card.style.boxShadow = '0 0 14px var(--accent-color, #6366f1)';
+      } else if (AdminState.tempWp.type === 'color' && wp === 'none') {
+        card.style.borderColor = 'var(--accent-color, #6366f1)';
+        card.style.boxShadow = '0 0 14px var(--accent-color, #6366f1)';
+      } else {
+        card.style.borderColor = 'transparent';
+        card.style.boxShadow = 'none';
+      }
+    });
+  }
+  updateActiveWallpaperCard();
+
+  document.querySelectorAll('#adminWallpaperGrid .wallpaper-card').forEach(card => {
+    card.onclick = () => {
+      const wp = card.dataset.wp;
+      if (wp === 'none') {
+        AdminState.tempWp = { type: 'color', value: '#090d16' };
+      } else {
+        AdminState.tempWp = { type: 'image', value: wp };
+      }
+      updateActiveWallpaperCard();
+    };
+  });
+
+  document.getElementById('btnAdminUnsetWp')?.addEventListener('click', () => {
+    AdminState.tempWp = { type: 'color', value: '#090d16' };
+    updateActiveWallpaperCard();
+    showAdminToast('Wallpaper removed (Dark background applied)', 'info');
+  });
+
+  document.getElementById('adminWpDimInput')?.addEventListener('input', (e) => {
+    document.getElementById('adminWpDimVal').textContent = `${e.target.value}%`;
+  });
+
+  // Wallpaper Upload
+  document.getElementById('adminWpUploadInput')?.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        showAdminToast('Uploading wallpaper...', 'info');
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: file.name, base64Data: evt.target.result })
+        });
+        const data = await res.json();
+        if (data.url) {
+          AdminState.tempWp = { type: 'image', value: data.url };
+          updateActiveWallpaperCard();
+          showAdminToast('Wallpaper uploaded successfully', 'success');
+        }
+      } catch (err) {
+        showAdminToast('Wallpaper upload failed: ' + err.message, 'error');
+      }
+    };
+    reader.readAsDataURL(file);
+  });
 
   updateThemePreview();
 
@@ -330,6 +559,79 @@ function initThemeStudio() {
     document.getElementById('adminBlurVal').textContent = `${e.target.value}px`;
     updateThemePreview();
   };
+
+  // Background Logo / Watermark with Automatic Transparency
+  const adminLogoUrl = document.getElementById('adminBgLogoUrlInput');
+  const adminLogoPreset = document.getElementById('adminBgLogoPresetSelect');
+  const adminLogoOpacity = document.getElementById('adminBgLogoOpacityInput');
+  const adminLogoOpacityVal = document.getElementById('adminBgLogoOpacityVal');
+  const adminLogoPos = document.getElementById('adminBgLogoPosSelect');
+  const adminLogoSize = document.getElementById('adminBgLogoSizeSelect');
+  const adminLogoRepeat = document.getElementById('adminBgLogoRepeatSelect');
+  const btnClearLogo = document.getElementById('btnAdminClearBgLogo');
+  const uploadLogoInput = document.getElementById('adminBgLogoUploadInput');
+
+  if (adminLogoUrl) adminLogoUrl.value = theme.bg_logo_url || '';
+  if (adminLogoOpacity) {
+    const curOp = theme.bg_logo_opacity !== undefined ? theme.bg_logo_opacity : 18;
+    adminLogoOpacity.value = curOp;
+    if (adminLogoOpacityVal) adminLogoOpacityVal.textContent = `${curOp}%`;
+    adminLogoOpacity.oninput = (e) => {
+      if (adminLogoOpacityVal) adminLogoOpacityVal.textContent = `${e.target.value}%`;
+    };
+  }
+  if (adminLogoPos) adminLogoPos.value = theme.bg_logo_position || 'center';
+  if (adminLogoSize) adminLogoSize.value = theme.bg_logo_size || '550px';
+  if (adminLogoRepeat) adminLogoRepeat.value = theme.bg_logo_repeat || 'no-repeat';
+
+  if (adminLogoPreset) {
+    adminLogoPreset.onchange = (e) => {
+      if (e.target.value && adminLogoUrl) {
+        adminLogoUrl.value = e.target.value;
+      }
+    };
+  }
+
+  if (btnClearLogo) {
+    btnClearLogo.onclick = () => {
+      if (adminLogoUrl) adminLogoUrl.value = '';
+      if (adminLogoPreset) adminLogoPreset.value = '';
+      showAdminToast('Background watermark logo removed', 'info');
+    };
+  }
+
+  if (uploadLogoInput) {
+    uploadLogoInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (evt) => {
+        try {
+          showAdminToast('Making logo background transparent...', 'info');
+          let finalDataUrl = evt.target.result;
+          if (window.stripImageBackground) {
+            finalDataUrl = await window.stripImageBackground(finalDataUrl);
+          }
+          const res = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              filename: file.name.replace(/\.[^/.]+$/, "") + ".png",
+              base64Data: finalDataUrl
+            })
+          });
+          const data = await res.json();
+          if (data.url && adminLogoUrl) {
+            adminLogoUrl.value = data.url;
+            showAdminToast('Transparent logo processed and applied', 'success');
+          }
+        } catch (err) {
+          showAdminToast('Upload failed: ' + err.message, 'error');
+        }
+      };
+      reader.readAsDataURL(file);
+    };
+  }
 }
 
 function applyPreset(color) {
@@ -349,7 +651,7 @@ function updateThemePreview() {
   }
 }
 
-// TAB 5: PROBES
+// TAB 6: PROBES
 function renderProbesTable() {
   const tbody = document.getElementById('adminProbesTableBody');
   const cats = AdminState.config?.categories || [];
@@ -373,16 +675,18 @@ function renderProbesTable() {
           <td><span style="font-family:monospace;">${latency}</span></td>
           <td style="color:#94a3b8; font-size:0.8rem;">${timeStr}</td>
           <td>
-            <button class="btn btn-icon btn-action-test" data-tile-id="${t.id}" title="تست مستقیم">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-            </button>
+            <div class="table-actions-cell">
+              <button class="btn btn-icon btn-action-test" data-tile-id="${t.id}" title="Run Probe">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+              </button>
+            </div>
           </td>
         </tr>
       `;
     });
   });
 
-  tbody.innerHTML = html || '<tr><td colspan="7" style="text-align:center; color:#64748b; padding:2rem;">هیچ پروبی تعریف نشده است.</td></tr>';
+  tbody.innerHTML = html || '<tr><td colspan="7" style="text-align:center; color:#64748b; padding:2rem;">No probes defined.</td></tr>';
   tbody.querySelectorAll('.btn-action-test').forEach(btn => {
     btn.addEventListener('click', async () => {
       const id = btn.dataset.tileId;
@@ -392,9 +696,9 @@ function renderProbesTable() {
         const data = await res.json();
         AdminState.probes[id] = data;
         renderProbesTable();
-        showAdminToast(`پاسخ: ${data.status} (${data.latency || 0}ms)`, 'success');
+        showAdminToast(`Response: ${data.status} (${data.latency || 0}ms)`, 'success');
       } catch (err) {
-        showAdminToast('خطا: ' + err.message, 'error');
+        showAdminToast('Probe failed: ' + err.message, 'error');
       } finally {
         btn.style.opacity = '1';
       }
@@ -402,7 +706,7 @@ function renderProbesTable() {
   });
 }
 
-// TAB 6: BACKUP & YAML
+// TAB 7: BACKUP & YAML
 function initBackupEditor() {
   const textarea = document.getElementById('adminRawConfig');
   if (textarea && AdminState.config) {
@@ -428,14 +732,14 @@ function setupEventListeners() {
   }
 
   // Filters
-  document.getElementById('adminCatFilter').addEventListener('change', renderTilesTable);
-  document.getElementById('adminStatusFilter').addEventListener('change', renderTilesTable);
-  document.getElementById('adminTileSearch').addEventListener('input', renderTilesTable);
+  document.getElementById('adminCatFilter')?.addEventListener('change', renderTilesTable);
+  document.getElementById('adminStatusFilter')?.addEventListener('change', renderTilesTable);
+  document.getElementById('adminTileSearch')?.addEventListener('input', renderTilesTable);
 
   // Bulk delete button
-  document.getElementById('btnBulkDelete').addEventListener('click', async () => {
+  document.getElementById('btnBulkDelete')?.addEventListener('click', async () => {
     const count = AdminState.selectedTileIds.size;
-    if (!confirm(`آیا از حذف دسته‌ای ${count} برنامه اطمینان دارید؟`)) return;
+    if (!confirm(`Are you sure you want to delete ${count} selected services?`)) return;
 
     try {
       const res = await fetch('/api/admin/bulk-delete', {
@@ -443,9 +747,9 @@ function setupEventListeners() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tileIds: Array.from(AdminState.selectedTileIds) })
       });
-      if (!res.ok) throw new Error('خطا در حذف دسته‌ای');
+      if (!res.ok) throw new Error('Bulk delete request failed');
       AdminState.selectedTileIds.clear();
-      showAdminToast('حذف دسته‌ای با موفقیت انجام شد', 'success');
+      showAdminToast('Selected services removed', 'success');
       await loadAdminData();
     } catch (err) {
       showAdminToast(err.message, 'error');
@@ -454,7 +758,7 @@ function setupEventListeners() {
 
   // Test all probes buttons
   const testAllAction = async () => {
-    showAdminToast('در حال بررسی تمامی پروب‌ها...', 'info');
+    showAdminToast('Testing all network probes...', 'info');
     try {
       const res = await fetch('/api/probes/test-all', { method: 'POST' });
       const data = await res.json();
@@ -463,10 +767,10 @@ function setupEventListeners() {
         renderOverview();
         renderTilesTable();
         renderProbesTable();
-        showAdminToast(`بررسی با موفقیت انجام شد: ${data.count} سرویس`, 'success');
+        showAdminToast(`All probes tested: ${data.count} services checked`, 'success');
       }
     } catch (err) {
-      showAdminToast('خطا در تست: ' + err.message, 'error');
+      showAdminToast('Probe sweep failed: ' + err.message, 'error');
     }
   };
 
@@ -476,15 +780,24 @@ function setupEventListeners() {
   // Save theme studio
   document.getElementById('btnSaveThemeStudio')?.addEventListener('click', async () => {
     AdminState.config.settings = AdminState.config.settings || {};
-    AdminState.config.settings.dashboard_title = document.getElementById('adminThemeTitleInput').value.trim() || 'DimDash';
+    AdminState.config.settings.dashboard_title = document.getElementById('adminThemeTitleInput').value.trim() || 'DimDash Homelab';
     AdminState.config.settings.theme = {
       ...AdminState.config.settings.theme,
       accent_color: document.getElementById('adminThemeAccentInput').value,
       glass_blur: parseInt(document.getElementById('adminThemeBlurInput').value, 10),
-      tile_density: document.getElementById('adminThemeDensitySelect').value
+      tile_density: document.getElementById('adminThemeDensitySelect').value,
+      card_style: document.getElementById('adminCardStyleSelect')?.value || 'pill',
+      wallpaper_dim: parseInt(document.getElementById('adminWpDimInput')?.value || 45, 10),
+      background_type: AdminState.tempWp ? AdminState.tempWp.type : (AdminState.config.settings.theme?.background_type || 'image'),
+      background_value: AdminState.tempWp ? AdminState.tempWp.value : (AdminState.config.settings.theme?.background_value || '/wallpapers/twilight_pines.jpg'),
+      bg_logo_url: document.getElementById('adminBgLogoUrlInput')?.value.trim() || '',
+      bg_logo_opacity: parseInt(document.getElementById('adminBgLogoOpacityInput')?.value || 18, 10),
+      bg_logo_position: document.getElementById('adminBgLogoPosSelect')?.value || 'center',
+      bg_logo_size: document.getElementById('adminBgLogoSizeSelect')?.value || '550px',
+      bg_logo_repeat: document.getElementById('adminBgLogoRepeatSelect')?.value || 'no-repeat'
     };
 
-    await saveConfigToServer('تنظیمات تم با موفقیت ذخیره شد');
+    await saveConfigToServer('Theme and background settings saved');
   });
 
   // Export JSON Backup
@@ -506,12 +819,12 @@ function setupEventListeners() {
     reader.onload = async (evt) => {
       try {
         const parsed = JSON.parse(evt.target.result);
-        if (!Array.isArray(parsed.categories)) throw new Error('فرمت فایل پشتیبان معتبر نیست');
+        if (!Array.isArray(parsed.categories)) throw new Error('Invalid backup file structure');
         AdminState.config = parsed;
-        await saveConfigToServer('فایل پشتیبان با موفقیت بازیابی شد');
+        await saveConfigToServer('Configuration restored from backup');
         await loadAdminData();
       } catch (err) {
-        showAdminToast('خطا در خواندن فایل پشتیبان: ' + err.message, 'error');
+        showAdminToast('Failed to parse backup file: ' + err.message, 'error');
       }
     };
     reader.readAsText(file);
@@ -522,10 +835,10 @@ function setupEventListeners() {
     try {
       const parsed = JSON.parse(document.getElementById('adminRawConfig').value);
       AdminState.config = parsed;
-      await saveConfigToServer('پیکربندی مستقیم ذخیره شد');
+      await saveConfigToServer('Raw configuration saved');
       await loadAdminData();
     } catch (err) {
-      showAdminToast('JSON نامعتبر است: ' + err.message, 'error');
+      showAdminToast('Invalid JSON syntax: ' + err.message, 'error');
     }
   });
 
@@ -534,30 +847,33 @@ function setupEventListeners() {
     const pin = document.getElementById('newPinInput').value;
     const confirm = document.getElementById('confirmPinInput').value;
     if (pin.length < 4) {
-      return showAdminToast('پین باید حداقل ۴ کاراکتر باشد', 'error');
+      return showAdminToast('PIN must be at least 4 characters', 'error');
     }
     if (pin !== confirm) {
-      return showAdminToast('پین و تکرار آن یکسان نیستند', 'error');
+      return showAdminToast('PIN and confirmation do not match', 'error');
     }
     AdminState.config.settings = AdminState.config.settings || {};
     AdminState.config.settings.admin_pin = pin;
-    await saveConfigToServer('پین امنیتی با موفقیت ثبت شد');
+    await saveConfigToServer('Security PIN saved successfully');
   });
 
   document.getElementById('btnRemovePin')?.addEventListener('click', async () => {
-    if (!confirm('آیا مطمئن هستید که می‌خواهید محافظت با پین را غیرفعال کنید؟')) return;
+    if (!confirm('Are you sure you want to disable PIN protection?')) return;
     AdminState.config.settings = AdminState.config.settings || {};
     AdminState.config.settings.admin_pin = '';
-    await saveConfigToServer('محافظت با پین حذف شد');
+    await saveConfigToServer('PIN protection disabled');
   });
 
   // Add Tile Buttons
   document.getElementById('btnAdminAddTile')?.addEventListener('click', () => openTileEditModal());
   document.getElementById('btnTableAddTile')?.addEventListener('click', () => openTileEditModal());
 
+  // Add Widget Button
+  document.getElementById('btnAdminAddWidget')?.addEventListener('click', () => openWidgetEditModal());
+
   // Add Category Button
   document.getElementById('btnAdminAddCat')?.addEventListener('click', () => {
-    const name = prompt('نام دسته‌بندی جدید را وارد کنید:');
+    const name = prompt('Enter name for the new category:');
     if (!name) return;
     AdminState.config.categories = AdminState.config.categories || [];
     AdminState.config.categories.push({
@@ -567,11 +883,69 @@ function setupEventListeners() {
       icon: 'folder',
       tiles: []
     });
-    saveConfigToServer('دسته‌بندی جدید افزوده شد').then(loadAdminData);
+    saveConfigToServer('Category added').then(loadAdminData);
   });
 }
 
 // Modal Tile Edit
+function renderAdminIconPicker(selectedIcon = 'server') {
+  const grid = document.getElementById('adminTileIconGrid');
+  if (!grid) return;
+  const icons = IconCatalog.getAll();
+  const heimdallApps = IconCatalog.getHeimdallApps() || [];
+  const searchVal = (document.getElementById('adminTileIconSearch')?.value || '').toLowerCase().trim();
+  
+  grid.innerHTML = '';
+
+  // 1. Presets
+  Object.keys(icons).forEach(key => {
+    if (searchVal && !key.toLowerCase().includes(searchVal)) return;
+    const isSelected = (selectedIcon === key);
+    const div = document.createElement('div');
+    div.className = `icon-cell ${isSelected ? 'selected' : ''}`;
+    div.title = key;
+    div.innerHTML = IconCatalog.render('svg', key);
+    div.onclick = () => {
+      document.querySelectorAll('#adminTileIconGrid .icon-cell').forEach(c => c.classList.remove('selected'));
+      div.classList.add('selected');
+      document.getElementById('adminTileIconValue').value = key;
+      document.getElementById('adminTileIconType').value = 'svg';
+    };
+    grid.appendChild(div);
+  });
+
+  // 2. Heimdall Foundation Icons (680+ apps)
+  const matchingHeimdall = heimdallApps.filter(app => {
+    if (!searchVal) return true;
+    return (
+      app.name.toLowerCase().includes(searchVal) ||
+      app.id.toLowerCase().includes(searchVal) ||
+      (app.description && app.description.toLowerCase().includes(searchVal))
+    );
+  });
+
+  const displayLimit = searchVal ? 160 : 60;
+  matchingHeimdall.slice(0, displayLimit).forEach(app => {
+    const isSelected = (selectedIcon === app.icon_url || selectedIcon === app.id);
+    const div = document.createElement('div');
+    div.className = `icon-cell ${isSelected ? 'selected' : ''}`;
+    div.title = `${app.name} (Heimdall Foundation)`;
+    div.innerHTML = `<img src="${app.icon_url}" alt="${app.name}" style="width:28px;height:28px;object-fit:contain;" loading="lazy" />`;
+    div.onclick = () => {
+      document.querySelectorAll('#adminTileIconGrid .icon-cell').forEach(c => c.classList.remove('selected'));
+      div.classList.add('selected');
+      document.getElementById('adminTileIconValue').value = app.icon_url;
+      document.getElementById('adminTileIconType').value = 'image';
+      
+      const titleInput = document.getElementById('mTileTitle');
+      if (titleInput && !titleInput.value.trim()) {
+        titleInput.value = app.name;
+      }
+    };
+    grid.appendChild(div);
+  });
+}
+
 function openTileEditModal(catId = null, tileId = null) {
   const modal = document.getElementById('adminTileModal');
   const catSelect = document.getElementById('mTileCategory');
@@ -580,30 +954,80 @@ function openTileEditModal(catId = null, tileId = null) {
     catSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
   });
 
+  const searchInput = document.getElementById('adminTileIconSearch');
+  if (searchInput) {
+    searchInput.value = '';
+    searchInput.oninput = () => {
+      renderAdminIconPicker(document.getElementById('adminTileIconValue').value);
+    };
+  }
+
+  const uploadInput = document.getElementById('adminTileIconUpload');
+  if (uploadInput) {
+    uploadInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (evt) => {
+        try {
+          showAdminToast('Removing icon background...', 'info');
+          let finalDataUrl = evt.target.result;
+          if (window.stripImageBackground) {
+            finalDataUrl = await window.stripImageBackground(finalDataUrl);
+          }
+          const res = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              filename: file.name.replace(/\.[^/.]+$/, "") + ".png",
+              base64Data: finalDataUrl
+            })
+          });
+          const data = await res.json();
+          if (data.url) {
+            document.getElementById('adminTileIconValue').value = data.url;
+            document.getElementById('adminTileIconType').value = 'image';
+            renderAdminIconPicker(data.url);
+            showAdminToast('Icon uploaded with transparent background', 'success');
+          }
+        } catch (err) {
+          showAdminToast('Icon upload failed: ' + err.message, 'error');
+        }
+      };
+      reader.readAsDataURL(file);
+    };
+  }
+
   if (catId && tileId) {
     const cat = AdminState.config.categories.find(c => c.id === catId);
     const tile = cat?.tiles?.find(t => t.id === tileId);
     if (!tile) return;
     AdminState.currentEditingTile = { catId, tileId };
-    document.getElementById('adminTileModalTitle').textContent = 'ویرایش برنامه: ' + tile.title;
+    document.getElementById('adminTileModalTitle').textContent = 'Edit Service: ' + tile.title;
     document.getElementById('mTileTitle').value = tile.title;
     document.getElementById('mTileSubtitle').value = tile.subtitle || '';
     document.getElementById('mTileUrl').value = tile.target_url;
     document.getElementById('mTileCategory').value = catId;
+    document.getElementById('adminTileIconValue').value = tile.icon_value || 'server';
+    document.getElementById('adminTileIconType').value = tile.icon_type || 'svg';
     document.getElementById('mProbeType').value = tile.probe?.type || 'none';
     document.getElementById('mProbeHost').value = tile.probe?.host || '';
     document.getElementById('mProbePort').value = tile.probe?.port || '';
     document.getElementById('mProbePath').value = tile.probe?.path || '';
+    renderAdminIconPicker(tile.icon_value || 'server');
   } else {
     AdminState.currentEditingTile = null;
-    document.getElementById('adminTileModalTitle').textContent = 'افزودن برنامه جدید';
+    document.getElementById('adminTileModalTitle').textContent = 'Add New Service';
     document.getElementById('mTileTitle').value = '';
     document.getElementById('mTileSubtitle').value = '';
     document.getElementById('mTileUrl').value = '';
+    document.getElementById('adminTileIconValue').value = 'server';
+    document.getElementById('adminTileIconType').value = 'svg';
     document.getElementById('mProbeType').value = 'none';
     document.getElementById('mProbeHost').value = '';
     document.getElementById('mProbePort').value = '';
     document.getElementById('mProbePath').value = '';
+    renderAdminIconPicker('server');
   }
 
   modal.classList.add('open');
@@ -612,8 +1036,11 @@ function openTileEditModal(catId = null, tileId = null) {
     const title = document.getElementById('mTileTitle').value.trim();
     const url = document.getElementById('mTileUrl').value.trim();
     const targetCatId = document.getElementById('mTileCategory').value;
+    const iconType = document.getElementById('adminTileIconType').value || 'svg';
+    const iconValue = document.getElementById('adminTileIconValue').value || 'server';
+
     if (!title || !url) {
-      return showAdminToast('نام و آدرس برنامه الزامی هستند', 'error');
+      return showAdminToast('Service title and URL are required', 'error');
     }
 
     const probe = {
@@ -633,6 +1060,8 @@ function openTileEditModal(catId = null, tileId = null) {
       existing.title = title;
       existing.subtitle = document.getElementById('mTileSubtitle').value.trim();
       existing.target_url = url;
+      existing.icon_type = iconType;
+      existing.icon_value = iconValue;
       existing.probe = probe;
 
       if (oldCatId !== targetCatId) {
@@ -650,13 +1079,13 @@ function openTileEditModal(catId = null, tileId = null) {
         title,
         subtitle: document.getElementById('mTileSubtitle').value.trim(),
         target_url: url,
-        icon_type: 'svg',
-        icon_value: 'server',
+        icon_type: iconType,
+        icon_value: iconValue,
         probe
       });
     }
 
-    await saveConfigToServer('برنامه ذخیره شد');
+    await saveConfigToServer('Service tile saved');
     closeAdminModal();
     await loadAdminData();
   };
@@ -670,36 +1099,36 @@ function closeAdminModal() {
 function editCategoryName(catId) {
   const cat = AdminState.config.categories.find(c => c.id === catId);
   if (!cat) return;
-  const newName = prompt('نام جدید دسته‌بندی:', cat.name);
+  const newName = prompt('Enter new category name:', cat.name);
   if (!newName) return;
   cat.name = newName;
-  saveConfigToServer('دسته‌بندی بروزرسانی شد').then(loadAdminData);
+  saveConfigToServer('Category updated').then(loadAdminData);
 }
 
 function deleteCategory(catId) {
   const cat = AdminState.config.categories.find(c => c.id === catId);
   if (!cat) return;
-  if (!confirm(`آیا از حذف دسته‌بندی "${cat.name}" و تمام زیرمجموعه‌های آن اطمینان دارید؟`)) return;
+  if (!confirm(`Are you sure you want to delete category "${cat.name}" and all its services?`)) return;
   AdminState.config.categories = AdminState.config.categories.filter(c => c.id !== catId);
-  saveConfigToServer('دسته‌بندی حذف شد').then(loadAdminData);
+  saveConfigToServer('Category deleted').then(loadAdminData);
 }
 
 async function deleteSingleTile(catId, tileId) {
   const cat = AdminState.config.categories.find(c => c.id === catId);
   if (!cat) return;
   cat.tiles = cat.tiles.filter(t => t.id !== tileId);
-  await saveConfigToServer('برنامه حذف شد');
+  await saveConfigToServer('Service deleted');
   await loadAdminData();
 }
 
-async function saveConfigToServer(msg = 'تنظیمات ذخیره شد') {
+async function saveConfigToServer(msg = 'Settings saved successfully') {
   try {
     const res = await fetch('/api/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ config: AdminState.config })
     });
-    if (!res.ok) throw new Error('خطا در ذخیره‌سازی');
+    if (!res.ok) throw new Error('Failed to save settings');
     showAdminToast(msg, 'success');
   } catch (err) {
     showAdminToast(err.message, 'error');

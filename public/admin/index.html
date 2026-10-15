@@ -1,15 +1,15 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>پنل مدیریت جامع — دیم‌دش (DimDash Admin Studio)</title>
+  <title>DimDash Admin Studio — Homelab Control Plane</title>
   <link rel="stylesheet" href="../css/style.css">
   <link rel="stylesheet" href="admin.css">
 </head>
 <body>
   <!-- Admin Sidebar -->
-  <aside class="admin-sidebar">
+  <aside class="admin-sidebar" id="adminSidebar">
     <div>
       <a href="/admin" class="admin-brand">
         <div class="admin-logo-box">
@@ -21,8 +21,8 @@
           </svg>
         </div>
         <div class="admin-brand-text">
-          <h2>دیم‌دش ادمین</h2>
-          <span>مدیریت متمرکز سرورها</span>
+          <h2>DimDash Studio</h2>
+          <span>Unified Homelab Management</span>
         </div>
       </a>
 
@@ -34,7 +34,7 @@
             <rect x="14" y="14" width="7" height="7"></rect>
             <rect x="3" y="14" width="7" height="7"></rect>
           </svg>
-          <span>داشبورد آمار (Overview)</span>
+          <span>Overview</span>
         </a>
 
         <a class="nav-link" data-tab="tiles">
@@ -46,14 +46,23 @@
             <line x1="3" y1="12" x2="3.01" y2="12"></line>
             <line x1="3" y1="18" x2="3.01" y2="18"></line>
           </svg>
-          <span>مدیریت برنامه‌ها و کاشی‌ها</span>
+          <span>App Tiles & Services</span>
         </a>
 
         <a class="nav-link" data-tab="categories">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
           </svg>
-          <span>دسته‌بندی‌ها</span>
+          <span>Categories</span>
+        </a>
+
+        <a class="nav-link" data-tab="widgets">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 20V10"></path>
+            <path d="M12 20V4"></path>
+            <path d="M6 20v-6"></path>
+          </svg>
+          <span>Widgets & Gauges</span>
         </a>
 
         <a class="nav-link" data-tab="theme">
@@ -68,14 +77,14 @@
             <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
             <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
           </svg>
-          <span>استودیوی تم و ظاهر</span>
+          <span>Theme & Appearance</span>
         </a>
 
         <a class="nav-link" data-tab="probes">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
           </svg>
-          <span>پروب‌ها و مانیتورینگ سلامت</span>
+          <span>Health Probes</span>
         </a>
 
         <a class="nav-link" data-tab="backup">
@@ -84,7 +93,7 @@
             <polyline points="17 21 17 13 7 13 7 21"></polyline>
             <polyline points="7 3 7 8 15 8"></polyline>
           </svg>
-          <span>پشتیبان‌گیری و YAML</span>
+          <span>Backup & YAML</span>
         </a>
 
         <a class="nav-link" data-tab="security">
@@ -92,7 +101,7 @@
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
             <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
           </svg>
-          <span>امنیت و پین ادمین</span>
+          <span>Security & PIN</span>
         </a>
       </nav>
     </div>
@@ -103,7 +112,7 @@
           <line x1="19" y1="12" x2="5" y2="12"></line>
           <polyline points="12 19 5 12 12 5"></polyline>
         </svg>
-        <span>بازگشت به داشبورد اصلی</span>
+        <span>Return to Dashboard</span>
       </a>
     </div>
   </aside>
@@ -113,24 +122,24 @@
     <!-- Header -->
     <header class="workspace-header">
       <div class="workspace-title-group">
-        <h1 id="tabTitle">داشبورد آمار و وضعیت کلی</h1>
-        <p id="tabDesc">نمای کلی از وضعیت سرورها، پروب‌ها و منابع سیستم ایزوله</p>
+        <h1 id="tabTitle">System Overview & Diagnostics</h1>
+        <p id="tabDesc">Real-time status of homelab services, active health probes, and isolated node telemetry.</p>
       </div>
 
       <div class="workspace-actions">
-        <button class="btn btn-secondary" id="btnAdminTestAll">
+        <button class="btn btn-secondary" id="btnAdminTestAll" title="Run instant test on all configured probes">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
           </svg>
-          <span>تست فوری پروب‌ها</span>
+          <span>Probe All Services</span>
         </button>
 
-        <button class="btn btn-primary" id="btnAdminAddTile">
+        <button class="btn btn-primary" id="btnAdminAddTile" title="Add a new homelab application tile">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
-          <span>افزودن برنامه جدید</span>
+          <span>Add Service</span>
         </button>
       </div>
     </header>
@@ -141,41 +150,56 @@
       <div class="stats-cards-grid">
         <div class="metric-card">
           <div class="metric-icon-box purple">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
           </div>
           <div>
             <div class="metric-val" id="metricTotal">0</div>
-            <div class="metric-title">کل برنامه‌ها و کاشی‌ها</div>
+            <div class="metric-title">Total Configured Services</div>
           </div>
         </div>
 
         <div class="metric-card">
           <div class="metric-icon-box green">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
           </div>
           <div>
             <div class="metric-val" style="color: #34d399;" id="metricOnline">0</div>
-            <div class="metric-title">سرویس‌های آنلاین و فعال</div>
+            <div class="metric-title">Healthy & Online</div>
           </div>
         </div>
 
         <div class="metric-card">
           <div class="metric-icon-box amber">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
           </div>
           <div>
             <div class="metric-val" style="color: #fbbf24;" id="metricWarning">0</div>
-            <div class="metric-title">دارای هشدار یا تاخیر بالا</div>
+            <div class="metric-title">Warning / High Latency</div>
           </div>
         </div>
 
         <div class="metric-card">
           <div class="metric-icon-box red">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="15" y1="9" x2="9" y2="15"></line>
+              <line x1="9" y1="9" x2="15" y2="15"></line>
+            </svg>
           </div>
           <div>
             <div class="metric-val" style="color: #f87171;" id="metricOffline">0</div>
-            <div class="metric-title">سرویس‌های آفلاین</div>
+            <div class="metric-title">Unreachable / Offline</div>
           </div>
         </div>
       </div>
@@ -184,28 +208,33 @@
       <div class="system-info-grid">
         <div class="glass-box">
           <h3>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"></rect><rect x="2" y="14" width="20" height="8" rx="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
-            <span>مشخصات سرور و محیط محلی (Node Engine)</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="2" width="20" height="8" rx="2"></rect>
+              <rect x="2" y="14" width="20" height="8" rx="2"></rect>
+              <line x1="6" y1="6" x2="6.01" y2="6"></line>
+              <line x1="6" y1="18" x2="6.01" y2="18"></line>
+            </svg>
+            <span>Host Environment & Node Engine</span>
           </h3>
           <div class="key-value-list">
             <div class="key-value-item">
-              <span class="key-label">وضعیت شبکه:</span>
-              <span class="key-val" style="color: #34d399;">۱۰۰٪ Air-Gapped (بدون اتصال خارجی)</span>
+              <span class="key-label">Network Topology:</span>
+              <span class="key-val" style="color: #34d399;">100% Air-Gapped / Isolated Local Stack</span>
             </div>
             <div class="key-value-item">
-              <span class="key-label">زمان فعالیت فرآیند (Uptime):</span>
+              <span class="key-label">Server Engine Uptime:</span>
               <span class="key-val" id="serverUptimeVal">--</span>
             </div>
             <div class="key-value-item">
-              <span class="key-label">میزان مصرف حافظه رم (RSS):</span>
+              <span class="key-label">Process Memory (RSS):</span>
               <span class="key-val" id="serverMemVal">-- MB</span>
             </div>
             <div class="key-value-item">
-              <span class="key-label">تعداد هسته‌های پردازنده (CPU Cores):</span>
+              <span class="key-label">CPU Cores Available:</span>
               <span class="key-val" id="serverCpuVal">--</span>
             </div>
             <div class="key-value-item">
-              <span class="key-label">مسیر فایل پیکربندی اصلی:</span>
+              <span class="key-label">Primary Config File:</span>
               <span class="key-val" style="direction:ltr;">data/config.yaml</span>
             </div>
           </div>
@@ -213,13 +242,17 @@
 
         <div class="glass-box">
           <h3>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-            <span>دسترسی‌های سریع ادمین</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span>Quick Studio Shortcuts</span>
           </h3>
           <div style="display:flex; flex-direction:column; gap:0.75rem; margin-top:1rem;">
-            <button class="btn btn-primary" onclick="switchTab('tiles')">مدیریت جدول کاشی‌ها</button>
-            <button class="btn btn-secondary" onclick="switchTab('theme')">تنظیمات تم و رنگ‌بندی</button>
-            <button class="btn btn-secondary" onclick="switchTab('backup')">خروجی پشتیبان YAML</button>
+            <button class="btn btn-primary" onclick="switchTab('tiles')">Manage App Tiles & URLs</button>
+            <button class="btn btn-secondary" onclick="switchTab('widgets')">Hardware Gauges & Widgets</button>
+            <button class="btn btn-secondary" onclick="switchTab('theme')">Theme & Wallpaper Studio</button>
+            <button class="btn btn-secondary" onclick="switchTab('backup')">Export Configuration YAML</button>
           </div>
         </div>
       </div>
@@ -229,32 +262,32 @@
     <section class="admin-tab-content" id="tabTiles">
       <div class="table-toolbar">
         <div class="toolbar-filters">
-          <input type="text" id="adminTileSearch" class="table-search-input" placeholder="جستجو در نام، آدرس یا زیرعنوان...">
+          <input type="text" id="adminTileSearch" class="table-search-input" placeholder="Search by name, URL, or subtitle...">
           
           <select id="adminCatFilter" class="table-filter-select">
-            <option value="all">همه دسته‌ها</option>
+            <option value="all">All Categories</option>
           </select>
 
           <select id="adminStatusFilter" class="table-filter-select">
-            <option value="all">همه وضعیت‌ها</option>
-            <option value="online">آنلاین</option>
-            <option value="warning">هشدار</option>
-            <option value="offline">آفلاین</option>
+            <option value="all">All Statuses</option>
+            <option value="online">Online</option>
+            <option value="warning">Warning</option>
+            <option value="offline">Offline</option>
           </select>
         </div>
 
         <button class="btn btn-primary" id="btnTableAddTile">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          <span>افزودن کاشی</span>
+          <span>Add Service</span>
         </button>
       </div>
 
       <!-- Bulk Actions Bar -->
       <div class="bulk-actions-bar" id="bulkActionsBar">
-        <span id="bulkSelectedText">۰ مورد انتخاب شده</span>
+        <span id="bulkSelectedText">0 services selected</span>
         <button class="btn btn-secondary" style="color:#ef4444; border-color:rgba(239,68,68,0.4);" id="btnBulkDelete">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-          <span>حذف موارد انتخاب‌شده</span>
+          <span>Delete Selected</span>
         </button>
       </div>
 
@@ -264,14 +297,14 @@
           <thead>
             <tr>
               <th style="width: 40px;"><input type="checkbox" id="selectAllCheckbox"></th>
-              <th style="width: 50px;">آیکون</th>
-              <th>نام برنامه / سرویس</th>
-              <th>دسته‌بندی</th>
-              <th>آدرس شبکه (URL)</th>
-              <th>نوع پروب</th>
-              <th>وضعیت سلامت</th>
-              <th>تاخیر</th>
-              <th style="text-align: left;">عملیات</th>
+              <th style="width: 50px;">Icon</th>
+              <th>Service Name</th>
+              <th>Category</th>
+              <th>Network URL</th>
+              <th>Probe Type</th>
+              <th>Health Status</th>
+              <th>Latency</th>
+              <th style="text-align: right;">Actions</th>
             </tr>
           </thead>
           <tbody id="adminTilesTbody">
@@ -284,10 +317,13 @@
     <!-- TAB 3: CATEGORIES -->
     <section class="admin-tab-content" id="tabCategories">
       <div class="table-toolbar">
-        <h3>مدیریت گروه‌بندی‌ها و دسته‌ها</h3>
+        <div>
+          <h3>Category Groups & Boards</h3>
+          <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.2rem;">Group related services together, manage color codes, and configure custom island board layouts.</p>
+        </div>
         <button class="btn btn-primary" id="btnAdminAddCat">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          <span>افزودن دسته جدید</span>
+          <span>New Category</span>
         </button>
       </div>
 
@@ -295,10 +331,10 @@
         <table class="data-table">
           <thead>
             <tr>
-              <th>رنگ نشانگر</th>
-              <th>نام دسته‌بندی</th>
-              <th>تعداد برنامه‌های زیرمجموعه</th>
-              <th style="text-align: left;">عملیات</th>
+              <th>Color Accent</th>
+              <th>Category Name</th>
+              <th>Assigned Services</th>
+              <th style="text-align: right;">Actions</th>
             </tr>
           </thead>
           <tbody id="adminCategoriesTbody">
@@ -308,80 +344,16 @@
       </div>
     </section>
 
-    <!-- TAB 4: THEME STUDIO -->
-    <section class="admin-tab-content" id="tabTheme">
-      <div class="theme-studio-layout">
-        <div class="theme-controls glass-box">
-          <h3>پالت‌های رنگی آماده (Color Presets)</h3>
-          <div class="color-presets-row">
-            <button class="preset-chip" onclick="applyPreset('#6366f1')">💜 Midnight Neon (پیش‌فرض)</button>
-            <button class="preset-chip" onclick="applyPreset('#10b981')">💚 Deep Emerald</button>
-            <button class="preset-chip" onclick="applyPreset('#0ea5e9')">💙 Cyber Cyan</button>
-            <button class="preset-chip" onclick="applyPreset('#f59e0b')">🧡 Solar Amber</button>
-            <button class="preset-chip" onclick="applyPreset('#ec4899')">💖 Synthwave Pink</button>
-          </div>
-
-          <div class="form-group" style="margin-top: 1rem;">
-            <label class="form-label">عنوان اصلی داشبورد</label>
-            <input type="text" id="adminThemeTitleInput" class="form-input">
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">رنگ جلوه اصلی (Accent Color)</label>
-            <div style="display:flex; gap:0.5rem; align-items:center;">
-              <input type="color" id="adminThemeAccentInput" style="height: 40px; width: 60px; padding: 2px;">
-              <input type="text" id="adminThemeAccentHex" class="form-input" style="max-width: 140px;">
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">میزان محوشدگی پس‌زمینه شیشه‌ای (Glass Blur): <span id="adminBlurVal">16px</span></label>
-            <input type="range" id="adminThemeBlurInput" min="4" max="32" step="2" class="form-input" style="padding:0;">
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">تراکم چیدمان کاشی‌ها (Density)</label>
-            <select id="adminThemeDensitySelect" class="form-select">
-              <option value="compact">فشرده (Compact)</option>
-              <option value="normal">استاندارد (Normal)</option>
-              <option value="expanded">بزرگ (Expanded)</option>
-            </select>
-          </div>
-
-          <button class="btn btn-primary" id="btnSaveThemeStudio" style="margin-top: 1rem;">
-            <span>ذخیره و اعمال در کل سیستم</span>
-          </button>
-        </div>
-
-        <div class="glass-box" style="display:flex; flex-direction:column; align-items:center; justify-content:center;">
-          <h3 style="align-self: flex-start;">پیش‌نمایش زنده کاشی (Live Preview)</h3>
-          
-          <div class="theme-preview-card" id="themePreviewBox">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
-              <div style="width:48px; height:48px; border-radius:12px; background:rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:center;">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"></rect><rect x="2" y="14" width="20" height="8" rx="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
-              </div>
-              <span class="status-pill online">آنلاین</span>
-            </div>
-            <div style="font-size:1.1rem; font-weight:600; color:#fff; margin-bottom:0.2rem;">سرور نمونه</div>
-            <div style="font-size:0.8rem; color:#94a3b8; margin-bottom:1rem;">192.168.1.100:8080</div>
-            
-            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(255,255,255,0.08); padding-top:0.6rem;">
-              <span style="font-size:0.75rem; color:#64748b;">پروب HTTP</span>
-              <span style="font-family:monospace; font-size:0.75rem; color:#a5b4fc;">18ms</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- TAB 5: PROBES -->
-    <section class="admin-tab-content" id="tabProbes">
+    <!-- TAB 4: WIDGETS & GAUGES (NEW) -->
+    <section class="admin-tab-content" id="tabWidgets">
       <div class="table-toolbar">
-        <h3>جدول بلادرنگ وضعیت تمام پروب‌ها</h3>
-        <button class="btn btn-primary" id="btnRunFullProbeCycle">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-          <span>اجرای چرخه کامل بررسی</span>
+        <div>
+          <h3>Hardware & System Monitoring Gauges</h3>
+          <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.2rem;">Enable, configure, and customize real-time hardware telemetry gauges (CPU, RAM, Disk, Network, Containers).</p>
+        </div>
+        <button class="btn btn-primary" id="btnAdminAddWidget">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <span>Add Widget</span>
         </button>
       </div>
 
@@ -389,13 +361,218 @@
         <table class="data-table">
           <thead>
             <tr>
-              <th>برنامه</th>
-              <th>نوع پروب</th>
-              <th>مقصد (Host/Port)</th>
-              <th>وضعیت</th>
-              <th>زمان پاسخ</th>
-              <th>آخرین بررسی</th>
-              <th style="text-align: left;">تست تک‌موردی</th>
+              <th>Gauge Type</th>
+              <th>Widget Title</th>
+              <th>Node / Cluster Source</th>
+              <th>Accent Color</th>
+              <th>Card Layout Size</th>
+              <th style="text-align: right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="adminWidgetsTbody">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB 5: THEME STUDIO -->
+    <section class="admin-tab-content" id="tabTheme">
+      <div class="theme-studio-layout">
+        <div class="theme-controls glass-box">
+          <h3>Curated Color Palettes</h3>
+          <div class="color-presets-row">
+            <button class="preset-chip" onclick="applyPreset('#6366f1')">💜 Midnight Neon</button>
+            <button class="preset-chip" onclick="applyPreset('#10b981')">💚 Deep Emerald</button>
+            <button class="preset-chip" onclick="applyPreset('#0ea5e9')">💙 Cyber Cyan</button>
+            <button class="preset-chip" onclick="applyPreset('#f59e0b')">🧡 Solar Amber</button>
+            <button class="preset-chip" onclick="applyPreset('#ec4899')">💖 Synthwave Pink</button>
+          </div>
+
+          <div class="form-group" style="margin-top: 1.25rem;">
+            <label class="form-label">Dashboard Wallpaper</label>
+            <div class="wallpaper-picker-grid" id="adminWallpaperGrid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 0.6rem;">
+              <div class="wallpaper-card" data-wp="/wallpapers/twilight_pines.jpg" style="background: url('/wallpapers/twilight_pines.jpg') center/cover; height: 60px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; position: relative;">
+                <span style="position: absolute; bottom: 3px; left: 5px; font-size: 0.65rem; background: rgba(0,0,0,0.6); padding: 1px 5px; border-radius: 4px; color: #fff;">Twilight Pines</span>
+              </div>
+              <div class="wallpaper-card" data-wp="/wallpapers/crystal_poly.jpg" style="background: url('/wallpapers/crystal_poly.jpg') center/cover; height: 60px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; position: relative;">
+                <span style="position: absolute; bottom: 3px; left: 5px; font-size: 0.65rem; background: rgba(0,0,0,0.6); padding: 1px 5px; border-radius: 4px; color: #fff;">Crystal Poly</span>
+              </div>
+              <div class="wallpaper-card" data-wp="/wallpapers/cyber_space.jpg" style="background: url('/wallpapers/cyber_space.jpg') center/cover; height: 60px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; position: relative;">
+                <span style="position: absolute; bottom: 3px; left: 5px; font-size: 0.65rem; background: rgba(0,0,0,0.6); padding: 1px 5px; border-radius: 4px; color: #fff;">Cyber Space</span>
+              </div>
+              <div class="wallpaper-card" data-wp="none" style="background: #090d16; height: 60px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; color: #94a3b8;">
+                Dark Color Only
+              </div>
+            </div>
+
+            <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem;">
+              <label class="btn btn-secondary" style="cursor:pointer; flex:1; font-size:0.8rem; justify-content:center;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                <span>Upload Custom Wallpaper</span>
+                <input type="file" id="adminWpUploadInput" accept="image/*" style="display:none;">
+              </label>
+              <button class="btn btn-secondary" id="btnAdminUnsetWp" style="color:#ef4444; font-size:0.8rem;" type="button">Remove Wallpaper</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Wallpaper Darkening Overlay: <span id="adminWpDimVal">45%</span></label>
+            <input type="range" id="adminWpDimInput" min="0" max="90" step="5" value="45" class="form-input" style="padding:0;">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Service Cards Layout Style</label>
+            <select id="adminCardStyleSelect" class="form-select">
+              <option value="boards">Grouped Island Boards (Modern Clean Architecture)</option>
+              <option value="pill">Horizontal Glass Pills (Ultra-Minimalist Heimdall)</option>
+              <option value="card">Standard Metric Cards with Live Latency Badges</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Dashboard Header Title</label>
+            <input type="text" id="adminThemeTitleInput" class="form-input" placeholder="DimDash Homelab">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Global Theme Accent Color</label>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <input type="color" id="adminThemeAccentInput" style="height: 40px; width: 60px; padding: 2px;">
+              <input type="text" id="adminThemeAccentHex" class="form-input" style="max-width: 140px;">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Glassmorphism Frosted Blur: <span id="adminBlurVal">16px</span></label>
+            <input type="range" id="adminThemeBlurInput" min="4" max="32" step="2" class="form-input" style="padding:0;">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Tile Grid Density</label>
+            <select id="adminThemeDensitySelect" class="form-select">
+              <option value="compact">Compact Grid</option>
+              <option value="normal">Normal Balance</option>
+              <option value="expanded">Expanded Spacing</option>
+            </select>
+          </div>
+
+          <!-- Transparent Background Logo / Watermark -->
+          <div class="form-group" style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1rem; margin-top: 1rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.5rem;">
+              <label class="form-label" style="font-weight:600; color:#fff;">Background Transparent Logo / Watermark</label>
+              <div style="display:flex; gap:0.4rem;">
+                <label class="btn btn-secondary" style="cursor:pointer; font-size:0.75rem; padding:0.25rem 0.6rem;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                  <span>Upload Logo</span>
+                  <input type="file" id="adminBgLogoUploadInput" accept="image/*,.svg" style="display:none;">
+                </label>
+                <button class="btn btn-secondary" id="btnAdminClearBgLogo" style="color:#ef4444; font-size:0.75rem; padding:0.25rem 0.6rem;" type="button">Clear Logo</button>
+              </div>
+            </div>
+
+            <div class="form-row" style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
+              <div style="flex:2;">
+                <input type="text" id="adminBgLogoUrlInput" class="form-input" placeholder="URL e.g., /icons/dimdash-watermark.svg">
+              </div>
+              <div style="flex:1;">
+                <select id="adminBgLogoPresetSelect" class="form-select">
+                  <option value="">Presets...</option>
+                  <option value="/icons/dimdash-watermark.svg">Cyber DimDash Logo</option>
+                  <option value="/icons/hex-grid.svg">Hex Pattern</option>
+                  <option value="/icons/heimdall/Nextcloud/nextcloud.svg">Nextcloud Mark</option>
+                  <option value="/icons/heimdall/Proxmox/proxmox.svg">Proxmox Mark</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="margin-bottom:0.5rem;">
+              <label class="form-label" style="font-size:0.75rem;">Logo Transparency: <span id="adminBgLogoOpacityVal">18%</span></label>
+              <input type="range" id="adminBgLogoOpacityInput" min="0" max="100" step="2" value="18" class="form-input" style="padding:0;">
+            </div>
+
+            <div class="form-row" style="display:flex; gap:0.5rem;">
+              <div style="flex:1;">
+                <label class="form-label" style="font-size:0.75rem;">Position</label>
+                <select id="adminBgLogoPosSelect" class="form-select">
+                  <option value="center">Center</option>
+                  <option value="bottom-right">Bottom Right</option>
+                  <option value="bottom-left">Bottom Left</option>
+                  <option value="top-right">Top Right</option>
+                  <option value="top-left">Top Left</option>
+                </select>
+              </div>
+              <div style="flex:1;">
+                <label class="form-label" style="font-size:0.75rem;">Scale</label>
+                <select id="adminBgLogoSizeSelect" class="form-select">
+                  <option value="contain">Contain (Auto Scale)</option>
+                  <option value="350px">Medium (350px)</option>
+                  <option value="550px">Large (550px)</option>
+                  <option value="800px">Extra Large (800px)</option>
+                  <option value="cover">Full Cover</option>
+                </select>
+              </div>
+              <div style="flex:1;">
+                <label class="form-label" style="font-size:0.75rem;">Repeat</label>
+                <select id="adminBgLogoRepeatSelect" class="form-select">
+                  <option value="no-repeat">No Repeat (Single)</option>
+                  <option value="repeat">Tiled Pattern</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" id="btnSaveThemeStudio" style="margin-top: 1rem;">
+            <span>Save Theme Settings</span>
+          </button>
+        </div>
+
+        <div class="glass-box" style="display:flex; flex-direction:column; align-items:center; justify-content:center;">
+          <h3 style="align-self: flex-start;">Live Visual Mockup</h3>
+          
+          <div class="theme-preview-card" id="themePreviewBox">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+              <div style="width:48px; height:48px; border-radius:12px; background:rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:center;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"></rect><rect x="2" y="14" width="20" height="8" rx="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+              </div>
+              <span class="status-pill online">Online</span>
+            </div>
+            <div style="font-size:1.1rem; font-weight:600; color:#fff; margin-bottom:0.2rem;">Sample Node Service</div>
+            <div style="font-size:0.8rem; color:#94a3b8; margin-bottom:1rem;">192.168.1.100:8080</div>
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(255,255,255,0.08); padding-top:0.6rem;">
+              <span style="font-size:0.75rem; color:#64748b;">HTTP Probe</span>
+              <span style="font-family:monospace; font-size:0.75rem; color:#a5b4fc;">14ms</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 6: PROBES -->
+    <section class="admin-tab-content" id="tabProbes">
+      <div class="table-toolbar">
+        <div>
+          <h3>Real-time Service Health Probes</h3>
+          <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.2rem;">Active HTTP status and TCP port reachability checks with real-time response latency recording.</p>
+        </div>
+        <button class="btn btn-primary" id="btnRunFullProbeCycle">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          <span>Run Probe Sweep</span>
+        </button>
+      </div>
+
+      <div class="table-container" style="margin-top: 1rem;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Service Name</th>
+              <th>Probe Type</th>
+              <th>Target (Host / Port)</th>
+              <th>Status</th>
+              <th>Latency</th>
+              <th>Last Checked</th>
+              <th style="text-align: right;">Manual Probe</th>
             </tr>
           </thead>
           <tbody id="adminProbesTableBody">
@@ -405,119 +582,192 @@
       </div>
     </section>
 
-    <!-- TAB 6: BACKUP & RESTORE -->
+    <!-- TAB 7: BACKUP & RESTORE -->
     <section class="admin-tab-content" id="tabBackup">
       <div class="glass-box" style="margin-bottom: 1.5rem;">
-        <h3>دانلود و بارگذاری پشتیبان</h3>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">شما می‌توانید نسخه پشتیبان از تمام تنظیمات و کاشی‌ها دریافت کنید یا از فایل پشتیبان بازیابی نمایید.</p>
+        <h3>Configuration Backup & Synchronization</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Download a full backup of all services, custom categories, theme settings, and gauge definitions, or restore from a previously exported backup file.</p>
         
         <div style="display:flex; gap:1rem; flex-wrap:wrap;">
           <button class="btn btn-primary" id="btnAdminExportBackup">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-            <span>دانلود فایل پشتیبان (JSON)</span>
+            <span>Download Backup (JSON)</span>
           </button>
 
           <label class="btn btn-secondary" style="cursor:pointer;">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-            <span>بازیابی از فایل پشتیبان</span>
+            <span>Restore from Backup</span>
             <input type="file" id="importBackupFileInput" accept=".json,.yaml,.yml" style="display:none;">
           </label>
         </div>
       </div>
 
       <div class="glass-box">
-        <h3>ویرایشگر مستقیم ساختار پیکربندی (Raw JSON View)</h3>
-        <textarea id="adminRawConfig" class="form-textarea" rows="16" style="font-family: monospace; font-size: 0.82rem; margin-bottom: 1rem;"></textarea>
-        <button class="btn btn-primary" id="btnAdminSaveRaw">ذخیره مستقیم تغییرات</button>
+        <h3>Direct Configuration Editor (Raw JSON)</h3>
+        <textarea id="adminRawConfig" class="form-textarea" rows="16" style="font-family: monospace; font-size: 0.82rem; margin-bottom: 1rem; width:100%; border-radius:12px;"></textarea>
+        <button class="btn btn-primary" id="btnAdminSaveRaw">Save Raw Configuration</button>
       </div>
     </section>
 
-    <!-- TAB 7: SECURITY -->
+    <!-- TAB 8: SECURITY -->
     <section class="admin-tab-content" id="tabSecurity">
       <div class="glass-box" style="max-width: 550px;">
-        <h3>تنظیم و تغییر پین امنیتی ادمین (Admin PIN)</h3>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">در صورتی که پین فعال باشد، هرگونه تغییر در چیدمان و ورود به بخش‌های حساس نیازمند تایید پین خواهد بود.</p>
+        <h3>Admin Access PIN & Lockdown</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">When an admin PIN is set, entering edit mode or accessing sensitive management features requires PIN confirmation.</p>
 
         <div class="form-group" style="margin-bottom: 1rem;">
-          <label class="form-label">پین جدید ادمین (حداقل ۴ رقم یا حروف):</label>
-          <input type="password" id="newPinInput" class="form-input" placeholder="پین جدید">
+          <label class="form-label">New Admin PIN (minimum 4 digits or characters):</label>
+          <input type="password" id="newPinInput" class="form-input" placeholder="Enter new PIN">
         </div>
 
         <div class="form-group" style="margin-bottom: 1.5rem;">
-          <label class="form-label">تکرار پین جدید:</label>
-          <input type="password" id="confirmPinInput" class="form-input" placeholder="تکرار پین">
+          <label class="form-label">Confirm New PIN:</label>
+          <input type="password" id="confirmPinInput" class="form-input" placeholder="Repeat new PIN">
         </div>
 
         <div style="display:flex; gap:0.75rem;">
-          <button class="btn btn-primary" id="btnSavePin">ذخیره پین جدید</button>
-          <button class="btn btn-secondary" id="btnRemovePin" style="color:#ef4444;">حذف محافظت با پین</button>
+          <button class="btn btn-primary" id="btnSavePin">Save Security PIN</button>
+          <button class="btn btn-secondary" id="btnRemovePin" style="color:#ef4444;">Disable PIN Protection</button>
         </div>
       </div>
     </section>
   </main>
 
-  <!-- Edit/Add Modal in Admin -->
+  <!-- Edit/Add Tile Modal in Admin -->
   <div class="modal-backdrop" id="adminTileModal">
     <div class="modal-window">
       <div class="modal-header">
-        <h3 class="modal-title" id="adminTileModalTitle">افزودن / ویرایش کاشی</h3>
+        <h3 class="modal-title" id="adminTileModalTitle">Add / Edit Service Tile</h3>
         <button class="btn btn-icon" onclick="closeAdminModal()">&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">نام برنامه *</label>
-            <input type="text" id="mTileTitle" class="form-input">
+            <label class="form-label">Service Title *</label>
+            <input type="text" id="mTileTitle" class="form-input" placeholder="e.g. Nextcloud">
           </div>
           <div class="form-group">
-            <label class="form-label">دسته‌بندی</label>
+            <label class="form-label">Category</label>
             <select id="mTileCategory" class="form-select"></select>
           </div>
         </div>
 
         <div class="form-group">
-          <label class="form-label">زیرعنوان یا توضیح</label>
-          <input type="text" id="mTileSubtitle" class="form-input">
+          <label class="form-label">Subtitle or Description</label>
+          <input type="text" id="mTileSubtitle" class="form-input" placeholder="e.g. Encrypted Cloud Storage">
         </div>
 
         <div class="form-group">
-          <label class="form-label">آدرس لینک مقصد (URL) *</label>
-          <input type="text" id="mTileUrl" class="form-input">
+          <label class="form-label">Target Network URL *</label>
+          <input type="text" id="mTileUrl" class="form-input" placeholder="https://nextcloud.local or http://192.168.1.50:8080">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Service Icon (Search catalog or upload custom image)</label>
+          <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
+            <input type="text" id="adminTileIconSearch" class="form-input" placeholder="Search icon catalog (plex, docker, router...)">
+            <label class="btn btn-secondary" style="cursor:pointer; white-space:nowrap; padding:0 1rem; font-size:0.8rem; display:flex; align-items:center; gap:0.3rem;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              <span>Upload Icon</span>
+              <input type="file" id="adminTileIconUpload" accept="image/*,.svg" style="display:none;">
+            </label>
+          </div>
+          <div class="icon-grid-large" id="adminTileIconGrid" style="max-height: 180px; overflow-y: auto;"></div>
+          <input type="hidden" id="adminTileIconValue" value="server">
+          <input type="hidden" id="adminTileIconType" value="svg">
         </div>
 
         <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1rem;">
-          <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem; color: #a5b4fc;">تنظیمات پروب مانیتورینگ</h4>
+          <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem; color: #a5b4fc;">Health Probe Configuration</h4>
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">نوع پروب</label>
+              <label class="form-label">Probe Type</label>
               <select id="mProbeType" class="form-select">
-                <option value="none">بدون پروب</option>
-                <option value="ping_tcp">پینگ TCP Port</option>
-                <option value="http_status">بررسی کد HTTP</option>
-                <option value="json_metric">استخراج متریک JSON</option>
+                <option value="none">No Probe (Always active)</option>
+                <option value="ping_tcp">TCP Port Ping</option>
+                <option value="http_status">HTTP Status Code</option>
+                <option value="json_metric">JSON Metric Parser</option>
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label">IP یا هاست مقصد</label>
-              <input type="text" id="mProbeHost" class="form-input">
+              <label class="form-label">Target Host / IP</label>
+              <input type="text" id="mProbeHost" class="form-input" placeholder="192.168.1.50">
             </div>
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">پورت</label>
-              <input type="number" id="mProbePort" class="form-input">
+              <label class="form-label">Port</label>
+              <input type="number" id="mProbePort" class="form-input" placeholder="80">
             </div>
             <div class="form-group">
-              <label class="form-label">مسیر (Path)</label>
-              <input type="text" id="mProbePath" class="form-input">
+              <label class="form-label">HTTP Path</label>
+              <input type="text" id="mProbePath" class="form-input" placeholder="/healthz or /api">
             </div>
           </div>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeAdminModal()">انصراف</button>
-        <button class="btn btn-primary" id="btnAdminModalSave">ذخیره کاشی</button>
+        <button class="btn btn-secondary" onclick="closeAdminModal()">Cancel</button>
+        <button class="btn btn-primary" id="btnAdminModalSave">Save Service</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit/Add Widget Modal (NEW) -->
+  <div class="modal-backdrop" id="adminWidgetModal">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3 class="modal-title" id="adminWidgetModalTitle">Add Monitoring Gauge</h3>
+        <button class="btn btn-icon" onclick="closeWidgetModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Widget Title *</label>
+            <input type="text" id="mWidgetTitle" class="form-input" placeholder="e.g. Master CPU Core">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Telemetry Source</label>
+            <select id="mWidgetServer" class="form-select">
+              <option value="local">Local Master Engine</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Gauge / Chart Type</label>
+            <select id="mWidgetType" class="form-select">
+              <option value="cpu_gauge">CPU Utilization Gauge</option>
+              <option value="ram_gauge">Memory (RAM) Gauge</option>
+              <option value="disk_gauge">Disk Storage Gauge</option>
+              <option value="network_traffic">Network Traffic (I/O Sparkline)</option>
+              <option value="docker_stats">Docker Container Stats</option>
+              <option value="host_info">Host Telemetry & Uptime</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Card Size</label>
+            <select id="mWidgetSize" class="form-select">
+              <option value="normal">Standard (Normal)</option>
+              <option value="wide">Wide Span (2 Columns)</option>
+              <option value="full">Full Width (3 Columns)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Accent Color</label>
+          <div style="display:flex; gap:0.5rem; align-items:center;">
+            <input type="color" id="mWidgetColor" value="#6366f1" style="height: 38px; width: 60px; padding: 2px;">
+            <input type="text" id="mWidgetColorHex" value="#6366f1" class="form-input" style="max-width: 140px;">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeWidgetModal()">Cancel</button>
+        <button class="btn btn-primary" id="btnWidgetModalSave">Save Widget</button>
       </div>
     </div>
   </div>
