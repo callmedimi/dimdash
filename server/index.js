@@ -14,8 +14,12 @@ const PORT = process.env.PORT || 3080;
 // Setup directories
 const dataDir = path.resolve(__dirname, '../data');
 const uploadsDir = path.join(dataDir, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+try {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+} catch (err) {
+  console.warn(`[Server] Notice: Unable to create uploads directory: ${err.message}`);
 }
 
 // Initialize Config & Prober & ClusterManager & MetricsHistory
