@@ -7,10 +7,11 @@ const AppState = {
   config: null,
   probes: {},
   systemTelemetry: null,
-  selectedWidgetType: 'cpu_gauge',
+  selectedWidgetType: 'clock_widget',
   widgetsCollapsed: false,
   activeCluster: 'all',
   currentView: 'apps', // 'apps' (tiles) or 'server-monitor' (gauges & charts)
+  authRole: 'guest', // 'guest', 'user', or 'admin'
   isAdmin: false,
   isArrangeMode: false,
   adminPin: '',
@@ -59,9 +60,23 @@ const elements = {
   widgetTitleInput: document.getElementById('widgetTitleInput'),
   widgetSizeSelect: document.getElementById('widgetSizeSelect'),
   widgetColorInput: document.getElementById('widgetColorInput'),
-  clockTime: document.getElementById('clockTime'),
-  clockDate: document.getElementById('clockDate'),
-  adminToggleBtn: document.getElementById('adminToggleBtn'),
+  authToggleBtn: document.getElementById('authToggleBtn'),
+  authModal: document.getElementById('authModal'),
+  authPinInput: document.getElementById('authPinInput'),
+  authSubmitBtn: document.getElementById('authSubmitBtn'),
+  authLogoutBtn: document.getElementById('authLogoutBtn'),
+  currentAuthRolePill: document.getElementById('currentAuthRolePill'),
+  authLoginForm: document.getElementById('authLoginForm'),
+  authActiveSessionView: document.getElementById('authActiveSessionView'),
+  authActiveDesc: document.getElementById('authActiveDesc'),
+  authErrorMsg: document.getElementById('authErrorMsg'),
+  tileVisibilitySelect: document.getElementById('tileVisibilitySelect'),
+  clockCalendarModeSelect: document.getElementById('clockCalendarModeSelect'),
+  clockTimeFormatSelect: document.getElementById('clockTimeFormatSelect'),
+  chartMetricSelect: document.getElementById('chartMetricSelect'),
+  chartRangeSelect: document.getElementById('chartRangeSelect'),
+  clockConfigRow: document.getElementById('clockConfigRow'),
+  chartConfigRow: document.getElementById('chartConfigRow'),
   btnHeaderArrange: document.getElementById('btnHeaderArrange'),
   arrangeFloatingBar: document.getElementById('arrangeFloatingBar'),
   btnFinishArrange: document.getElementById('btnFinishArrange'),
@@ -98,15 +113,52 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupSSE();
 });
 
-// Clock
+// Clock & Calendar Update Loop
 function setupClock() {
   const update = () => {
-    const now = new Date();
-    elements.clockTime.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    elements.clockDate.textContent = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+    updateClockWidgets();
   };
   update();
   setInterval(update, 1000);
+}
+
+function updateClockWidgets() {
+  const clockCards = document.querySelectorAll('.clock-widget-card');
+  if (clockCards.length === 0) return;
+
+  const nowInfo = window.DimDashCalendar ? window.DimDashCalendar.getNowInfo() : null;
+  if (!nowInfo) return;
+
+  clockCards.forEach(card => {
+    const wId = card.dataset.widgetId;
+    const displayEl = document.getElementById(`clock-display-${wId}`);
+    const datesEl = document.getElementById(`clock-dates-${wId}`);
+    if (!displayEl || !datesEl) return;
+
+    const timeFmt = displayEl.dataset.timeFormat || '24h';
+    const mode = datesEl.dataset.calendarMode || 'both';
+
+    let timeStr = '';
+    let ampmHtml = '';
+    if (timeFmt === '12h') {
+      timeStr = `${nowInfo.time.hours12}<span class="clock-colon">:</span>${nowInfo.time.minutes}<span class="clock-colon">:</span>${nowInfo.time.seconds}`;
+      ampmHtml = `<span class="clock-ampm">${nowInfo.time.ampmFa || nowInfo.time.ampmEn}</span>`;
+    } else {
+      timeStr = `${nowInfo.time.hours24}<span class="clock-colon">:</span>${nowInfo.time.minutes}<span class="clock-colon">:</span>${nowInfo.time.seconds}`;
+    }
+    displayEl.innerHTML = `${timeStr} ${ampmHtml}`;
+
+    const shamsiHtml = `<span class="clock-date-chip chip-shamsi" title="تقویم خورشیدی / شمسی">☀️ ${nowInfo.shamsi.fullFa}</span>`;
+    const gregorianHtml = `<span class="clock-date-chip chip-gregorian" title="Gregorian Calendar">📅 ${nowInfo.gregorian.full}</span>`;
+
+    if (mode === 'shamsi') {
+      datesEl.innerHTML = shamsiHtml;
+    } else if (mode === 'gregorian') {
+      datesEl.innerHTML = gregorianHtml;
+    } else {
+      datesEl.innerHTML = `${shamsiHtml} ${gregorianHtml}`;
+    }
+  });
 }
 
 function openSpotlightSearch() {
@@ -161,6 +213,21 @@ async function loadConfig() {
     const res = await fetch('/api/config');
     if (!res.ok) throw new Error('Failed to fetch config');
     AppState.config = await res.json();
+
+    // Check saved session
+    const savedRole = sessionStorage.getItem('dimdash_role');
+    const savedPin = sessionStorage.getItem('dimdash_pin');
+    if (savedRole === 'admin' || savedRole === 'user') {
+      AppState.authRole = savedRole;
+      AppState.isAdmin = (savedRole === 'admin');
+      AppState.adminPin = (savedRole === 'admin' ? (savedPin || '') : '');
+    } else {
+      AppState.authRole = 'guest';
+      AppState.isAdmin = false;
+      AppState.adminPin = '';
+    }
+    updateAuthUI();
+
     applyTheme(AppState.config.settings?.theme);
     renderDashboard();
     fetchProbes();
@@ -238,7 +305,7 @@ function applyTheme(theme) {
   }
 
   if (AppState.config.settings?.dashboard_title) {
-    elements.dashTitle.textContent = AppState.config.settings.dashboard_title;
+    if (elements.dashTitle) elements.dashTitle.textContent = AppState.config.settings.dashboard_title;
     document.title = AppState.config.settings.dashboard_title;
   }
 }
@@ -301,13 +368,24 @@ function renderDashboard() {
   switchDashboardView(AppState.currentView || 'apps');
 }
 
+function isTileAccessible(tile) {
+  const vis = tile.visibility || 'public';
+  if (AppState.authRole === 'guest') return vis === 'public';
+  if (AppState.authRole === 'user') return vis !== 'admin';
+  return true; // admin sees everything
+}
+
 // Render Category Tabs
 function renderCategoryTabs() {
   if (!elements.categoryTabs) return;
   const categories = AppState.config?.categories || [];
   
   let totalTiles = 0;
-  categories.forEach(c => totalTiles += (c.tiles || []).length);
+  categories.forEach(c => {
+    (c.tiles || []).forEach(t => {
+      if (isTileAccessible(t)) totalTiles++;
+    });
+  });
 
   let html = `
     <button class="tab-btn ${AppState.activeCategory === 'all' ? 'active' : ''}" data-cat="all">
@@ -316,7 +394,10 @@ function renderCategoryTabs() {
   `;
 
   categories.forEach(cat => {
-    const count = (cat.tiles || []).length;
+    const accessibleTiles = (cat.tiles || []).filter(t => isTileAccessible(t));
+    const count = accessibleTiles.length;
+    if (count === 0 && AppState.authRole !== 'admin') return;
+
     const isActive = AppState.activeCategory === cat.id ? 'active' : '';
     html += `
       <button class="tab-btn ${isActive}" data-cat="${cat.id}">
@@ -378,27 +459,47 @@ function renderClusterBar() {
 }
 
 function getWidgetCardHeader(w, icon) {
+  const isClock = w.type === 'clock_widget';
+  const isChart = w.type === 'chart_widget';
   const srvId = w.server_id || 'local';
   const srv = (AppState.config?.servers || []).find(s => s.id === srvId) || { id: srvId, name: 'Master Node', color: '#6366f1' };
   const srvTelemetry = AppState.systemTelemetry?.servers?.[srvId];
   const isOnline = srvTelemetry ? srvTelemetry.status === 'online' : true;
   const srvColor = srv.color || '#6366f1';
+  const isAdmin = AppState.authRole === 'admin';
+
+  let rightActionHtml = '';
+  if (isClock) {
+    const mode = w.calendar_mode || 'both';
+    const modeLabel = mode === 'shamsi' ? '☀️ فقط شمسی' : (mode === 'gregorian' ? '📅 Gregorian' : '⚡ شمسی + میلادی');
+    rightActionHtml = `
+      <button type="button" class="clock-widget-mode-pill" data-widget-id="${w.id}" title="تغییر نمایش تقویم (کلیک کنید)">
+        ${modeLabel}
+      </button>
+    `;
+  } else if (!isChart) {
+    rightActionHtml = `
+      <span class="widget-server-badge" style="background: ${srvColor}22; color: ${srvColor}; border: 1px solid ${srvColor}44;" title="Node: ${srv.name} (${srv.type || 'local'})">
+        <span class="cluster-status-dot ${isOnline ? 'online' : 'offline'}"></span>
+        <span>${srv.name}</span>
+      </span>
+    `;
+  }
 
   return `
     <div class="widget-card-header">
       <div class="widget-card-title-group">
-        <span class="widget-drag-handle" title="Drag to reorder gauge">⠿</span>
+        ${isAdmin ? `<span class="widget-drag-handle" title="Drag to reorder gauge">⠿</span>` : ''}
         <span class="widget-icon">${icon}</span>
-        <span class="widget-title">${w.title || 'Gauge'}</span>
+        <span class="widget-title">${w.title || (isClock ? 'ساعت و تقویم' : 'Gauge')}</span>
       </div>
       <div style="display:flex; align-items:center; gap:0.4rem;">
-        <span class="widget-server-badge" style="background: ${srvColor}22; color: ${srvColor}; border: 1px solid ${srvColor}44;" title="Node: ${srv.name} (${srv.type || 'local'})">
-          <span class="cluster-status-dot ${isOnline ? 'online' : 'offline'}"></span>
-          <span>${srv.name}</span>
-        </span>
-        <div class="widget-actions">
-          <button class="btn-widget-action btn-del-widget" data-id="${w.id}" title="Remove Gauge">🗑</button>
-        </div>
+        ${rightActionHtml}
+        ${isAdmin ? `
+          <div class="widget-actions">
+            <button class="btn-widget-action btn-del-widget" data-id="${w.id}" title="Remove Gauge">🗑</button>
+          </div>
+        ` : ''}
       </div>
     </div>
   `;
@@ -406,36 +507,122 @@ function getWidgetCardHeader(w, icon) {
 
 function renderWidgets() {
   if (!elements.widgetsContainer) return;
-  renderClusterBar();
 
+  const isMonitoring = AppState.currentView === 'server-monitor';
   const allWidgets = AppState.config?.widgets || [];
-  const widgets = AppState.activeCluster === 'all'
-    ? allWidgets
-    : allWidgets.filter(w => (w.server_id || 'local') === AppState.activeCluster);
+
+  // Filter widgets by active view mode:
+  // - On apps view: only show widgets targeted for 'apps' or 'both' (default for clock_widget is 'both', hardware gauges default to 'monitoring')
+  // - On monitoring view: show monitoring gauges, charts, and widgets targeted for 'monitoring' or 'both'
+  const viewFilteredWidgets = allWidgets.filter(w => {
+    const target = w.target_view || (w.type === 'clock_widget' ? 'both' : 'monitoring');
+    if (target === 'both') return true;
+    return isMonitoring ? target === 'monitoring' : target === 'apps';
+  });
+
+  const sec = document.getElementById('widgetsSection');
+  if (sec) {
+    if (!isMonitoring && viewFilteredWidgets.length === 0) {
+      sec.style.setProperty('display', 'none', 'important');
+    } else {
+      sec.style.removeProperty('display');
+    }
+  }
+
+  if (isMonitoring) {
+    renderClusterBar();
+  }
+
+  const widgets = (AppState.activeCluster === 'all' || !isMonitoring)
+    ? viewFilteredWidgets
+    : viewFilteredWidgets.filter(w => (w.server_id || 'local') === AppState.activeCluster || w.type === 'clock_widget');
 
   if (elements.widgetsCount) {
     elements.widgetsCount.textContent = `${widgets.length} Active Gauges` + (AppState.activeCluster !== 'all' ? ` (Filtered: ${AppState.activeCluster})` : '');
   }
 
   if (widgets.length === 0) {
-    elements.widgetsContainer.innerHTML = `
-      <div class="empty-dropzone" style="grid-column: 1 / -1; padding: 1.25rem;">
-        No gauges configured for this cluster. Click "+ Add Gauge" to add one.
-      </div>
-    `;
+    if (isMonitoring) {
+      elements.widgetsContainer.innerHTML = `
+        <div class="empty-dropzone" style="grid-column: 1 / -1; padding: 1.25rem;">
+          No gauges configured for this cluster. Click "+ Add Gauge" to add one.
+        </div>
+      `;
+    } else {
+      elements.widgetsContainer.innerHTML = '';
+    }
     return;
   }
 
   const C = 213.6;
   let html = '';
+  const isDraggable = AppState.authRole === 'admin' ? 'draggable="true"' : 'draggable="false"';
 
   widgets.forEach(w => {
     const accent = w.color || 'var(--accent-color, #6366f1)';
-    const sizeClass = w.size === 'wide' ? 'widget-size-wide' : '';
+    const sizeClass = w.size === 'wide' ? 'widget-size-wide' : (w.size === 'full' ? 'widget-size-full' : '');
 
-    if (w.type === 'cpu_gauge') {
+    if (w.type === 'clock_widget') {
+      const mode = w.calendar_mode || 'both';
+      const timeFmt = w.time_format || '24h';
+      const nowInfo = (window.DimDashCalendar ? window.DimDashCalendar.getNowInfo() : null);
+
+      let shamsiHtml = '';
+      let gregorianHtml = '';
+      let timeStr = '--:--:--';
+      let ampmHtml = '';
+
+      if (nowInfo) {
+        if (timeFmt === '12h') {
+          timeStr = `${nowInfo.time.hours12}<span class="clock-colon">:</span>${nowInfo.time.minutes}<span class="clock-colon">:</span>${nowInfo.time.seconds}`;
+          ampmHtml = `<span class="clock-ampm">${nowInfo.time.ampmFa || nowInfo.time.ampmEn}</span>`;
+        } else {
+          timeStr = `${nowInfo.time.hours24}<span class="clock-colon">:</span>${nowInfo.time.minutes}<span class="clock-colon">:</span>${nowInfo.time.seconds}`;
+        }
+        shamsiHtml = `<span class="clock-date-chip chip-shamsi" title="تقویم خورشیدی / شمسی">☀️ ${nowInfo.shamsi.fullFa}</span>`;
+        gregorianHtml = `<span class="clock-date-chip chip-gregorian" title="Gregorian Calendar">📅 ${nowInfo.gregorian.full}</span>`;
+      }
+
+      let datesHtml = '';
+      if (mode === 'shamsi') {
+        datesHtml = shamsiHtml;
+      } else if (mode === 'gregorian') {
+        datesHtml = gregorianHtml;
+      } else {
+        datesHtml = `${shamsiHtml} ${gregorianHtml}`;
+      }
+
       html += `
-        <div class="widget-card ${sizeClass}" id="widget-card-${w.id}" data-widget-id="${w.id}" draggable="true" style="--widget-accent: ${accent};">
+        <div class="widget-card clock-widget-card ${sizeClass}" id="widget-card-${w.id}" data-widget-id="${w.id}" ${isDraggable} style="--widget-accent: ${accent};">
+          ${getWidgetCardHeader(w, '⏰')}
+          <div class="clock-widget-body">
+            <div class="clock-time-display" id="clock-display-${w.id}" data-time-format="${timeFmt}">
+              ${timeStr} ${ampmHtml}
+            </div>
+            <div class="clock-dates-container" id="clock-dates-${w.id}" data-calendar-mode="${mode}">
+              ${datesHtml}
+            </div>
+          </div>
+        </div>
+      `;
+    } else if (w.type === 'chart_widget') {
+      const metric = w.metric_type || 'cpu';
+      const range = w.time_range || '1h';
+      html += `
+        <div class="widget-card chart-widget-card ${sizeClass}" id="widget-card-${w.id}" data-widget-id="${w.id}" ${isDraggable} style="--widget-accent: ${accent};">
+          ${getWidgetCardHeader(w, '📈')}
+          <div class="widget-card-body" style="flex-direction:column; align-items:stretch; padding-top:0.4rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem; font-size:0.75rem; color:var(--text-muted);">
+              <span>${metric.toUpperCase()} Utilization (${range})</span>
+              <span id="chart-val-${w.id}" style="color:${accent}; font-weight:700;">Live</span>
+            </div>
+            <canvas class="chart-widget-canvas" id="canvas-widget-${w.id}" width="340" height="85"></canvas>
+          </div>
+        </div>
+      `;
+    } else if (w.type === 'cpu_gauge') {
+      html += `
+        <div class="widget-card ${sizeClass}" id="widget-card-${w.id}" data-widget-id="${w.id}" ${isDraggable} style="--widget-accent: ${accent};">
           ${getWidgetCardHeader(w, '⚡')}
           <div class="widget-card-body">
             <div class="radial-gauge-box">
@@ -465,7 +652,7 @@ function renderWidgets() {
       `;
     } else if (w.type === 'ram_gauge') {
       html += `
-        <div class="widget-card ${sizeClass}" id="widget-card-${w.id}" data-widget-id="${w.id}" draggable="true" style="--widget-accent: ${accent};">
+        <div class="widget-card ${sizeClass}" id="widget-card-${w.id}" data-widget-id="${w.id}" ${isDraggable} style="--widget-accent: ${accent};">
           ${getWidgetCardHeader(w, '🧠')}
           <div class="widget-card-body">
             <div class="radial-gauge-box">
@@ -494,7 +681,7 @@ function renderWidgets() {
       `;
     } else if (w.type === 'disk_gauge') {
       html += `
-        <div class="widget-card ${sizeClass}" id="widget-card-${w.id}" data-widget-id="${w.id}" draggable="true" style="--widget-accent: ${accent};">
+        <div class="widget-card ${sizeClass}" id="widget-card-${w.id}" data-widget-id="${w.id}" ${isDraggable} style="--widget-accent: ${accent};">
           ${getWidgetCardHeader(w, '💾')}
           <div class="widget-card-body">
             <div class="radial-gauge-box">
@@ -524,7 +711,7 @@ function renderWidgets() {
       `;
     } else if (w.type === 'network_traffic') {
       html += `
-        <div class="widget-card ${sizeClass}" id="widget-card-${w.id}" data-widget-id="${w.id}" draggable="true" style="--widget-accent: ${accent};">
+        <div class="widget-card ${sizeClass}" id="widget-card-${w.id}" data-widget-id="${w.id}" ${isDraggable} style="--widget-accent: ${accent};">
           ${getWidgetCardHeader(w, '🌐')}
           <div class="widget-card-body" style="flex-direction: column; align-items: stretch;">
             <div class="net-traffic-grid">
@@ -548,7 +735,7 @@ function renderWidgets() {
       `;
     } else if (w.type === 'docker_stats') {
       html += `
-        <div class="widget-card ${sizeClass}" id="widget-card-${w.id}" data-widget-id="${w.id}" draggable="true" style="--widget-accent: ${accent};">
+        <div class="widget-card ${sizeClass}" id="widget-card-${w.id}" data-widget-id="${w.id}" ${isDraggable} style="--widget-accent: ${accent};">
           ${getWidgetCardHeader(w, '🐳')}
           <div class="widget-card-body">
             <div class="radial-gauge-box">
@@ -578,7 +765,7 @@ function renderWidgets() {
       `;
     } else if (w.type === 'host_info') {
       html += `
-        <div class="widget-card ${sizeClass}" id="widget-card-${w.id}" data-widget-id="${w.id}" draggable="true" style="--widget-accent: ${accent};">
+        <div class="widget-card ${sizeClass}" id="widget-card-${w.id}" data-widget-id="${w.id}" ${isDraggable} style="--widget-accent: ${accent};">
           ${getWidgetCardHeader(w, '🖥️')}
           <div class="widget-card-body" style="flex-direction: column; align-items: stretch;">
             <div class="widget-metrics-list">
@@ -604,7 +791,7 @@ function renderWidgets() {
       `;
     } else if (w.type === 'service_health') {
       html += `
-        <div class="widget-card ${sizeClass}" id="widget-card-${w.id}" data-widget-id="${w.id}" draggable="true" style="--widget-accent: ${accent};">
+        <div class="widget-card ${sizeClass}" id="widget-card-${w.id}" data-widget-id="${w.id}" ${isDraggable} style="--widget-accent: ${accent};">
           ${getWidgetCardHeader(w, '🛡️')}
           <div class="widget-card-body">
             <div class="radial-gauge-box">
@@ -645,47 +832,68 @@ function renderWidgets() {
     });
   });
 
-  // Attach Drag & Drop reorder events for widgets
-  elements.widgetsContainer.querySelectorAll('.widget-card').forEach(card => {
-    const wId = card.dataset.widgetId;
-
-    card.ondragstart = (e) => {
-      AppState.draggedWidgetId = wId;
-      card.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('type', 'widget');
-      e.dataTransfer.setData('text/plain', wId);
-    };
-
-    card.ondragover = (e) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      if (card.dataset.widgetId !== AppState.draggedWidgetId) {
-        card.classList.add('drag-over');
+  // Attach interactive calendar mode switcher for clock widgets
+  elements.widgetsContainer.querySelectorAll('.clock-widget-mode-pill').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const wId = btn.dataset.widgetId;
+      const widget = AppState.config?.widgets?.find(w => w.id === wId);
+      if (widget) {
+        const modes = ['both', 'shamsi', 'gregorian'];
+        const curIdx = modes.indexOf(widget.calendar_mode || 'both');
+        const nextMode = modes[(curIdx + 1) % modes.length];
+        widget.calendar_mode = nextMode;
+        if (AppState.authRole === 'admin') {
+          saveConfigToServer('Calendar mode updated');
+        }
+        renderWidgets();
       }
-    };
-
-    card.ondragleave = () => {
-      card.classList.remove('drag-over');
-    };
-
-    card.ondrop = (e) => {
-      e.preventDefault();
-      card.classList.remove('drag-over');
-      const targetId = card.dataset.widgetId;
-      if (AppState.draggedWidgetId && AppState.draggedWidgetId !== targetId) {
-        handleWidgetReorder(AppState.draggedWidgetId, targetId);
-        AppState.draggedWidgetId = null;
-      }
-    };
-
-    card.ondragend = () => {
-      elements.widgetsContainer.querySelectorAll('.widget-card').forEach(c => {
-        c.classList.remove('dragging', 'drag-over');
-      });
-      AppState.draggedWidgetId = null;
-    };
+    });
   });
+
+  // Attach Drag & Drop reorder events for widgets (Admin Only)
+  if (AppState.authRole === 'admin') {
+    elements.widgetsContainer.querySelectorAll('.widget-card').forEach(card => {
+      const wId = card.dataset.widgetId;
+
+      card.ondragstart = (e) => {
+        AppState.draggedWidgetId = wId;
+        card.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('type', 'widget');
+        e.dataTransfer.setData('text/plain', wId);
+      };
+
+      card.ondragover = (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (card.dataset.widgetId !== AppState.draggedWidgetId) {
+          card.classList.add('drag-over');
+        }
+      };
+
+      card.ondragleave = () => {
+        card.classList.remove('drag-over');
+      };
+
+      card.ondrop = (e) => {
+        e.preventDefault();
+        card.classList.remove('drag-over');
+        const targetId = card.dataset.widgetId;
+        if (AppState.draggedWidgetId && AppState.draggedWidgetId !== targetId) {
+          handleWidgetReorder(AppState.draggedWidgetId, targetId);
+          AppState.draggedWidgetId = null;
+        }
+      };
+
+      card.ondragend = () => {
+        elements.widgetsContainer.querySelectorAll('.widget-card').forEach(c => {
+          c.classList.remove('dragging', 'drag-over');
+        });
+        AppState.draggedWidgetId = null;
+      };
+    });
+  }
 
   updateWidgetValues();
 }
@@ -820,10 +1028,20 @@ function openWidgetModal() {
   const modal = document.getElementById('widgetModal');
   if (!modal) return;
 
-  AppState.selectedWidgetType = 'cpu_gauge';
+  AppState.selectedWidgetType = 'clock_widget';
   const typeCards = modal.querySelectorAll('.widget-type-card');
+
+  const updateTypeSpecificRows = (type) => {
+    if (elements.clockConfigRow) {
+      elements.clockConfigRow.style.display = (type === 'clock_widget') ? 'flex' : 'none';
+    }
+    if (elements.chartConfigRow) {
+      elements.chartConfigRow.style.display = (type === 'chart_widget') ? 'flex' : 'none';
+    }
+  };
+
   typeCards.forEach(c => {
-    c.classList.toggle('active', c.dataset.type === 'cpu_gauge');
+    c.classList.toggle('active', c.dataset.type === AppState.selectedWidgetType);
     c.onclick = () => {
       typeCards.forEach(tc => tc.classList.remove('active'));
       c.classList.add('active');
@@ -832,8 +1050,11 @@ function openWidgetModal() {
       if (titleInput && c.dataset.defaultTitle) {
         titleInput.value = c.dataset.defaultTitle;
       }
+      updateTypeSpecificRows(c.dataset.type);
     };
   });
+
+  updateTypeSpecificRows(AppState.selectedWidgetType);
 
   // Populate Servers Dropdown
   const srvSelect = document.getElementById('widgetServerSelect');
@@ -844,31 +1065,43 @@ function openWidgetModal() {
     `).join('');
   }
 
-  document.getElementById('widgetTitleInput').value = 'CPU Core Usage';
+  document.getElementById('widgetTitleInput').value = 'ساعت و تقویم';
   document.getElementById('widgetSizeSelect').value = 'normal';
-  document.getElementById('widgetColorInput').value = '#6366f1';
+  document.getElementById('widgetColorInput').value = '#38bdf8';
+  if (elements.clockCalendarModeSelect) elements.clockCalendarModeSelect.value = 'both';
+  if (elements.clockTimeFormatSelect) elements.clockTimeFormatSelect.value = '24h';
 
   modal.classList.add('open');
 }
 
 function saveNewWidget() {
-  const title = document.getElementById('widgetTitleInput').value.trim() || 'New Gauge';
+  const title = document.getElementById('widgetTitleInput').value.trim() || 'New Widget';
   const size = document.getElementById('widgetSizeSelect').value || 'normal';
-  const color = document.getElementById('widgetColorInput').value || '#6366f1';
-  const type = AppState.selectedWidgetType || 'cpu_gauge';
+  const color = document.getElementById('widgetColorInput').value || '#38bdf8';
+  const type = AppState.selectedWidgetType || 'clock_widget';
   const server_id = document.getElementById('widgetServerSelect')?.value || 'local';
 
   AppState.config.widgets = AppState.config.widgets || [];
-  AppState.config.widgets.push({
+  const newWidget = {
     id: 'widget-' + Date.now(),
     server_id,
     type,
     title,
     color,
     size
-  });
+  };
 
-  saveConfigToServer('New gauge added to dashboard');
+  if (type === 'clock_widget') {
+    newWidget.calendar_mode = elements.clockCalendarModeSelect?.value || 'both';
+    newWidget.time_format = elements.clockTimeFormatSelect?.value || '24h';
+  } else if (type === 'chart_widget') {
+    newWidget.metric_type = elements.chartMetricSelect?.value || 'cpu';
+    newWidget.time_range = elements.chartRangeSelect?.value || '1h';
+  }
+
+  AppState.config.widgets.push(newWidget);
+
+  saveConfigToServer('New widget added to dashboard');
   renderWidgets();
   closeAllModals();
 }
@@ -1041,6 +1274,7 @@ function renderGrid() {
     }
 
     const filteredTiles = (cat.tiles || []).filter(tile => {
+      if (!isTileAccessible(tile)) return false;
       if (!query) return true;
       return (
         tile.title.toLowerCase().includes(query) ||
@@ -1049,8 +1283,8 @@ function renderGrid() {
       );
     });
 
-    if (query && filteredTiles.length === 0) {
-      return; // Skip empty category on search
+    if (filteredTiles.length === 0 && (query || AppState.authRole !== 'admin')) {
+      return; // Skip empty category on search or if user has no accessible tiles
     }
 
     matchFound = true;
@@ -1058,13 +1292,14 @@ function renderGrid() {
     let catLayoutClass = 'cat-layout-vertical';
     if (catLayout === 'wide') catLayoutClass = 'cat-layout-wide';
     else if (catLayout === 'horizontal') catLayoutClass = 'cat-layout-horizontal';
+    const isDraggable = AppState.authRole === 'admin' ? 'draggable="true"' : 'draggable="false"';
 
     html += `
-      <section class="category-section ${catLayoutClass}" data-cat-id="${cat.id}" draggable="true">
+      <section class="category-section ${catLayoutClass}" data-cat-id="${cat.id}" ${isDraggable}>
         <div class="category-header">
           <div class="category-title-group">
-            <span class="cat-drag-handle" title="Drag to reorder category">⠿</span>
-            ${AppState.isArrangeMode ? `
+            ${AppState.authRole === 'admin' ? '<span class="cat-drag-handle" title="Drag to reorder category">⠿</span>' : ''}
+            ${AppState.authRole === 'admin' && AppState.isArrangeMode ? `
               <button type="button" class="cat-move-btn btn-cat-move-left" data-cat-id="${cat.id}" title="Move left">◀</button>
               <button type="button" class="cat-move-btn btn-cat-move-right" data-cat-id="${cat.id}" title="Move right">▶</button>
             ` : ''}
@@ -1074,14 +1309,12 @@ function renderGrid() {
           </div>
 
           <div class="category-actions">
-            <!-- 3 Island Size Choices: 1-col (sits side-by-side!), 2-col wide, or full-width row -->
-            <div class="cat-island-controls" title="Change Island Layout">
-              <button type="button" class="btn-island-size ${(!cat.layout || cat.layout === 'vertical') ? 'active' : ''}" data-cat-id="${cat.id}" data-layout="vertical" title="Single column">▮ Col</button>
-              <button type="button" class="btn-island-size ${cat.layout === 'wide' ? 'active' : ''}" data-cat-id="${cat.id}" data-layout="wide" title="Wide (2 columns)">▬ Wide</button>
-              <button type="button" class="btn-island-size ${cat.layout === 'horizontal' ? 'active' : ''}" data-cat-id="${cat.id}" data-layout="horizontal" title="Full width row">▰ Row</button>
-            </div>
-
-            ${AppState.isAdmin ? `
+            ${AppState.authRole === 'admin' ? `
+              <div class="cat-island-controls" title="Change Island Layout">
+                <button type="button" class="btn-island-size ${(!cat.layout || cat.layout === 'vertical') ? 'active' : ''}" data-cat-id="${cat.id}" data-layout="vertical" title="Single column">▮ Col</button>
+                <button type="button" class="btn-island-size ${cat.layout === 'wide' ? 'active' : ''}" data-cat-id="${cat.id}" data-layout="wide" title="Wide (2 columns)">▬ Wide</button>
+                <button type="button" class="btn-island-size ${cat.layout === 'horizontal' ? 'active' : ''}" data-cat-id="${cat.id}" data-layout="horizontal" title="Full width row">▰ Row</button>
+              </div>
               <button class="btn btn-icon btn-edit-cat" data-id="${cat.id}" title="Edit Category">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
               </button>
@@ -1098,16 +1331,21 @@ function renderGrid() {
       const iconMarkup = IconCatalog.render(tile.icon_type, tile.icon_value);
       const targetAttr = tile.open_in_new_tab !== false ? 'target="_blank" rel="noopener noreferrer"' : '';
       const customBg = tile.bg_color ? `style="background: ${tile.bg_color};"` : '';
+      const vis = tile.visibility || 'public';
+      let visBadge = '';
+      if (AppState.authRole === 'admin' && vis !== 'public') {
+        visBadge = `<span class="tile-visibility-badge vis-${vis}" title="دسترسی: ${vis === 'admin' ? 'فقط ادمین' : 'کاربران وارد شده'}">${vis === 'admin' ? '🛡️ Admin' : '🔒 Member'}</span>`;
+      }
 
       html += `
         <div class="tile-card" 
              data-tile-id="${tile.id}" 
              data-cat-id="${cat.id}"
-             draggable="true">
+             ${isDraggable}>
           
-          <span class="tile-drag-handle" title="Drag to reorder tile">⠿</span>
+          ${AppState.authRole === 'admin' ? '<span class="tile-drag-handle" title="Drag to reorder tile">⠿</span>' : ''}
 
-          ${AppState.isArrangeMode ? `
+          ${AppState.authRole === 'admin' && AppState.isArrangeMode ? `
             <div class="tile-arrange-controls">
               <button type="button" class="tile-move-btn btn-tile-up" data-cat-id="${cat.id}" data-tile-id="${tile.id}" title="Move up">▲</button>
               <button type="button" class="tile-move-btn btn-tile-down" data-cat-id="${cat.id}" data-tile-id="${tile.id}" title="Move down">▼</button>
@@ -1115,23 +1353,26 @@ function renderGrid() {
             </div>
           ` : ''}
 
-          <div class="tile-admin-bar">
-            <button class="tile-admin-btn btn-test-tile" data-cat-id="${cat.id}" data-tile-id="${tile.id}" title="Probe Health">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-            </button>
-            <button class="tile-admin-btn btn-edit-tile" data-cat-id="${cat.id}" data-tile-id="${tile.id}" title="Edit Tile">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-            </button>
-            <button class="tile-admin-btn btn-del-tile" data-cat-id="${cat.id}" data-tile-id="${tile.id}" title="Delete Tile">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
-          </div>
+          ${AppState.authRole === 'admin' ? `
+            <div class="tile-admin-bar">
+              <button class="tile-admin-btn btn-test-tile" data-cat-id="${cat.id}" data-tile-id="${tile.id}" title="Probe Health">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+              </button>
+              <button class="tile-admin-btn btn-edit-tile" data-cat-id="${cat.id}" data-tile-id="${tile.id}" title="Edit Tile">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+              </button>
+              <button class="tile-admin-btn btn-del-tile" data-cat-id="${cat.id}" data-tile-id="${tile.id}" title="Delete Tile">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+          ` : ''}
 
           <a href="${tile.target_url}" ${targetAttr} class="tile-main-link">
             <div class="tile-top">
               <div class="tile-icon-box" ${customBg}>
                 ${iconMarkup}
               </div>
+              ${visBadge}
             </div>
             
             <div class="tile-info">
@@ -1149,7 +1390,7 @@ function renderGrid() {
       `;
     });
 
-    if (filteredTiles.length === 0 && AppState.isArrangeMode) {
+    if (filteredTiles.length === 0 && AppState.isArrangeMode && AppState.authRole === 'admin') {
       html += `<div class="empty-dropzone" data-cat-id="${cat.id}">Drop tiles here</div>`;
     }
 
@@ -1400,122 +1641,125 @@ function attachCardEvents() {
     });
   });
 
-  // 1. Category Sections Drag & Drop (Always active)
-  const catSections = document.querySelectorAll('.category-section');
-  catSections.forEach(cat => {
-    cat.addEventListener('dragstart', (e) => {
-      if (e.target.closest('.tile-card')) return;
-      AppState.draggedCatId = cat.dataset.catId;
-      cat.classList.add('dragging-cat');
-      e.dataTransfer.setData('type', 'category');
-      e.dataTransfer.setData('catId', cat.dataset.catId);
-    });
+  // Drag & Drop reorder events (Admin Only)
+  if (AppState.authRole === 'admin') {
+    // 1. Category Sections Drag & Drop
+    const catSections = document.querySelectorAll('.category-section');
+    catSections.forEach(cat => {
+      cat.addEventListener('dragstart', (e) => {
+        if (e.target.closest('.tile-card')) return;
+        AppState.draggedCatId = cat.dataset.catId;
+        cat.classList.add('dragging-cat');
+        e.dataTransfer.setData('type', 'category');
+        e.dataTransfer.setData('catId', cat.dataset.catId);
+      });
 
-    cat.addEventListener('dragend', () => {
-      cat.classList.remove('dragging-cat');
-      document.querySelectorAll('.category-section').forEach(c => c.classList.remove('drag-over-cat'));
-    });
+      cat.addEventListener('dragend', () => {
+        cat.classList.remove('dragging-cat');
+        document.querySelectorAll('.category-section').forEach(c => c.classList.remove('drag-over-cat'));
+      });
 
-    cat.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      cat.classList.add('drag-over-cat');
-    });
+      cat.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        cat.classList.add('drag-over-cat');
+      });
 
-    cat.addEventListener('dragleave', (e) => {
-      if (!cat.contains(e.relatedTarget)) {
-        cat.classList.remove('drag-over-cat');
-      }
-    });
-
-    cat.addEventListener('drop', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      cat.classList.remove('drag-over-cat');
-      const dragType = e.dataTransfer.getData('type') || (AppState.draggedCatId ? 'category' : 'tile');
-      if (dragType === 'category' && AppState.draggedCatId) {
-        handleCategoryReorder(AppState.draggedCatId, cat.dataset.catId);
-        AppState.draggedCatId = null;
-      } else if (dragType === 'tile' && AppState.draggedTileId) {
-        handleTileReorder(AppState.draggedSourceCatId, AppState.draggedTileId, cat.dataset.catId, null);
-        AppState.draggedTileId = null;
-      }
-    });
-  });
-
-  // 2. Tile Cards Drag & Drop (Always active)
-  let lastDragTime = 0;
-  const cards = document.querySelectorAll('.tile-card');
-  cards.forEach(card => {
-    card.addEventListener('dragstart', (e) => {
-      e.stopPropagation();
-      lastDragTime = Date.now();
-      AppState.draggedTileId = card.dataset.tileId;
-      AppState.draggedSourceCatId = card.dataset.catId;
-      card.classList.add('dragging');
-      e.dataTransfer.setData('type', 'tile');
-      e.dataTransfer.setData('tileId', card.dataset.tileId);
-    });
-
-    card.addEventListener('dragend', () => {
-      card.classList.remove('dragging');
-      document.querySelectorAll('.tile-card').forEach(c => c.classList.remove('drag-over-tile'));
-    });
-
-    card.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      card.classList.add('drag-over-tile');
-    });
-
-    card.addEventListener('dragleave', (e) => {
-      if (!card.contains(e.relatedTarget)) {
-        card.classList.remove('drag-over-tile');
-      }
-    });
-
-    card.addEventListener('drop', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      card.classList.remove('drag-over-tile');
-      if (AppState.draggedTileId) {
-        const targetTileId = card.dataset.tileId;
-        const targetCatId = card.dataset.catId;
-        handleTileReorder(AppState.draggedSourceCatId, AppState.draggedTileId, targetCatId, targetTileId);
-        AppState.draggedTileId = null;
-      }
-    });
-
-    // Prevent navigation if just dragged
-    const link = card.querySelector('.tile-main-link');
-    if (link) {
-      link.addEventListener('click', (e) => {
-        if (Date.now() - lastDragTime < 300) {
-          e.preventDefault();
-          e.stopPropagation();
+      cat.addEventListener('dragleave', (e) => {
+        if (!cat.contains(e.relatedTarget)) {
+          cat.classList.remove('drag-over-cat');
         }
       });
-    }
-  });
 
-  // 3. Empty dropzones
-  document.querySelectorAll('.empty-dropzone').forEach(zone => {
-    zone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      zone.classList.add('drag-over-tile');
+      cat.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        cat.classList.remove('drag-over-cat');
+        const dragType = e.dataTransfer.getData('type') || (AppState.draggedCatId ? 'category' : 'tile');
+        if (dragType === 'category' && AppState.draggedCatId) {
+          handleCategoryReorder(AppState.draggedCatId, cat.dataset.catId);
+          AppState.draggedCatId = null;
+        } else if (dragType === 'tile' && AppState.draggedTileId) {
+          handleTileReorder(AppState.draggedSourceCatId, AppState.draggedTileId, cat.dataset.catId, null);
+          AppState.draggedTileId = null;
+        }
+      });
     });
-    zone.addEventListener('dragleave', () => {
-      zone.classList.remove('drag-over-tile');
-    });
-    zone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      zone.classList.remove('drag-over-tile');
-      if (AppState.draggedTileId) {
-        handleTileReorder(AppState.draggedSourceCatId, AppState.draggedTileId, zone.dataset.catId, null);
-        AppState.draggedTileId = null;
+
+    // 2. Tile Cards Drag & Drop
+    let lastDragTime = 0;
+    const cards = document.querySelectorAll('.tile-card');
+    cards.forEach(card => {
+      card.addEventListener('dragstart', (e) => {
+        e.stopPropagation();
+        lastDragTime = Date.now();
+        AppState.draggedTileId = card.dataset.tileId;
+        AppState.draggedSourceCatId = card.dataset.catId;
+        card.classList.add('dragging');
+        e.dataTransfer.setData('type', 'tile');
+        e.dataTransfer.setData('tileId', card.dataset.tileId);
+      });
+
+      card.addEventListener('dragend', () => {
+        card.classList.remove('dragging');
+        document.querySelectorAll('.tile-card').forEach(c => c.classList.remove('drag-over-tile'));
+      });
+
+      card.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        card.classList.add('drag-over-tile');
+      });
+
+      card.addEventListener('dragleave', (e) => {
+        if (!card.contains(e.relatedTarget)) {
+          card.classList.remove('drag-over-tile');
+        }
+      });
+
+      card.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        card.classList.remove('drag-over-tile');
+        if (AppState.draggedTileId) {
+          const targetTileId = card.dataset.tileId;
+          const targetCatId = card.dataset.catId;
+          handleTileReorder(AppState.draggedSourceCatId, AppState.draggedTileId, targetCatId, targetTileId);
+          AppState.draggedTileId = null;
+        }
+      });
+
+      // Prevent navigation if just dragged
+      const link = card.querySelector('.tile-main-link');
+      if (link) {
+        link.addEventListener('click', (e) => {
+          if (Date.now() - lastDragTime < 300) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        });
       }
     });
-  });
+
+    // 3. Empty dropzones
+    document.querySelectorAll('.empty-dropzone').forEach(zone => {
+      zone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        zone.classList.add('drag-over-tile');
+      });
+      zone.addEventListener('dragleave', () => {
+        zone.classList.remove('drag-over-tile');
+      });
+      zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        zone.classList.remove('drag-over-tile');
+        if (AppState.draggedTileId) {
+          handleTileReorder(AppState.draggedSourceCatId, AppState.draggedTileId, zone.dataset.catId, null);
+          AppState.draggedTileId = null;
+        }
+      });
+    });
+  }
 }
 
 // Reorder Groups & Categories
@@ -1603,6 +1847,10 @@ function handleTileReorder(sourceCatId, tileId, targetCatId, targetTileId) {
 
 // Toggle Arrange Mode
 function toggleArrangeMode(forceState) {
+  if (AppState.authRole !== 'admin') {
+    showToast('Permission denied: Only administrator can rearrange layout', 'error');
+    return;
+  }
   AppState.isArrangeMode = (forceState !== undefined) ? forceState : !AppState.isArrangeMode;
   document.body.classList.toggle('arrange-mode-active', AppState.isArrangeMode);
 
@@ -1627,13 +1875,17 @@ function toggleArrangeMode(forceState) {
 
 // Save Config to Server
 async function saveConfigToServer(successMsg = 'Settings saved') {
+  if (AppState.authRole !== 'admin') {
+    showToast('Permission denied: Only administrator can modify settings', 'error');
+    return;
+  }
   try {
     const res = await fetch('/api/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         config: AppState.config,
-        pin: AppState.adminPin
+        pin: AppState.adminPin || sessionStorage.getItem('dimdash_pin') || ''
       })
     });
     if (!res.ok) {
@@ -1689,25 +1941,12 @@ function setupEventListeners() {
     }
   });
 
-  // Admin Toggle
-  elements.adminToggleBtn?.addEventListener('click', async () => {
-    if (!AppState.isAdmin) {
-      if (AppState.config?.is_pin_protected) {
-        openPinModal();
-      } else {
-        AppState.isAdmin = true;
-        document.body.classList.add('admin-mode');
-        elements.adminToggleBtn.classList.add('active');
-        showToast('Admin edit mode enabled', 'info');
-        renderDashboard();
-      }
-    } else {
-      AppState.isAdmin = false;
-      document.body.classList.remove('admin-mode');
-      elements.adminToggleBtn.classList.remove('active');
-      showToast('Admin edit mode disabled', 'info');
-      renderDashboard();
-    }
+  // Authentication & Access Role Unlock
+  elements.authToggleBtn?.addEventListener('click', () => openAuthModal());
+  elements.authSubmitBtn?.addEventListener('click', () => submitAuth());
+  elements.authLogoutBtn?.addEventListener('click', () => logoutAuth());
+  elements.authPinInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submitAuth();
   });
 
   // Action Buttons
@@ -1773,10 +2012,10 @@ function setupEventListeners() {
     document.body.classList.toggle('page-view-monitoring', isMonitoring);
     document.body.classList.toggle('page-view-apps', !isMonitoring);
 
-    // 1. Gauges / Widgets Section
+    // 1. Gauges & Widgets Section (Clock, Gauges, Charts) - visible on dashboard
     const widgetsSection = document.getElementById('widgetsSection');
     if (widgetsSection) {
-      widgetsSection.style.setProperty('display', isMonitoring ? 'block' : 'none', 'important');
+      widgetsSection.style.removeProperty('display');
     }
 
     // 2. Server Monitor Time-Series Charts
@@ -1798,14 +2037,14 @@ function setupEventListeners() {
     // 5. Telemetry Stats Bar
     const statsBar = document.getElementById('statsOverviewBar');
     if (statsBar) {
-      statsBar.style.setProperty('display', isMonitoring ? 'none' : 'flex', 'important');
+      statsBar.style.removeProperty('display');
     }
 
     if (elements.sideNavAll) elements.sideNavAll.classList.toggle('active', !isMonitoring);
     if (elements.sideNavCharts) elements.sideNavCharts.classList.toggle('active', isMonitoring);
 
+    renderWidgets();
     if (isMonitoring) {
-      renderWidgets();
       if (window.initServerCharts) {
         window.initServerCharts();
       }
@@ -1845,7 +2084,7 @@ function setupEventListeners() {
     elements.sideNavTheme.addEventListener('click', () => openThemeModal());
   }
   if (elements.sideNavLock) {
-    elements.sideNavLock.addEventListener('click', () => elements.adminToggleBtn?.click());
+    elements.sideNavLock.addEventListener('click', () => openAuthModal());
   }
 }
 
@@ -1857,38 +2096,142 @@ function closeAllModals() {
   document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.remove('open'));
 }
 
-// PIN Modal
-function openPinModal() {
-  const modal = document.getElementById('pinModal');
-  const input = document.getElementById('adminPinInput');
-  input.value = '';
-  modal.classList.add('open');
-  input.focus();
+// Auth UI & Role State Synchronizer
+function updateAuthUI() {
+  const role = AppState.authRole || 'guest';
+  const isAdmin = (role === 'admin');
+  AppState.isAdmin = isAdmin;
 
-  document.getElementById('pinSubmitBtn').onclick = async () => {
-    const pin = input.value;
-    try {
-      const res = await fetch('/api/verify-pin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin })
-      });
-      if (res.ok) {
-        AppState.adminPin = pin;
-        AppState.isAdmin = true;
-        document.body.classList.add('admin-mode');
-        elements.adminToggleBtn.classList.add('active');
-        modal.classList.remove('open');
-        showToast('Authentication successful', 'success');
-        renderDashboard();
-      } else {
-        showToast('Incorrect PIN', 'error');
-      }
-    } catch (e) {
-      showToast('PIN verification error: ' + e.message, 'error');
+  // Toggle body classes
+  document.body.classList.toggle('admin-mode', isAdmin);
+  document.body.classList.toggle('role-guest', role === 'guest');
+  document.body.classList.toggle('role-user', role === 'user');
+  document.body.classList.toggle('role-admin', isAdmin);
+
+  // Update auth button in sidebar
+  if (elements.authToggleBtn) {
+    elements.authToggleBtn.className = `sidebar-btn auth-toggle-btn role-${role}`;
+    let tooltipText = 'Login / Unlock Access (Guest)';
+    if (role === 'user') tooltipText = 'Member Mode (Click to manage session)';
+    if (role === 'admin') tooltipText = 'Admin Mode (Click to lock or exit)';
+    elements.authToggleBtn.setAttribute('data-tooltip', tooltipText);
+  }
+
+  // Update modal views if open
+  if (elements.currentAuthRolePill) {
+    elements.currentAuthRolePill.className = `auth-role-pill role-${role}`;
+    if (role === 'admin') {
+      elements.currentAuthRolePill.textContent = '🛡️ Administrator (Full Control)';
+    } else if (role === 'user') {
+      elements.currentAuthRolePill.textContent = '🔒 Member (Private Apps Unlocked)';
+    } else {
+      elements.currentAuthRolePill.textContent = '👤 Guest (Read-Only)';
     }
-  };
+  }
+
+  if (elements.authLoginForm && elements.authActiveSessionView) {
+    if (role === 'guest') {
+      elements.authLoginForm.style.display = 'block';
+      elements.authActiveSessionView.style.display = 'none';
+      if (elements.authSubmitBtn) elements.authSubmitBtn.style.display = 'inline-flex';
+    } else {
+      elements.authLoginForm.style.display = 'none';
+      elements.authActiveSessionView.style.display = 'block';
+      if (elements.authSubmitBtn) elements.authSubmitBtn.style.display = 'none';
+      if (elements.authActiveDesc) {
+        elements.authActiveDesc.innerHTML = role === 'admin'
+          ? 'You are signed in as <strong>Administrator</strong>. Full editing, tile customization, and system controls are active.'
+          : 'You are signed in as <strong>Authorized Member</strong>. Protected user tiles are visible.';
+      }
+    }
+  }
 }
+
+function openAuthModal() {
+  updateAuthUI();
+  if (elements.authPinInput) elements.authPinInput.value = '';
+  if (elements.authErrorMsg) elements.authErrorMsg.textContent = '';
+  if (elements.authModal) {
+    elements.authModal.classList.add('open');
+    if (AppState.authRole === 'guest' && elements.authPinInput) {
+      setTimeout(() => elements.authPinInput.focus(), 100);
+    }
+  }
+}
+
+async function submitAuth() {
+  const pin = elements.authPinInput?.value?.trim() || '';
+  if (!pin) {
+    if (elements.authErrorMsg) elements.authErrorMsg.textContent = 'Please enter PIN or passcode';
+    return;
+  }
+  if (elements.authErrorMsg) elements.authErrorMsg.textContent = '';
+
+  try {
+    // 1. First test if it's Admin PIN
+    const adminRes = await fetch('/api/verify-pin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin })
+    });
+
+    if (adminRes.ok) {
+      AppState.authRole = 'admin';
+      AppState.isAdmin = true;
+      AppState.adminPin = pin;
+      sessionStorage.setItem('dimdash_role', 'admin');
+      sessionStorage.setItem('dimdash_pin', pin);
+      updateAuthUI();
+      closeAllModals();
+      showToast('🛡️ Welcome Administrator! Full editing unlocked.', 'success');
+      renderDashboard();
+      return;
+    }
+
+    // 2. Next test if it's User PIN
+    const userRes = await fetch('/api/verify-user-pin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin })
+    });
+
+    if (userRes.ok) {
+      AppState.authRole = 'user';
+      AppState.isAdmin = false;
+      AppState.adminPin = '';
+      sessionStorage.setItem('dimdash_role', 'user');
+      sessionStorage.setItem('dimdash_pin', pin);
+      updateAuthUI();
+      closeAllModals();
+      showToast('🔒 User authenticated: private services unlocked.', 'success');
+      renderDashboard();
+      return;
+    }
+
+    if (elements.authErrorMsg) {
+      elements.authErrorMsg.textContent = 'Invalid PIN code. Access denied.';
+    }
+  } catch (err) {
+    if (elements.authErrorMsg) {
+      elements.authErrorMsg.textContent = 'Authentication error: ' + err.message;
+    }
+  }
+}
+
+function logoutAuth() {
+  AppState.authRole = 'guest';
+  AppState.isAdmin = false;
+  AppState.adminPin = '';
+  sessionStorage.removeItem('dimdash_role');
+  sessionStorage.removeItem('dimdash_pin');
+  toggleArrangeMode(false);
+  updateAuthUI();
+  closeAllModals();
+  showToast('Logged out: Returning to read-only Guest mode.', 'info');
+  renderDashboard();
+}
+
+const openPinModal = openAuthModal;
 
 // Tile Modal
 function openTileModal(catId = null, tileId = null) {
@@ -2036,6 +2379,9 @@ function openTileModal(catId = null, tileId = null) {
   document.getElementById('tileUrlInput').value = existing?.target_url || '';
   document.getElementById('tileNewTabInput').checked = existing ? existing.open_in_new_tab !== false : true;
   document.getElementById('tileColorInput').value = existing?.bg_color || '';
+  if (document.getElementById('tileVisibilitySelect')) {
+    document.getElementById('tileVisibilitySelect').value = existing?.visibility || 'public';
+  }
 
   // Probe inputs
   const probe = existing?.probe || {};
@@ -2067,6 +2413,7 @@ function openTileModal(catId = null, tileId = null) {
       subtitle: document.getElementById('tileSubtitleInput').value.trim(),
       target_url: url,
       open_in_new_tab: document.getElementById('tileNewTabInput').checked,
+      visibility: document.getElementById('tileVisibilitySelect')?.value || 'public',
       icon_type: selectedIconType,
       icon_value: selectedIconValue,
       bg_color: document.getElementById('tileColorInput').value.trim() || undefined,

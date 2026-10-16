@@ -22,6 +22,18 @@ if [ -d "/app/data" ]; then
   fi
 fi
 
+# If docker socket is mounted, add node user to the socket's group so it can read telemetry
+if [ -S "/var/run/docker.sock" ]; then
+  DOCKER_GID=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || stat -f '%g' /var/run/docker.sock 2>/dev/null || true)
+  if [ -n "$DOCKER_GID" ] && [ "$DOCKER_GID" != "0" ]; then
+    getent group "$DOCKER_GID" >/dev/null 2>&1 || addgroup -g "$DOCKER_GID" docker_host 2>/dev/null || true
+    DOCKER_GRP_NAME=$(getent group "$DOCKER_GID" | cut -d: -f1)
+    if [ -n "$DOCKER_GRP_NAME" ]; then
+      addgroup node "$DOCKER_GRP_NAME" 2>/dev/null || true
+    fi
+  fi
+fi
+
 # If running as root, drop privileges to node user
 if [ "$(id -u)" = "0" ]; then
   exec su-exec node "$@"

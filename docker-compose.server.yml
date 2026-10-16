@@ -13,12 +13,14 @@ services:
     volumes:
       # Persistent homelab configuration and uploads directory
       - ./data:/app/data
-      # Optional: Read-only host docker socket for container telemetry gauge
-      # - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Mount host docker socket (read-only) for container telemetry gauge
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       - NODE_ENV=production
       - PORT=3080
       - TZ=${TZ:-Asia/Tehran}
+      - ADMIN_PIN=1234
+      - USER_PIN=5678
     deploy:
       resources:
         limits:

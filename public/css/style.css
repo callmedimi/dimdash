@@ -94,6 +94,19 @@ body.density-expanded {
   padding: 0;
 }
 
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+  display: none !important;
+}
+
 body {
   font-family: var(--font-family);
   background: var(--bg-primary);
@@ -994,15 +1007,10 @@ body.page-view-monitoring #statsOverviewBar {
   display: none !important;
 }
 
-body.page-view-monitoring #widgetsSection {
-  display: block !important;
-}
-
 body.page-view-monitoring #serverMonitorView {
   display: block !important;
 }
 
-body.page-view-apps #widgetsSection,
 body.page-view-apps #serverMonitorView {
   display: none !important;
 }
@@ -1017,6 +1025,24 @@ body.page-view-apps .sub-nav {
 
 body.page-view-apps #statsOverviewBar {
   display: flex !important;
+}
+
+body.page-view-apps .cluster-selector-bar,
+body.page-view-apps .widgets-header {
+  display: none !important;
+}
+
+body.page-view-apps .widgets-grid {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: center !important;
+  gap: 1.15rem !important;
+}
+
+body.page-view-apps .widgets-grid .widget-card {
+  min-width: 300px;
+  max-width: 440px;
+  flex: 0 1 380px;
 }
 
 /* --------------------------------------------------------------------------
@@ -3111,5 +3137,243 @@ body.arrange-mode-active .tile-card {
 .bg-logo-overlay.pos-top-right { background-position: right 5% top 5%; }
 .bg-logo-overlay.pos-top-left { background-position: left 5% top 5%; }
 .bg-logo-overlay.pos-top-center { background-position: center top 5%; }
+
+/* --------------------------------------------------------------------------
+   Access Control & Guest vs Admin Mode
+   -------------------------------------------------------------------------- */
+body:not(.admin-mode) .admin-only-ui,
+body:not(.admin-mode) .cat-drag-handle,
+body:not(.admin-mode) .tile-drag-handle,
+body:not(.admin-mode) .widget-drag-handle,
+body:not(.admin-mode) .cat-island-controls,
+body:not(.admin-mode) .btn-del-widget,
+body:not(.admin-mode) .tile-admin-bar,
+body:not(.admin-mode) .tile-arrange-controls,
+body:not(.admin-mode) #btnHeaderArrange,
+body:not(.admin-mode) #btnAddWidgetBtn,
+body:not(.admin-mode) #sideNavAddTrigger,
+body:not(.admin-mode) #sidebarAddSubmenu {
+  display: none !important;
+}
+
+body:not(.admin-mode) .tile-card,
+body:not(.admin-mode) .widget-card,
+body:not(.admin-mode) .category-section {
+  cursor: default !important;
+}
+
+/* Auth Role Indicators in Sidebar Footer */
+.auth-toggle-btn {
+  position: relative;
+  transition: all 0.25s ease;
+}
+.auth-toggle-btn.role-admin {
+  color: #10b981 !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  background: rgba(16, 185, 129, 0.15) !important;
+}
+.auth-toggle-btn.role-user {
+  color: #38bdf8 !important;
+  border-color: rgba(56, 189, 248, 0.4) !important;
+  background: rgba(56, 189, 248, 0.15) !important;
+}
+.auth-role-pill {
+  font-size: 0.68rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.auth-role-pill.role-guest {
+  background: rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+.auth-role-pill.role-user {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+.auth-role-pill.role-admin {
+  background: rgba(16, 185, 129, 0.18);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+/* Tile Visibility Badges for Admin Inspection */
+.tile-visibility-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.tile-card .tile-visibility-badge {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  z-index: 8;
+  pointer-events: none;
+}
+.tile-visibility-badge.vis-public {
+  background: rgba(148, 163, 184, 0.15);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+.tile-visibility-badge.vis-user {
+  background: rgba(56, 189, 248, 0.2);
+  color: #7dd3fc;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+}
+.tile-visibility-badge.vis-admin {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+/* --------------------------------------------------------------------------
+   Clock & Offline Solar Hijri / Gregorian Calendar Widget
+   -------------------------------------------------------------------------- */
+.clock-widget-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 140px;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(var(--glass-blur, 16px));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 16px));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--card-radius, 14px);
+  padding: 1rem 1.15rem;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.clock-widget-card:hover {
+  border-color: var(--widget-accent, #38bdf8);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 0 20px -5px var(--widget-accent, #38bdf8);
+}
+.clock-widget-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.clock-widget-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+.clock-widget-mode-pill {
+  font-size: 0.68rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted, #94a3b8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.clock-widget-mode-pill:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+.clock-widget-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  text-align: center;
+  padding: 0.25rem 0;
+}
+.clock-time-display {
+  font-family: var(--font-mono, 'Courier New', monospace);
+  font-size: 2.1rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.06em;
+  color: #ffffff;
+  text-shadow: 0 0 24px var(--widget-accent, #38bdf8);
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.15rem;
+}
+.clock-time-display .clock-colon {
+  animation: clockBlink 1.5s infinite;
+  color: var(--widget-accent, #38bdf8);
+  opacity: 0.9;
+}
+@keyframes clockBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+.clock-time-display .clock-ampm {
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-left: 0.35rem;
+  color: var(--widget-accent, #38bdf8);
+  letter-spacing: 0.02em;
+}
+.clock-dates-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+}
+.clock-date-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #e2e8f0;
+  transition: all 0.2s ease;
+}
+.clock-date-chip.chip-shamsi {
+  color: #fde047;
+  background: rgba(234, 179, 8, 0.12);
+  border-color: rgba(234, 179, 8, 0.3);
+  font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif;
+  direction: rtl;
+}
+.clock-date-chip.chip-gregorian {
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+/* --------------------------------------------------------------------------
+   Mini Telemetry Chart Widget
+   -------------------------------------------------------------------------- */
+.chart-widget-card {
+  min-height: 160px;
+}
+.chart-widget-canvas {
+  width: 100%;
+  height: 90px;
+  display: block;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
 
 

@@ -84,7 +84,20 @@ async function loadAdminData() {
       fetch('/api/probes')
     ]);
 
-    if (cfgRes.ok) AdminState.config = await cfgRes.json();
+    if (cfgRes.ok) {
+      AdminState.config = await cfgRes.json();
+      if (AdminState.config?.is_pin_protected) {
+        const savedRole = sessionStorage.getItem('dimdash_role');
+        const savedPin = sessionStorage.getItem('dimdash_pin');
+        if (savedRole !== 'admin' || !savedPin) {
+          document.getElementById('adminStudioLockGate')?.classList.add('open');
+          setTimeout(() => document.getElementById('adminStudioPinInput')?.focus(), 150);
+          return; // Strictly halt - do NOT render admin interface or data for unauthenticated guests
+        } else {
+          AdminState.adminPin = savedPin;
+        }
+      }
+    }
     if (statsRes.ok) AdminState.stats = await statsRes.json();
     if (probesRes.ok) AdminState.probes = await probesRes.json();
 
@@ -187,6 +200,10 @@ function renderTilesTable() {
 
     const latencyText = (probe.latency) ? `${probe.latency}ms` : '--';
     const probeTypeText = tile.probe?.type || 'none';
+    const vis = tile.visibility || 'public';
+    const visBadge = vis === 'admin'
+      ? '<span class="tile-visibility-badge vis-admin">🛡️ Admin</span>'
+      : (vis === 'user' ? '<span class="tile-visibility-badge vis-user">🔒 Member</span>' : '<span class="tile-visibility-badge vis-public">🌐 Public</span>');
 
     rowsHtml += `
       <tr data-tile-id="${tile.id}">
@@ -197,6 +214,7 @@ function renderTilesTable() {
           ${tile.subtitle ? `<div style="font-size:0.75rem; color:#94a3b8;">${tile.subtitle}</div>` : ''}
         </td>
         <td><span class="category-pill" style="border: 1px solid ${cat.color || 'transparent'};">${cat.name}</span></td>
+        <td>${visBadge}</td>
         <td><span class="table-url-mono" title="${tile.target_url}">${tile.target_url}</span></td>
         <td><span style="font-size:0.78rem; font-family:monospace; color:#cbd5e1;">${probeTypeText}</span></td>
         <td><span class="${statusPillClass}">${statusLabel}</span></td>
@@ -319,12 +337,15 @@ function renderWidgetsTable() {
   const widgets = AdminState.config?.widgets || [];
 
   const typeLabels = {
+    clock_widget: '⏰ Clock & Calendar (ساعت و تقویم)',
+    chart_widget: '📈 Telemetry Chart',
     cpu_gauge: 'CPU Utilization Gauge',
     ram_gauge: 'Memory (RAM) Gauge',
     disk_gauge: 'Disk Storage Gauge',
     network_traffic: 'Network Traffic I/O',
     docker_stats: 'Docker Containers',
-    host_info: 'Host Telemetry & Uptime'
+    host_info: 'Host Telemetry & Uptime',
+    service_health: 'Service Health Ratio'
   };
 
   let html = '';
@@ -383,28 +404,59 @@ function openWidgetEditModal(index = null) {
   const colorInput = document.getElementById('mWidgetColor');
   const colorHex = document.getElementById('mWidgetColorHex');
 
+  const updateTypeSpecificRows = (t) => {
+    const clockRow = document.getElementById('adminClockOptionsRow');
+    const chartRow = document.getElementById('adminChartOptionsRow');
+    if (clockRow) clockRow.style.display = (t === 'clock_widget') ? 'flex' : 'none';
+    if (chartRow) chartRow.style.display = (t === 'chart_widget') ? 'flex' : 'none';
+  };
+
   if (colorInput && colorHex) {
     colorInput.oninput = (e) => { colorHex.value = e.target.value; };
     colorHex.oninput = (e) => { colorInput.value = e.target.value; };
   }
 
+  if (typeSelect) {
+    typeSelect.onchange = () => updateTypeSpecificRows(typeSelect.value);
+  }
+
   if (index !== null && widgets[index]) {
     AdminState.currentEditingWidget = index;
     const w = widgets[index];
-    document.getElementById('adminWidgetModalTitle').textContent = 'Edit Monitoring Gauge';
+    document.getElementById('adminWidgetModalTitle').textContent = 'Edit Monitoring Widget';
     titleInput.value = w.title || '';
-    typeSelect.value = w.type || 'cpu_gauge';
+    typeSelect.value = w.type || 'clock_widget';
     sizeSelect.value = w.size || 'normal';
-    colorInput.value = w.color || '#6366f1';
-    colorHex.value = w.color || '#6366f1';
+    colorInput.value = w.color || '#38bdf8';
+    colorHex.value = w.color || '#38bdf8';
+
+    if (document.getElementById('mClockCalendarMode')) {
+      document.getElementById('mClockCalendarMode').value = w.calendar_mode || 'both';
+    }
+    if (document.getElementById('mClockTimeFormat')) {
+      document.getElementById('mClockTimeFormat').value = w.time_format || '24h';
+    }
+    if (document.getElementById('mChartMetric')) {
+      document.getElementById('mChartMetric').value = w.metric_type || 'cpu';
+    }
+    if (document.getElementById('mChartRange')) {
+      document.getElementById('mChartRange').value = w.time_range || '1h';
+    }
+    updateTypeSpecificRows(w.type || 'clock_widget');
   } else {
     AdminState.currentEditingWidget = null;
-    document.getElementById('adminWidgetModalTitle').textContent = 'Add Monitoring Gauge';
-    titleInput.value = '';
-    typeSelect.value = 'cpu_gauge';
+    document.getElementById('adminWidgetModalTitle').textContent = 'Add Monitoring Widget';
+    titleInput.value = 'ساعت و تقویم';
+    typeSelect.value = 'clock_widget';
     sizeSelect.value = 'normal';
-    colorInput.value = '#6366f1';
-    colorHex.value = '#6366f1';
+    colorInput.value = '#38bdf8';
+    colorHex.value = '#38bdf8';
+
+    if (document.getElementById('mClockCalendarMode')) document.getElementById('mClockCalendarMode').value = 'both';
+    if (document.getElementById('mClockTimeFormat')) document.getElementById('mClockTimeFormat').value = '24h';
+    if (document.getElementById('mChartMetric')) document.getElementById('mChartMetric').value = 'cpu';
+    if (document.getElementById('mChartRange')) document.getElementById('mChartRange').value = '1h';
+    updateTypeSpecificRows('clock_widget');
   }
 
   modal.classList.add('open');
@@ -414,15 +466,24 @@ function openWidgetEditModal(index = null) {
     if (!title) return showAdminToast('Widget title is required', 'error');
 
     AdminState.config.widgets = AdminState.config.widgets || [];
+    const t = typeSelect.value;
 
     const widgetData = {
       id: AdminState.currentEditingWidget !== null ? (AdminState.config.widgets[AdminState.currentEditingWidget].id || 'widget-' + Date.now()) : ('widget-' + Date.now()),
       server_id: document.getElementById('mWidgetServer').value || 'local',
-      type: typeSelect.value,
+      type: t,
       title,
       color: colorInput.value,
       size: sizeSelect.value
     };
+
+    if (t === 'clock_widget') {
+      widgetData.calendar_mode = document.getElementById('mClockCalendarMode')?.value || 'both';
+      widgetData.time_format = document.getElementById('mClockTimeFormat')?.value || '24h';
+    } else if (t === 'chart_widget') {
+      widgetData.metric_type = document.getElementById('mChartMetric')?.value || 'cpu';
+      widgetData.time_range = document.getElementById('mChartRange')?.value || '1h';
+    }
 
     if (AdminState.currentEditingWidget !== null) {
       AdminState.config.widgets[AdminState.currentEditingWidget] = widgetData;
@@ -864,6 +925,71 @@ function setupEventListeners() {
     await saveConfigToServer('PIN protection disabled');
   });
 
+  // Security: User / Member PIN Save
+  document.getElementById('btnSaveUserPin')?.addEventListener('click', async () => {
+    const pin = document.getElementById('newUserPinInput').value;
+    const confirm = document.getElementById('confirmUserPinInput').value;
+    if (pin.length < 4) {
+      return showAdminToast('User PIN must be at least 4 characters', 'error');
+    }
+    if (pin !== confirm) {
+      return showAdminToast('User PIN and confirmation do not match', 'error');
+    }
+    AdminState.config.settings = AdminState.config.settings || {};
+    AdminState.config.settings.user_pin = pin;
+    await saveConfigToServer('Member / User PIN saved successfully');
+  });
+
+  document.getElementById('btnRemoveUserPin')?.addEventListener('click', async () => {
+    if (!confirm('Are you sure you want to disable Member / User PIN?')) return;
+    AdminState.config.settings = AdminState.config.settings || {};
+    AdminState.config.settings.user_pin = '';
+    await saveConfigToServer('Member / User PIN disabled');
+  });
+
+  // Admin Studio Lock Gate Handlers
+  const unlockBtn = document.getElementById('btnAdminStudioUnlock');
+  const gatePinInput = document.getElementById('adminStudioPinInput');
+  const gateError = document.getElementById('adminStudioLockError');
+
+  const attemptGateUnlock = async () => {
+    const pin = gatePinInput?.value?.trim();
+    if (!pin) {
+      if (gateError) gateError.textContent = 'Please enter Admin PIN';
+      return;
+    }
+    try {
+      const res = await fetch('/api/verify-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin })
+      });
+      if (res.ok) {
+        sessionStorage.setItem('dimdash_role', 'admin');
+        sessionStorage.setItem('dimdash_pin', pin);
+        AdminState.adminPin = pin;
+        document.getElementById('adminStudioLockGate')?.classList.remove('open');
+        showAdminToast('Administrator console unlocked', 'success');
+        renderOverview();
+        renderTilesTable();
+        renderCategoriesTable();
+        renderWidgetsTable();
+        initThemeStudio();
+        renderProbesTable();
+        initBackupEditor();
+      } else {
+        if (gateError) gateError.textContent = 'Incorrect PIN code. Access denied.';
+      }
+    } catch (e) {
+      if (gateError) gateError.textContent = e.message;
+    }
+  };
+
+  unlockBtn?.addEventListener('click', attemptGateUnlock);
+  gatePinInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') attemptGateUnlock();
+  });
+
   // Add Tile Buttons
   document.getElementById('btnAdminAddTile')?.addEventListener('click', () => openTileEditModal());
   document.getElementById('btnTableAddTile')?.addEventListener('click', () => openTileEditModal());
@@ -1014,6 +1140,8 @@ function openTileEditModal(catId = null, tileId = null) {
     document.getElementById('mProbeHost').value = tile.probe?.host || '';
     document.getElementById('mProbePort').value = tile.probe?.port || '';
     document.getElementById('mProbePath').value = tile.probe?.path || '';
+    if (document.getElementById('mTileVisibility')) document.getElementById('mTileVisibility').value = tile.visibility || 'public';
+    if (document.getElementById('mTileNewTab')) document.getElementById('mTileNewTab').checked = tile.open_in_new_tab !== false;
     renderAdminIconPicker(tile.icon_value || 'server');
   } else {
     AdminState.currentEditingTile = null;
@@ -1027,6 +1155,8 @@ function openTileEditModal(catId = null, tileId = null) {
     document.getElementById('mProbeHost').value = '';
     document.getElementById('mProbePort').value = '';
     document.getElementById('mProbePath').value = '';
+    if (document.getElementById('mTileVisibility')) document.getElementById('mTileVisibility').value = 'public';
+    if (document.getElementById('mTileNewTab')) document.getElementById('mTileNewTab').checked = true;
     renderAdminIconPicker('server');
   }
 
@@ -1038,6 +1168,8 @@ function openTileEditModal(catId = null, tileId = null) {
     const targetCatId = document.getElementById('mTileCategory').value;
     const iconType = document.getElementById('adminTileIconType').value || 'svg';
     const iconValue = document.getElementById('adminTileIconValue').value || 'server';
+    const visibility = document.getElementById('mTileVisibility')?.value || 'public';
+    const open_in_new_tab = document.getElementById('mTileNewTab') ? document.getElementById('mTileNewTab').checked : true;
 
     if (!title || !url) {
       return showAdminToast('Service title and URL are required', 'error');
@@ -1060,6 +1192,8 @@ function openTileEditModal(catId = null, tileId = null) {
       existing.title = title;
       existing.subtitle = document.getElementById('mTileSubtitle').value.trim();
       existing.target_url = url;
+      existing.visibility = visibility;
+      existing.open_in_new_tab = open_in_new_tab;
       existing.icon_type = iconType;
       existing.icon_value = iconValue;
       existing.probe = probe;
@@ -1079,6 +1213,8 @@ function openTileEditModal(catId = null, tileId = null) {
         title,
         subtitle: document.getElementById('mTileSubtitle').value.trim(),
         target_url: url,
+        visibility,
+        open_in_new_tab,
         icon_type: iconType,
         icon_value: iconValue,
         probe
@@ -1123,12 +1259,16 @@ async function deleteSingleTile(catId, tileId) {
 
 async function saveConfigToServer(msg = 'Settings saved successfully') {
   try {
+    const pin = sessionStorage.getItem('dimdash_pin') || AdminState.adminPin || '';
     const res = await fetch('/api/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ config: AdminState.config })
+      body: JSON.stringify({ config: AdminState.config, pin })
     });
-    if (!res.ok) throw new Error('Failed to save settings');
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to save settings');
+    }
     showAdminToast(msg, 'success');
   } catch (err) {
     showAdminToast(err.message, 'error');

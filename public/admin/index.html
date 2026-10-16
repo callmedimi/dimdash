@@ -300,6 +300,7 @@
               <th style="width: 50px;">Icon</th>
               <th>Service Name</th>
               <th>Category</th>
+              <th style="width: 110px;">Visibility</th>
               <th>Network URL</th>
               <th>Probe Type</th>
               <th>Health Status</th>
@@ -630,6 +631,28 @@
           <button class="btn btn-secondary" id="btnRemovePin" style="color:#ef4444;">Disable PIN Protection</button>
         </div>
       </div>
+
+      <div class="glass-box" style="max-width: 550px; margin-top: 1.5rem;">
+        <h3>Member / User Access PIN</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+          When a User PIN is configured, guest visitors can unlock member-protected services on the main dashboard without having administrative or configuration editing privileges.
+        </p>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label">New Member / User PIN (minimum 4 digits or characters):</label>
+          <input type="password" id="newUserPinInput" class="form-input" placeholder="Enter User PIN">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+          <label class="form-label">Confirm User PIN:</label>
+          <input type="password" id="confirmUserPinInput" class="form-input" placeholder="Repeat User PIN">
+        </div>
+
+        <div style="display:flex; gap:0.75rem;">
+          <button class="btn btn-primary" id="btnSaveUserPin">Save User PIN</button>
+          <button class="btn btn-secondary" id="btnRemoveUserPin" style="color:#ef4444;">Disable User PIN</button>
+        </div>
+      </div>
     </section>
   </main>
 
@@ -660,6 +683,23 @@
         <div class="form-group">
           <label class="form-label">Target Network URL *</label>
           <input type="text" id="mTileUrl" class="form-input" placeholder="https://nextcloud.local or http://192.168.1.50:8080">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Access & Visibility Control</label>
+            <select id="mTileVisibility" class="form-select">
+              <option value="public">🌐 Public (Visible to Everyone & Guests)</option>
+              <option value="user">🔒 Member Protected (Requires User or Admin Login)</option>
+              <option value="admin">🛡️ Admin Only (Visible only to Administrator)</option>
+            </select>
+          </div>
+          <div class="form-group" style="justify-content: flex-end; padding-bottom: 0.5rem;">
+            <label class="form-checkbox-label">
+              <input type="checkbox" id="mTileNewTab" checked>
+              <span>Open in new tab</span>
+            </label>
+          </div>
         </div>
 
         <div class="form-group">
@@ -737,14 +777,16 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Gauge / Chart Type</label>
+            <label class="form-label">Gauge / Chart / Widget Type</label>
             <select id="mWidgetType" class="form-select">
-              <option value="cpu_gauge">CPU Utilization Gauge</option>
-              <option value="ram_gauge">Memory (RAM) Gauge</option>
-              <option value="disk_gauge">Disk Storage Gauge</option>
-              <option value="network_traffic">Network Traffic (I/O Sparkline)</option>
-              <option value="docker_stats">Docker Container Stats</option>
-              <option value="host_info">Host Telemetry & Uptime</option>
+              <option value="clock_widget">⏰ Clock & Calendar (ساعت و تقویم شمسی/میلادی)</option>
+              <option value="chart_widget">📈 Historical Telemetry Chart</option>
+              <option value="cpu_gauge">⚡ CPU Utilization Gauge</option>
+              <option value="ram_gauge">🧠 Memory (RAM) Gauge</option>
+              <option value="disk_gauge">💾 Disk Storage Gauge</option>
+              <option value="network_traffic">🌐 Network Traffic (I/O Sparkline)</option>
+              <option value="docker_stats">🐳 Docker Container Stats</option>
+              <option value="host_info">🖥️ Host Telemetry & Uptime</option>
             </select>
           </div>
           <div class="form-group">
@@ -757,17 +799,76 @@
           </div>
         </div>
 
+        <!-- Clock Specific Options -->
+        <div class="form-row" id="adminClockOptionsRow" style="display:flex;">
+          <div class="form-group">
+            <label class="form-label">Calendar Mode (سیستم تقویم)</label>
+            <select id="mClockCalendarMode" class="form-select">
+              <option value="both">تقویم دوگانه (شمسی + میلادی)</option>
+              <option value="shamsi">فقط تقویم شمسی</option>
+              <option value="gregorian">فقط تقویم میلادی</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Time Format</label>
+            <select id="mClockTimeFormat" class="form-select">
+              <option value="24h">24-Hour (14:30:00)</option>
+              <option value="12h">12-Hour (02:30:00 PM / ب.ظ)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Chart Specific Options -->
+        <div class="form-row" id="adminChartOptionsRow" style="display:none;">
+          <div class="form-group">
+            <label class="form-label">Metric Series</label>
+            <select id="mChartMetric" class="form-select">
+              <option value="cpu">CPU Usage (%)</option>
+              <option value="ram">RAM / Memory (%)</option>
+              <option value="net">Network I/O Rate</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Historical Time Range</label>
+            <select id="mChartRange" class="form-select">
+              <option value="1h">Last 1 Hour</option>
+              <option value="30m">Last 30 Minutes</option>
+              <option value="6h">Last 6 Hours</option>
+              <option value="24h">Last 24 Hours</option>
+            </select>
+          </div>
+        </div>
+
         <div class="form-group">
           <label class="form-label">Accent Color</label>
           <div style="display:flex; gap:0.5rem; align-items:center;">
-            <input type="color" id="mWidgetColor" value="#6366f1" style="height: 38px; width: 60px; padding: 2px;">
-            <input type="text" id="mWidgetColorHex" value="#6366f1" class="form-input" style="max-width: 140px;">
+            <input type="color" id="mWidgetColor" value="#38bdf8" style="height: 38px; width: 60px; padding: 2px;">
+            <input type="text" id="mWidgetColorHex" value="#38bdf8" class="form-input" style="max-width: 140px;">
           </div>
         </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeWidgetModal()">Cancel</button>
         <button class="btn btn-primary" id="btnWidgetModalSave">Save Widget</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Studio Lockdown Gate Modal -->
+  <div class="modal-backdrop" id="adminStudioLockGate" style="z-index: 99999;">
+    <div class="modal-window" style="max-width: 420px; text-align: center;">
+      <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🛡️</div>
+      <h3 style="margin-bottom: 0.5rem;">Admin Studio Authentication</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+        Enter Administrator PIN to access the management studio.
+      </p>
+      <div class="form-group" style="margin-bottom: 0.75rem;">
+        <input type="password" id="adminStudioPinInput" class="form-input" placeholder="Enter Admin PIN" autofocus autocomplete="current-password">
+      </div>
+      <div id="adminStudioLockError" style="color: #ef4444; font-size: 0.8rem; min-height: 1.2rem; margin-bottom: 0.75rem;"></div>
+      <div style="display: flex; gap: 0.5rem; justify-content: center;">
+        <a href="/" class="btn btn-secondary">Exit to Dashboard</a>
+        <button class="btn btn-primary" id="btnAdminStudioUnlock">Unlock Console</button>
       </div>
     </div>
   </div>

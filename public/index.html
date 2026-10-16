@@ -14,28 +14,18 @@
   <div id="app">
     <!-- Fixed Right Sidebar Navigation with Submenus -->
     <aside class="sidebar-nav" id="sidebarNav">
-      <!-- Top: Logo / Brand with Flyout Info -->
-      <div class="sidebar-item-with-submenu">
-        <div class="sidebar-logo" id="sidebarLogo" title="DimDash Homelab">
+      <!-- Top: Logo / Brand -->
+      <a href="/" class="sidebar-logo-link" title="DimDash Homelab (Air-Gapped)">
+        <div class="sidebar-logo" id="sidebarLogo">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="2" y="2" width="20" height="8" rx="2"></rect>
             <rect x="2" y="14" width="20" height="8" rx="2"></rect>
             <line x1="6" y1="6" x2="6.01" y2="6"></line>
             <line x1="6" y1="18" x2="6.01" y2="18"></line>
           </svg>
+          <span id="dashTitle" style="display: none !important;"></span>
         </div>
-        <!-- Brand Info Submenu -->
-        <div class="sidebar-submenu brand-flyout">
-          <div class="brand-flyout-header">
-            <h2 class="brand-title" id="dashTitle">DimDash</h2>
-            <span class="airgap-badge">🛡️ Air-Gapped LAN</span>
-          </div>
-          <div class="brand-flyout-clock">
-            <span class="clock-time" id="clockTime">--:--:--</span>
-            <span class="clock-date" id="clockDate">---</span>
-          </div>
-        </div>
-      </div>
+      </a>
 
       <!-- Main Navigation Menu -->
       <nav class="sidebar-menu">
@@ -64,16 +54,16 @@
           </svg>
         </button>
 
-        <!-- 4. Creation / Add Items (+) with Flyout Submenu -->
-        <div class="sidebar-item-with-submenu">
-          <button class="sidebar-btn sidebar-btn-add" id="sideNavAddTrigger" data-tooltip="Add & Create">
+        <!-- 4. Creation / Add Items (+) with Flyout Submenu (Admin Only) -->
+        <div class="sidebar-item-with-submenu admin-only-ui" id="sidebarAddSection">
+          <button class="sidebar-btn sidebar-btn-add admin-only-ui" id="sideNavAddTrigger" data-tooltip="Add & Create">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <line x1="12" y1="5" x2="12" y2="19"></line>
               <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
           </button>
           <!-- Submenu for Add Operations -->
-          <div class="sidebar-submenu" id="sidebarAddSubmenu">
+          <div class="sidebar-submenu admin-only-ui" id="sidebarAddSubmenu">
             <div class="submenu-header">Create & Manage</div>
             <button class="submenu-item" id="addTileBtn">
               <span class="submenu-icon">🧩</span>
@@ -117,7 +107,7 @@
           </button>
           <div class="sidebar-submenu" id="sidebarToolsSubmenu">
             <div class="submenu-header">Tools & Actions</div>
-            <button class="submenu-item" id="btnHeaderArrange">
+            <button class="submenu-item admin-only-ui" id="btnHeaderArrange">
               <span class="submenu-icon">🔀</span>
               <div class="submenu-text">
                 <strong>Arrange & Reorder</strong>
@@ -131,7 +121,7 @@
                 <small>Instant port & HTTP health check</small>
               </div>
             </button>
-            <button class="submenu-item" id="sideNavClustersBtn">
+            <button class="submenu-item admin-only-ui" id="sideNavClustersBtn">
               <span class="submenu-icon">🖥️</span>
               <div class="submenu-text">
                 <strong>Manage Clusters & Nodes</strong>
@@ -144,7 +134,7 @@
 
       <!-- Sidebar Footer: Theme, Admin, Lock -->
       <div class="sidebar-footer">
-        <button class="sidebar-btn" id="sideNavTheme" data-tooltip="Theme Studio">
+        <button class="sidebar-btn admin-only-ui" id="sideNavTheme" data-tooltip="Theme Studio">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="5"></circle>
             <line x1="12" y1="1" x2="12" y2="3"></line>
@@ -158,14 +148,15 @@
           </svg>
         </button>
 
-        <a href="/admin" class="sidebar-btn" id="sideNavAdmin" data-tooltip="Admin Console">
+        <a href="/admin" class="sidebar-btn admin-only-ui" id="sideNavAdmin" data-tooltip="Admin Console">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"></circle>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
         </a>
 
-        <button class="sidebar-btn admin-toggle" id="adminToggleBtn" data-tooltip="Admin Authentication">
+        <!-- Role / Authentication Unlock Button -->
+        <button class="sidebar-btn auth-toggle-btn role-guest" id="authToggleBtn" data-tooltip="Login / Unlock Access (Guest)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
             <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
@@ -554,22 +545,45 @@
     </div>
   </div>
 
-  <!-- PIN Modal -->
-  <div class="modal-backdrop" id="pinModal">
-    <div class="modal-window" style="max-width: 380px;">
+  <!-- Auth & Access Control Modal -->
+  <div class="modal-backdrop" id="authModal">
+    <div class="modal-window" style="max-width: 420px;">
       <div class="modal-header">
-        <h3 class="modal-title">Admin Authentication</h3>
+        <h3 class="modal-title" id="authModalTitle">Authentication & Access Control</h3>
         <button class="btn btn-icon" onclick="closeAllModals()">&times;</button>
       </div>
       <div class="modal-body">
-        <p style="font-size: 0.88rem; color: var(--text-muted);">Please enter admin PIN to unlock configuration mode:</p>
-        <div class="form-group">
-          <input type="password" id="adminPinInput" class="form-input" placeholder="Admin PIN" autofocus>
+        <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.05); padding:0.6rem 0.8rem; border-radius:10px; margin-bottom:1rem; border:1px solid rgba(255,255,255,0.08);">
+          <span style="font-size:0.82rem; color:var(--text-muted);">Current Mode:</span>
+          <span class="auth-role-pill role-guest" id="currentAuthRolePill">👤 Guest (Read-Only)</span>
+        </div>
+
+        <div id="authLoginForm">
+          <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 0.85rem;">
+            Enter <strong>Admin PIN</strong> to unlock dashboard editing, or <strong>User PIN</strong> to reveal private member services:
+          </p>
+          <div class="form-group" style="margin-bottom:0.5rem;">
+            <input type="password" id="authPinInput" class="form-input" placeholder="Enter PIN or Passcode" autofocus autocomplete="current-password">
+          </div>
+          <div id="authErrorMsg" style="color:#ef4444; font-size:0.8rem; min-height:1.2rem; margin-bottom:0.5rem;"></div>
+        </div>
+
+        <div id="authActiveSessionView" style="display:none; text-align:center; padding:0.5rem 0;">
+          <p style="font-size:0.9rem; color:#e2e8f0; margin-bottom:1rem;" id="authActiveDesc">
+            You are currently authenticated.
+          </p>
+          <a href="/admin/#security" class="btn btn-sm btn-secondary admin-only-ui" id="authAdminStudioLink" style="width:100%; justify-content:center; text-decoration:none; font-size:0.8rem; gap:0.4rem; margin-bottom:0.65rem;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            <span>Manage PINs in Security Studio</span>
+          </a>
+          <button class="btn btn-secondary" id="authLogoutBtn" style="color:#ef4444; width:100%; justify-content:center;">
+            <span>Log Out (Return to Guest Mode)</span>
+          </button>
         </div>
       </div>
-      <div class="modal-footer">
+      <div class="modal-footer" id="authModalFooter">
         <button class="btn btn-secondary" onclick="closeAllModals()">Cancel</button>
-        <button class="btn btn-primary" id="pinSubmitBtn">Unlock</button>
+        <button class="btn btn-primary" id="authSubmitBtn">Unlock</button>
       </div>
     </div>
   </div>
@@ -605,8 +619,12 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Custom Background Color (Optional)</label>
-            <input type="text" id="tileColorInput" class="form-input" placeholder="rgba(99, 102, 241, 0.15)">
+            <label class="form-label">Access & Visibility Control</label>
+            <select id="tileVisibilitySelect" class="form-select">
+              <option value="public">🌐 Public (Visible to Everyone & Guests)</option>
+              <option value="user">🔒 Member Protected (Requires User or Admin Login)</option>
+              <option value="admin">🛡️ Admin Only (Visible only to Administrator)</option>
+            </select>
           </div>
           <div class="form-group" style="justify-content: flex-end; padding-bottom: 0.5rem;">
             <label class="form-checkbox-label">
@@ -614,6 +632,11 @@
               <span>Open in new tab</span>
             </label>
           </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Custom Background Color (Optional)</label>
+          <input type="text" id="tileColorInput" class="form-input" placeholder="rgba(99, 102, 241, 0.15)">
         </div>
 
         <!-- Icon Picker & Custom Upload -->
@@ -941,7 +964,17 @@
         <div class="form-group">
           <label class="form-label">Select Gauge or Widget Type:</label>
           <div class="widget-type-selector" id="widgetTypeSelector">
-            <div class="widget-type-card active" data-type="cpu_gauge" data-default-title="CPU Usage">
+            <div class="widget-type-card active" data-type="clock_widget" data-default-title="Clock & Calendar">
+              <span class="widget-type-icon">⏰</span>
+              <div class="widget-type-name">ساعت و تقویم (شمسی / میلادی)</div>
+              <div class="widget-type-desc">ساعت دیجیتال دقیق با تقویم خورشیدی و میلادی ۱۰۰٪ آفلاین</div>
+            </div>
+            <div class="widget-type-card" data-type="chart_widget" data-default-title="Telemetry Chart">
+              <span class="widget-type-icon">📈</span>
+              <div class="widget-type-name">نمودار تلمتری (Mini Chart)</div>
+              <div class="widget-type-desc">نمودار زنده تاریخچه CPU، RAM یا شبکه روی گرید</div>
+            </div>
+            <div class="widget-type-card" data-type="cpu_gauge" data-default-title="CPU Usage">
               <span class="widget-type-icon">⚡</span>
               <div class="widget-type-name">CPU Gauge</div>
               <div class="widget-type-desc">Real-time CPU load, cores & Load Avg</div>
@@ -979,10 +1012,50 @@
           </div>
         </div>
 
+        <!-- Clock Specific Config Row -->
+        <div class="form-row" id="clockConfigRow">
+          <div class="form-group">
+            <label class="form-label">Calendar Mode (سیستم تقویم)</label>
+            <select id="clockCalendarModeSelect" class="form-select">
+              <option value="both">تقویم دوگانه (شمسی خورشیدی + Gregorian)</option>
+              <option value="shamsi">فقط تقویم شمسی (Solar Hijri Only)</option>
+              <option value="gregorian">فقط تقوim میلادی (Gregorian Only)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Time Format (فرمت زمان)</label>
+            <select id="clockTimeFormatSelect" class="form-select">
+              <option value="24h">24-Hour (14:30:00)</option>
+              <option value="12h">12-Hour (02:30:00 PM / ب.ظ)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Chart Specific Config Row -->
+        <div class="form-row" id="chartConfigRow" style="display:none;">
+          <div class="form-group">
+            <label class="form-label">Metric Series</label>
+            <select id="chartMetricSelect" class="form-select">
+              <option value="cpu">CPU Usage (%)</option>
+              <option value="ram">RAM / Memory (%)</option>
+              <option value="net">Network I/O Rate</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Historical Time Range</label>
+            <select id="chartRangeSelect" class="form-select">
+              <option value="1h">Last 1 Hour</option>
+              <option value="30m">Last 30 Minutes</option>
+              <option value="6h">Last 6 Hours</option>
+              <option value="24h">Last 24 Hours</option>
+            </select>
+          </div>
+        </div>
+
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Widget Title</label>
-            <input type="text" id="widgetTitleInput" class="form-input" placeholder="e.g. Host CPU Load" value="CPU Usage">
+            <input type="text" id="widgetTitleInput" class="form-input" placeholder="e.g. Host CPU Load" value="Clock & Calendar">
           </div>
           <div class="form-group">
             <label class="form-label">Source Server / Cluster</label>
@@ -998,11 +1071,12 @@
             <select id="widgetSizeSelect" class="form-input">
               <option value="normal">Standard (Single Column)</option>
               <option value="wide">Wide (Two Columns)</option>
+              <option value="full">Full Width (Three Columns)</option>
             </select>
           </div>
           <div class="form-group">
             <label class="form-label">Accent & Indicator Color</label>
-            <input type="color" id="widgetColorInput" class="form-input" value="#6366f1" style="height: 42px; padding: 2px;">
+            <input type="color" id="widgetColorInput" class="form-input" value="#38bdf8" style="height: 42px; padding: 2px;">
           </div>
         </div>
       </div>
@@ -1102,6 +1176,7 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <script src="js/icons.js"></script>
+  <script src="js/persianCalendar.js"></script>
   <script src="js/serverCharts.js"></script>
   <script src="js/app.js"></script>
 </body>

@@ -87,10 +87,24 @@ function sanitizeConfig(cfg) {
         return { ...safe, hasToken: !!token };
       })
     : [{ id: 'local', name: 'Master Node (Local)', type: 'local', color: '#6366f1' }];
-  clone.is_pin_protected = !!clone.settings.admin_pin;
-  // Mask admin PIN from client
+  const effectiveAdminPin = process.env.ADMIN_PIN || clone.settings.admin_pin;
+  const effectiveUserPin = process.env.USER_PIN || clone.settings.user_pin;
+  clone.is_pin_protected = !!effectiveAdminPin;
+  clone.is_user_pin_protected = !!effectiveUserPin;
+  // Mask admin and user PINs from client
   delete clone.settings.admin_pin;
+  delete clone.settings.user_pin;
   return clone;
+}
+
+function getEffectiveAdminPin() {
+  const cfg = configManager.getConfig();
+  return process.env.ADMIN_PIN || cfg.settings?.admin_pin || '';
+}
+
+function getEffectiveUserPin() {
+  const cfg = configManager.getConfig();
+  return process.env.USER_PIN || cfg.settings?.user_pin || '';
 }
 
 // API Routes
@@ -112,24 +126,44 @@ app.get('/api/config', (req, res) => {
 
 app.post('/api/verify-pin', (req, res) => {
   const { pin } = req.body;
-  const cfg = configManager.getConfig();
-  const currentPin = cfg.settings?.admin_pin;
+  const currentPin = getEffectiveAdminPin();
 
   if (!currentPin) {
-    return res.json({ valid: true });
+    return res.json({ valid: true, role: 'admin' });
   }
 
   if (String(pin) === String(currentPin)) {
-    return res.json({ valid: true });
+    return res.json({ valid: true, role: 'admin' });
   }
 
   return res.status(401).json({ valid: false, error: 'Incorrect Admin PIN' });
 });
 
+app.post('/api/verify-user-pin', (req, res) => {
+  const { pin } = req.body;
+  const userPin = getEffectiveUserPin();
+  const adminPin = getEffectiveAdminPin();
+
+  // If Admin PIN is supplied, treat as admin
+  if (adminPin && String(pin) === String(adminPin)) {
+    return res.json({ valid: true, role: 'admin' });
+  }
+
+  if (userPin && String(pin) === String(userPin)) {
+    return res.json({ valid: true, role: 'user' });
+  }
+
+  if (!userPin && !adminPin) {
+    return res.json({ valid: true, role: 'user' });
+  }
+
+  return res.status(401).json({ valid: false, error: 'Incorrect PIN' });
+});
+
 app.post('/api/config', (req, res) => {
   const { config, pin } = req.body;
   const currentConfig = configManager.getConfig();
-  const currentPin = currentConfig.settings?.admin_pin;
+  const currentPin = getEffectiveAdminPin();
 
   // Validate PIN if configured
   if (currentPin && String(pin) !== String(currentPin)) {
@@ -144,6 +178,10 @@ app.post('/api/config', (req, res) => {
   if (!config.settings) config.settings = {};
   if (!config.settings.admin_pin && currentPin) {
     config.settings.admin_pin = currentPin;
+  }
+  const currentUserPin = currentConfig.settings?.user_pin;
+  if (!config.settings.user_pin && currentUserPin) {
+    config.settings.user_pin = currentUserPin;
   }
 
   // Preserve server tokens if client didn't supply them

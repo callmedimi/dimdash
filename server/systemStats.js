@@ -1,5 +1,6 @@
 const os = require('os');
 const fs = require('fs');
+const http = require('http');
 const { exec } = require('child_process');
 
 class SystemStatsCollector {
@@ -187,7 +188,52 @@ class SystemStatsCollector {
       }
     });
 
-    // 6. Docker Containers (Async execution of docker ps)
+    // 6. Docker Containers (Native Socket REST API first, fallback to CLI)
+    this.collectDockerStats();
+  }
+
+  collectDockerStats() {
+    const socketPath = '/var/run/docker.sock';
+    if (fs.existsSync(socketPath)) {
+      const req = http.request({
+        socketPath,
+        path: '/containers/json?all=1',
+        method: 'GET',
+        timeout: 1800
+      }, (res) => {
+        let raw = '';
+        res.on('data', chunk => raw += chunk);
+        res.on('end', () => {
+          try {
+            const list = JSON.parse(raw);
+            if (Array.isArray(list)) {
+              const total = list.length;
+              const running = list.filter(c => c.State === 'running' || (c.Status && c.Status.toLowerCase().startsWith('up'))).length;
+              this.currentStats.docker = {
+                available: true,
+                total,
+                running,
+                stopped: total - running
+              };
+              return;
+            }
+          } catch (_) {}
+          this.fallbackDockerCli();
+        });
+      });
+
+      req.on('error', () => this.fallbackDockerCli());
+      req.on('timeout', () => {
+        req.destroy();
+        this.fallbackDockerCli();
+      });
+      req.end();
+    } else {
+      this.fallbackDockerCli();
+    }
+  }
+
+  fallbackDockerCli() {
     exec('docker ps -a --format "{{.Status}}"', { timeout: 1500 }, (err, stdout) => {
       if (!err && stdout !== undefined) {
         const lines = stdout.trim().split('\n').filter(Boolean);
