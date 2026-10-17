@@ -739,14 +739,35 @@
           <input type="color" id="catColorInput" class="form-input" value="#6366f1" style="height: 42px; padding: 2px;">
         </div>
         <div class="form-group">
-          <label class="form-label">Island Size & Layout on Board</label>
+          <label class="form-label">Category Width on Board (عرض گروه در داشبورد)</label>
           <select id="catLayoutSelect" class="form-input">
-            <option value="vertical">Column Board / Compact Island (Default — sits side-by-side)</option>
-            <option value="wide">Wide Island (2 Columns side-by-side)</option>
-            <option value="horizontal">Full Row (Full-width spanning island)</option>
+            <option value="vertical">Column Board (تک ستون — در کنار بقیه)</option>
+            <option value="wide">Wide Island (دو ستون — پهن)</option>
+            <option value="horizontal">Full Row (تمام‌عرض سراسری)</option>
           </select>
           <span style="font-size:0.75rem; color:#94a3b8; margin-top:4px; display:block;">
-            Each island can be single-column, double-column wide, or full-width row.
+            گروه‌ها می‌توانند تک‌ستون در کنار هم، دو ستون پهن یا ردیف تمام‌عرض باشند.
+          </span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tile Display Style (حالت نمایش تایل‌ها)</label>
+          <select id="catTileStyleSelect" class="form-input">
+            <option value="grid">جزیره‌ای (Island Cards — Prominent Icons)</option>
+            <option value="pill">سطری کپسولی (Horizontal Capsule Rows)</option>
+          </select>
+          <span style="font-size:0.75rem; color:#94a3b8; margin-top:4px; display:block;">
+            در حالت جزیره‌ای، آیکون‌ها بزرگ و مستقل در یک شبکه کارتی مدرن و تفکیک‌شده قرار می‌گیرند.
+          </span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tile & Icon Size (اندازه آیکون‌ها و تایل‌ها)</label>
+          <select id="catTileSizeSelect" class="form-input">
+            <option value="large">بزرگ جزیره‌ای (Large — 64px Icons & Spacious)</option>
+            <option value="medium">متوسط (Medium — 48px Icons)</option>
+            <option value="compact">فشرده (Compact — 36px Icons)</option>
+          </select>
+          <span style="font-size:0.75rem; color:#94a3b8; margin-top:4px; display:block;">
+            اندازه و حریم آیکون‌ها در هر گروه به صورت مجزا قابل تنظیم است.
           </span>
         </div>
       </div>

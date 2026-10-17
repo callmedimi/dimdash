@@ -106,24 +106,5 @@ const DEFAULT_ICONS = {
   wifi: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"></path><path d="M1.42 9a16 16 0 0 1 21.16 0"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg>`
 };
 
-// Automatically integrate all 681 Heimdall Foundation Apps from catalog
-try {
-  const fs = require('fs');
-  const path = require('path');
-  const catalogPath = path.join(__dirname, '../data/heimdall_apps.json');
-  if (fs.existsSync(catalogPath)) {
-    const heimdallList = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
-    heimdallList.forEach(app => {
-      if (app.id && app.icon_url && !DEFAULT_ICONS[app.id]) {
-        DEFAULT_ICONS[app.id] = app.icon_url;
-      }
-      if (app.key && app.icon_url && !DEFAULT_ICONS[app.key.toLowerCase()]) {
-        DEFAULT_ICONS[app.key.toLowerCase()] = app.icon_url;
-      }
-    });
-  }
-} catch (e) {
-  // Graceful fallback
-}
-
 module.exports = DEFAULT_ICONS;
+

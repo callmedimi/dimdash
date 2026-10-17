@@ -35,25 +35,40 @@ const IconCatalog = {
     if (!iconValue) {
       return this.icons['server'] || `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"></rect><rect x="2" y="14" width="20" height="8" rx="2"></rect></svg>`;
     }
-    // Uploaded, Heimdall icon URL, or custom image URL
-    if (iconType === 'uploaded' || iconType === 'image' || iconValue.startsWith('/icons/') || iconValue.startsWith('/uploads/') || iconValue.startsWith('data:image/') || iconValue.startsWith('http://') || iconValue.startsWith('https://')) {
-      return `<img src="${iconValue}" alt="Icon" style="width:100%; height:100%; object-fit:contain;" loading="lazy" />`;
-    }
-    // Preset name in catalog (e.g. 'pihole', 'plex', 'sonarr', 'netdata', etc.)
-    if (this.icons[iconValue]) {
-      return this.icons[iconValue];
-    }
-    // Check if matching Heimdall Foundation app by ID or name
-    const hApp = this.heimdallApps.find(a => a.id === iconValue.toLowerCase() || a.name.toLowerCase() === iconValue.toLowerCase());
-    if (hApp) {
-      return `<img src="${hApp.icon_url}" alt="${hApp.name}" style="width:100%; height:100%; object-fit:contain;" loading="lazy" />`;
-    }
-    // Raw SVG string
+
+    // 1. Raw inline SVG string
     if (typeof iconValue === 'string' && iconValue.trim().startsWith('<svg')) {
       return iconValue;
     }
-    // Fallback
-    return this.icons['server'] || `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"></rect><rect x="2" y="14" width="20" height="8" rx="2"></rect></svg>`;
+
+    // 2. Direct Image URL (uploaded, Heimdall path, relative or full URL)
+    if (iconType === 'uploaded' || iconType === 'image' || iconValue.startsWith('/') || iconValue.startsWith('data:image/') || iconValue.startsWith('http://') || iconValue.startsWith('https://')) {
+      return `<img src="${iconValue}" alt="" style="width:100%; height:100%; object-fit:contain; overflow:hidden;" loading="lazy" onerror="this.style.display='none'" />`;
+    }
+
+    // 3. Preset lookup in vector catalog (e.g. 'server', 'docker', 'cpu', 'pihole', etc.)
+    const val = this.icons[iconValue];
+    if (val) {
+      if (typeof val === 'string' && val.trim().startsWith('<svg')) {
+        return val;
+      }
+      if (typeof val === 'string' && (val.startsWith('/') || val.startsWith('http'))) {
+        return `<img src="${val}" alt="" style="width:100%; height:100%; object-fit:contain; overflow:hidden;" loading="lazy" onerror="this.style.display='none'" />`;
+      }
+    }
+
+    // 4. Heimdall Foundation catalog lookup by App ID or App Name
+    const hApp = this.heimdallApps.find(a => a.id === iconValue.toLowerCase() || a.name.toLowerCase() === iconValue.toLowerCase());
+    if (hApp && hApp.icon_url) {
+      return `<img src="${hApp.icon_url}" alt="" style="width:100%; height:100%; object-fit:contain; overflow:hidden;" loading="lazy" onerror="this.style.display='none'" />`;
+    }
+
+    // 5. Fallback server icon
+    const fallback = this.icons['server'];
+    if (fallback && typeof fallback === 'string' && fallback.trim().startsWith('<svg')) {
+      return fallback;
+    }
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"></rect><rect x="2" y="14" width="20" height="8" rx="2"></rect></svg>`;
   }
 };
 

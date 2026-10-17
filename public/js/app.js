@@ -1292,10 +1292,16 @@ function renderGrid() {
     let catLayoutClass = 'cat-layout-vertical';
     if (catLayout === 'wide') catLayoutClass = 'cat-layout-wide';
     else if (catLayout === 'horizontal') catLayoutClass = 'cat-layout-horizontal';
+
+    const tileStyle = cat.tile_style || 'grid';
+    const tileSize = cat.tile_size || 'large';
+    const catStyleClass = `cat-style-${tileStyle}`;
+    const catSizeClass = `cat-size-${tileSize}`;
+
     const isDraggable = AppState.authRole === 'admin' ? 'draggable="true"' : 'draggable="false"';
 
     html += `
-      <section class="category-section ${catLayoutClass}" data-cat-id="${cat.id}" ${isDraggable}>
+      <section class="category-section ${catLayoutClass} ${catStyleClass} ${catSizeClass}" data-cat-id="${cat.id}" ${isDraggable}>
         <div class="category-header">
           <div class="category-title-group">
             ${AppState.authRole === 'admin' ? '<span class="cat-drag-handle" title="Drag to reorder category">⠿</span>' : ''}
@@ -1310,15 +1316,24 @@ function renderGrid() {
 
           <div class="category-actions">
             ${AppState.authRole === 'admin' ? `
-              <div class="cat-island-controls" title="Change Island Layout">
-                <button type="button" class="btn-island-size ${(!cat.layout || cat.layout === 'vertical') ? 'active' : ''}" data-cat-id="${cat.id}" data-layout="vertical" title="Single column">▮ Col</button>
-                <button type="button" class="btn-island-size ${cat.layout === 'wide' ? 'active' : ''}" data-cat-id="${cat.id}" data-layout="wide" title="Wide (2 columns)">▬ Wide</button>
-                <button type="button" class="btn-island-size ${cat.layout === 'horizontal' ? 'active' : ''}" data-cat-id="${cat.id}" data-layout="horizontal" title="Full width row">▰ Row</button>
+              <div class="cat-island-controls" title="عرض گروه در صفحه">
+                <button type="button" class="btn-island-size ${(!cat.layout || cat.layout === 'vertical') ? 'active' : ''}" data-cat-id="${cat.id}" data-layout="vertical" title="تک ستون">▮ Col</button>
+                <button type="button" class="btn-island-size ${cat.layout === 'wide' ? 'active' : ''}" data-cat-id="${cat.id}" data-layout="wide" title="دو ستون (Wide)">▬ Wide</button>
+                <button type="button" class="btn-island-size ${cat.layout === 'horizontal' ? 'active' : ''}" data-cat-id="${cat.id}" data-layout="horizontal" title="تمام عرض">▰ Row</button>
               </div>
-              <button class="btn btn-icon btn-edit-cat" data-id="${cat.id}" title="Edit Category">
+              <div class="cat-island-controls cat-style-controls" title="حالت نمایش: کارت‌های جزیره‌ای یا ردیف‌های کپسولی">
+                <button type="button" class="btn-cat-style ${(!cat.tile_style || cat.tile_style === 'grid') ? 'active' : ''}" data-cat-id="${cat.id}" data-style="grid" title="کارت‌های جزیره‌ای (Island Cards)">☷ Grid</button>
+                <button type="button" class="btn-cat-style ${cat.tile_style === 'pill' ? 'active' : ''}" data-cat-id="${cat.id}" data-style="pill" title="ردیف‌های کپسولی (Pills)">☰ List</button>
+              </div>
+              <div class="cat-island-controls cat-size-controls" title="اندازه آیکون‌ها و تایل‌ها">
+                <button type="button" class="btn-cat-size ${cat.tile_size === 'compact' ? 'active' : ''}" data-cat-id="${cat.id}" data-size="compact" title="فشرده و کوچک (Compact)">S</button>
+                <button type="button" class="btn-cat-size ${cat.tile_size === 'medium' ? 'active' : ''}" data-cat-id="${cat.id}" data-size="medium" title="متوسط (Medium)">M</button>
+                <button type="button" class="btn-cat-size ${(!cat.tile_size || cat.tile_size === 'large') ? 'active' : ''}" data-cat-id="${cat.id}" data-size="large" title="بزرگ جزیره‌ای (Large)">L</button>
+              </div>
+              <button class="btn btn-icon btn-edit-cat" data-id="${cat.id}" title="تنظیمات گروه">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
               </button>
-              <button class="btn btn-icon btn-del-cat" data-id="${cat.id}" title="Delete Category">
+              <button class="btn btn-icon btn-del-cat" data-id="${cat.id}" title="حذف گروه">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
               </button>
             ` : ''}
@@ -1593,11 +1608,52 @@ function attachCardEvents() {
         await saveConfigToServer();
         renderDashboard();
         const layoutLabels = {
-          vertical: 'Single column (side-by-side)',
-          wide: 'Two columns (Wide)',
-          horizontal: 'Full width row'
+          vertical: 'تک ستون (Single Column)',
+          wide: 'دو ستون (Wide Island)',
+          horizontal: 'ردیف تمام‌عرض (Full Row)'
         };
-        showToast(`Layout for "${cat.name}" set to ${layoutLabels[newLayout] || newLayout}`, 'info');
+        showToast(`چیدمان "${cat.name}" به ${layoutLabels[newLayout] || newLayout} تغییر یافت`, 'info');
+      }
+    });
+  });
+
+  // Category Display Style Switcher (Island Card Grid vs Horizontal Pills)
+  document.querySelectorAll('.btn-cat-style').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const catId = btn.dataset.catId;
+      const newStyle = btn.dataset.style;
+      const cat = AppState.config?.categories.find(c => c.id === catId);
+      if (cat) {
+        cat.tile_style = newStyle;
+        await saveConfigToServer();
+        renderDashboard();
+        const styleLabels = {
+          grid: 'کارت‌های جزیره‌ای (Island Cards)',
+          pill: 'ردیف‌های کپسولی (Capsule Pills)'
+        };
+        showToast(`حالت نمایش "${cat.name}" به ${styleLabels[newStyle] || newStyle} تغییر یافت`, 'info');
+      }
+    });
+  });
+
+  // Category Tile & Icon Size Switcher (Compact, Medium, Large)
+  document.querySelectorAll('.btn-cat-size').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const catId = btn.dataset.catId;
+      const newSize = btn.dataset.size;
+      const cat = AppState.config?.categories.find(c => c.id === catId);
+      if (cat) {
+        cat.tile_size = newSize;
+        await saveConfigToServer();
+        renderDashboard();
+        const sizeLabels = {
+          compact: 'کوچک و فشرده (Compact)',
+          medium: 'متوسط (Medium)',
+          large: 'بزرگ جزیره‌ای (Large)'
+        };
+        showToast(`اندازه آیکون‌های "${cat.name}" به ${sizeLabels[newSize] || newSize} تنظیم شد`, 'info');
       }
     });
   });
@@ -2278,11 +2334,13 @@ function openTileModal(catId = null, tileId = null) {
 
     // 1. Built-in Preset Vectors
     Object.keys(allIcons).forEach(key => {
+      const iconVal = allIcons[key];
+      if (typeof iconVal !== 'string' || !iconVal.trim().startsWith('<svg')) return;
       if (query && !key.toLowerCase().includes(query)) return;
       const isSelected = selectedIconType === 'preset' && selectedIconValue === key;
       html += `
         <div class="icon-cell ${isSelected ? 'selected' : ''}" data-type="preset" data-val="${key}" data-name="${key}" title="${key}">
-          ${IconCatalog.render('preset', key)}
+          ${iconVal}
           <span class="icon-cell-name">${key}</span>
         </div>
       `;
@@ -2298,13 +2356,13 @@ function openTileModal(catId = null, tileId = null) {
       );
     });
 
-    const displayLimit = query ? 160 : 70;
+    const displayLimit = query ? 200 : 90;
     matchingHeimdall.slice(0, displayLimit).forEach(app => {
       const isSelected = (selectedIconType === 'image' && selectedIconValue === app.icon_url) ||
                          (selectedIconValue === app.id);
       html += `
         <div class="icon-cell ${isSelected ? 'selected' : ''}" data-type="image" data-val="${app.icon_url}" data-name="${app.name}" title="${app.name} (Heimdall Foundation)">
-          <img src="${app.icon_url}" alt="${app.name}" style="width:28px;height:28px;object-fit:contain;" loading="lazy" />
+          <img src="${app.icon_url}" alt="" style="width:28px;height:28px;object-fit:contain;overflow:hidden;" loading="lazy" onerror="this.style.display='none'" />
           <span class="icon-cell-name">${app.name}</span>
         </div>
       `;
@@ -2482,6 +2540,14 @@ function openCategoryModal(catId = null) {
   if (layoutSelect) {
     layoutSelect.value = existing?.layout || 'vertical';
   }
+  const styleSelect = document.getElementById('catTileStyleSelect');
+  if (styleSelect) {
+    styleSelect.value = existing?.tile_style || 'grid';
+  }
+  const sizeSelect = document.getElementById('catTileSizeSelect');
+  if (sizeSelect) {
+    sizeSelect.value = existing?.tile_size || 'large';
+  }
 
   modal.classList.add('open');
 
@@ -2494,11 +2560,15 @@ function openCategoryModal(catId = null) {
 
     const color = document.getElementById('catColorInput').value;
     const layout = document.getElementById('catLayoutSelect')?.value || 'vertical';
+    const tile_style = document.getElementById('catTileStyleSelect')?.value || 'grid';
+    const tile_size = document.getElementById('catTileSizeSelect')?.value || 'large';
 
     if (isEdit && existing) {
       existing.name = name;
       existing.color = color;
       existing.layout = layout;
+      existing.tile_style = tile_style;
+      existing.tile_size = tile_size;
     } else {
       AppState.config.categories = AppState.config.categories || [];
       AppState.config.categories.push({
@@ -2506,6 +2576,8 @@ function openCategoryModal(catId = null) {
         name,
         color,
         layout,
+        tile_style,
+        tile_size,
         icon: 'folder',
         is_collapsed: false,
         tiles: []

@@ -1025,12 +1025,14 @@ function renderAdminIconPicker(selectedIcon = 'server') {
 
   // 1. Presets
   Object.keys(icons).forEach(key => {
+    const iconVal = icons[key];
+    if (typeof iconVal !== 'string' || !iconVal.trim().startsWith('<svg')) return;
     if (searchVal && !key.toLowerCase().includes(searchVal)) return;
     const isSelected = (selectedIcon === key);
     const div = document.createElement('div');
     div.className = `icon-cell ${isSelected ? 'selected' : ''}`;
     div.title = key;
-    div.innerHTML = IconCatalog.render('svg', key);
+    div.innerHTML = `${iconVal}<span class="icon-cell-name" style="font-size:0.65rem;color:var(--text-muted);">${key}</span>`;
     div.onclick = () => {
       document.querySelectorAll('#adminTileIconGrid .icon-cell').forEach(c => c.classList.remove('selected'));
       div.classList.add('selected');
@@ -1050,13 +1052,13 @@ function renderAdminIconPicker(selectedIcon = 'server') {
     );
   });
 
-  const displayLimit = searchVal ? 160 : 60;
+  const displayLimit = searchVal ? 200 : 80;
   matchingHeimdall.slice(0, displayLimit).forEach(app => {
     const isSelected = (selectedIcon === app.icon_url || selectedIcon === app.id);
     const div = document.createElement('div');
     div.className = `icon-cell ${isSelected ? 'selected' : ''}`;
     div.title = `${app.name} (Heimdall Foundation)`;
-    div.innerHTML = `<img src="${app.icon_url}" alt="${app.name}" style="width:28px;height:28px;object-fit:contain;" loading="lazy" />`;
+    div.innerHTML = `<img src="${app.icon_url}" alt="" style="width:28px;height:28px;object-fit:contain;overflow:hidden;" loading="lazy" onerror="this.style.display='none'" /><span class="icon-cell-name" style="font-size:0.65rem;color:var(--text-muted);">${app.name}</span>`;
     div.onclick = () => {
       document.querySelectorAll('#adminTileIconGrid .icon-cell').forEach(c => c.classList.remove('selected'));
       div.classList.add('selected');

@@ -1069,39 +1069,87 @@ body.page-view-apps .widgets-grid .widget-card {
   box-shadow: 0 16px 42px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
 }
 
-/* 1. Standard Board Column: span 1 (SITS SIDE-BY-SIDE!) */
+/* 1. Island Board Column Spans */
 .category-section.cat-layout-vertical,
 .category-section:not(.cat-layout-wide):not(.cat-layout-horizontal) {
   grid-column: span 1 !important;
 }
 
-.category-section.cat-layout-vertical .tile-grid,
-.category-section:not(.cat-layout-wide):not(.cat-layout-horizontal) .tile-grid {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 0.65rem !important;
-}
-
-/* 2. Wide Island: span 2 (Takes 2 columns side-by-side with other islands) */
 .category-section.cat-layout-wide {
   grid-column: span 2 !important;
 }
 
-.category-section.cat-layout-wide .tile-grid {
-  display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
-  gap: 0.85rem !important;
-}
-
-/* 3. Full-width Island: span full row across all columns */
 .category-section.cat-layout-horizontal {
   grid-column: 1 / -1 !important;
 }
 
-.category-section.cat-layout-horizontal .tile-grid {
+/* --------------------------------------------------------------------------
+   Island Card Grid Layout (Default & User-Controlled: .cat-style-grid)
+   Apps display as spacious, upright island cards with large prominent icons
+   -------------------------------------------------------------------------- */
+.category-section.cat-style-grid .tile-grid,
+.category-section:not(.cat-style-pill) .tile-grid {
   display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+  width: 100% !important;
+}
+
+/* Size: Large (Spacious islands with big 64px icon squircle) */
+.category-section.cat-style-grid.cat-size-large .tile-grid,
+.category-section:not(.cat-style-pill).cat-size-large .tile-grid,
+.category-section:not(.cat-style-pill):not(.cat-size-medium):not(.cat-size-compact) .tile-grid {
+  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)) !important;
+  gap: 1.1rem !important;
+}
+
+/* Size: Medium (Balanced islands with 48px icons) */
+.category-section.cat-style-grid.cat-size-medium .tile-grid,
+.category-section:not(.cat-style-pill).cat-size-medium .tile-grid {
+  grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)) !important;
   gap: 0.85rem !important;
+}
+
+/* Size: Compact (Dense islands with 38px icons) */
+.category-section.cat-style-grid.cat-size-compact .tile-grid,
+.category-section:not(.cat-style-pill).cat-size-compact .tile-grid {
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)) !important;
+  gap: 0.65rem !important;
+}
+
+/* --------------------------------------------------------------------------
+   Horizontal Pill Layout (.cat-style-pill)
+   -------------------------------------------------------------------------- */
+.category-section.cat-style-pill.cat-layout-vertical .tile-grid,
+.category-section.cat-style-pill:not(.cat-layout-wide):not(.cat-layout-horizontal) .tile-grid {
+  display: flex !important;
+  flex-direction: column !important;
+}
+.category-section.cat-style-pill.cat-layout-vertical.cat-size-large .tile-grid,
+.category-section.cat-style-pill.cat-layout-vertical:not(.cat-size-medium):not(.cat-size-compact) .tile-grid {
+  gap: 0.85rem !important;
+}
+.category-section.cat-style-pill.cat-layout-vertical.cat-size-medium .tile-grid {
+  gap: 0.65rem !important;
+}
+.category-section.cat-style-pill.cat-layout-vertical.cat-size-compact .tile-grid {
+  gap: 0.5rem !important;
+}
+
+.category-section.cat-style-pill.cat-layout-wide .tile-grid,
+.category-section.cat-style-pill.cat-layout-horizontal .tile-grid {
+  display: grid !important;
+}
+.category-section.cat-style-pill:is(.cat-layout-wide, .cat-layout-horizontal).cat-size-large .tile-grid,
+.category-section.cat-style-pill:is(.cat-layout-wide, .cat-layout-horizontal):not(.cat-size-medium):not(.cat-size-compact) .tile-grid {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+  gap: 0.95rem !important;
+}
+.category-section.cat-style-pill:is(.cat-layout-wide, .cat-layout-horizontal).cat-size-medium .tile-grid {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)) !important;
+  gap: 0.75rem !important;
+}
+.category-section.cat-style-pill:is(.cat-layout-wide, .cat-layout-horizontal).cat-size-compact .tile-grid {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important;
+  gap: 0.55rem !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -1198,6 +1246,37 @@ body.page-view-apps .widgets-grid .widget-card {
   box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4) !important;
 }
 
+/* Category Header Switcher Buttons */
+.btn-cat-style,
+.btn-cat-size {
+  background: transparent !important;
+  border: none !important;
+  color: #94a3b8 !important;
+  font-size: 0.7rem !important;
+  font-weight: 500 !important;
+  padding: 3px 6px !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  user-select: none !important;
+  min-width: 19px !important;
+  text-align: center !important;
+}
+
+.btn-cat-style:hover,
+.btn-cat-size:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.btn-cat-style.active,
+.btn-cat-size.active {
+  background: var(--accent-color, #6366f1) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4) !important;
+}
+
 /* Directional Shift Category Buttons */
 .cat-move-btn {
   background: rgba(255, 255, 255, 0.08) !important;
@@ -1216,11 +1295,272 @@ body.page-view-apps .widgets-grid .widget-card {
 }
 
 /* --------------------------------------------------------------------------
-   Universal Capsule Pill Cards (Horizontal Heimdall-grade Tiles)
+   Island Card Grid System (Default & User-Controlled .cat-style-grid)
+   Spacious, upright island cards with large prominent icons
    -------------------------------------------------------------------------- */
-.tile-card {
+.category-section.cat-style-grid .tile-card,
+.category-section:not(.cat-style-pill) .tile-card {
   width: 100% !important;
-  border-radius: 11px !important;
+  border-radius: 18px !important;
+  background: rgba(22, 29, 44, 0.88) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35) !important;
+  padding: 0 !important;
+  position: relative !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.22s ease, background 0.22s ease !important;
+  box-sizing: border-box !important;
+}
+
+.category-section.cat-style-grid .tile-card:hover,
+.category-section:not(.cat-style-pill) .tile-card:hover {
+  background: rgba(30, 42, 66, 0.98) !important;
+  border-color: rgba(99, 102, 241, 0.6) !important;
+  transform: translateY(-4px) scale(1.02) !important;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.55), 0 0 20px rgba(99, 102, 241, 0.3) !important;
+}
+
+.category-section.cat-style-grid .tile-main-link,
+.category-section:not(.cat-style-pill) .tile-main-link {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  width: 100% !important;
+  text-decoration: none !important;
+  color: inherit !important;
+  box-sizing: border-box !important;
+}
+
+.category-section.cat-style-grid .tile-top,
+.category-section:not(.cat-style-pill) .tile-top {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  position: relative !important;
+}
+
+.category-section.cat-style-grid .tile-icon-box,
+.category-section:not(.cat-style-pill) .tile-icon-box {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+  flex-shrink: 0 !important;
+}
+
+.category-section.cat-style-grid .tile-card:hover .tile-icon-box,
+.category-section:not(.cat-style-pill) .tile-card:hover .tile-icon-box {
+  transform: scale(1.06) !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+}
+
+.category-section.cat-style-grid .tile-info,
+.category-section:not(.cat-style-pill) .tile-info {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  min-width: 0 !important;
+}
+
+.category-section.cat-style-grid .tile-title,
+.category-section:not(.cat-style-pill) .tile-title {
+  text-align: center !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  color: #ffffff !important;
+  margin: 0 !important;
+  letter-spacing: 0.2px !important;
+}
+
+.category-section.cat-style-grid .tile-subtitle,
+.category-section:not(.cat-style-pill) .tile-subtitle {
+  text-align: center !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  color: #94a3b8 !important;
+  margin: 0 !important;
+}
+
+.category-section.cat-style-grid .tile-footer,
+.category-section:not(.cat-style-pill) .tile-footer {
+  position: absolute !important;
+  top: 9px !important;
+  right: 9px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  z-index: 5 !important;
+}
+
+.category-section.cat-style-grid .tile-visibility-badge,
+.category-section:not(.cat-style-pill) .tile-visibility-badge {
+  position: absolute !important;
+  top: 8px !important;
+  left: 8px !important;
+  font-size: 0.62rem !important;
+  padding: 2px 5px !important;
+  border-radius: 5px !important;
+  z-index: 5 !important;
+}
+
+.category-section.cat-style-grid .tile-admin-bar,
+.category-section:not(.cat-style-pill) .tile-admin-bar {
+  top: auto !important;
+  bottom: 0.35rem !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+}
+
+/* --- Size variations for Grid Islands --- */
+/* Large Grid (Default) */
+.category-section.cat-style-grid.cat-size-large .tile-card,
+.category-section:not(.cat-style-pill).cat-size-large .tile-card,
+.category-section:not(.cat-style-pill):not(.cat-size-medium):not(.cat-size-compact) .tile-card {
+  min-height: 148px !important;
+  border-radius: 18px !important;
+}
+.category-section.cat-style-grid.cat-size-large .tile-main-link,
+.category-section:not(.cat-style-pill).cat-size-large .tile-main-link,
+.category-section:not(.cat-style-pill):not(.cat-size-medium):not(.cat-size-compact) .tile-main-link {
+  padding: 1.2rem 0.85rem 0.95rem 0.85rem !important;
+  gap: 0.65rem !important;
+}
+.category-section.cat-style-grid.cat-size-large .tile-icon-box,
+.category-section:not(.cat-style-pill).cat-size-large .tile-icon-box,
+.category-section:not(.cat-style-pill):not(.cat-size-medium):not(.cat-size-compact) .tile-icon-box {
+  width: 64px !important;
+  height: 64px !important;
+  min-width: 64px !important;
+  border-radius: 18px !important;
+  padding: 7px !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+}
+.category-section.cat-style-grid.cat-size-large .tile-icon-box svg,
+.category-section.cat-style-grid.cat-size-large .tile-icon-box img,
+.category-section:not(.cat-style-pill).cat-size-large .tile-icon-box svg,
+.category-section:not(.cat-style-pill).cat-size-large .tile-icon-box img,
+.category-section:not(.cat-style-pill):not(.cat-size-medium):not(.cat-size-compact) .tile-icon-box svg,
+.category-section:not(.cat-style-pill):not(.cat-size-medium):not(.cat-size-compact) .tile-icon-box img {
+  width: 50px !important;
+  height: 50px !important;
+  object-fit: contain !important;
+}
+.category-section.cat-style-grid.cat-size-large .tile-title,
+.category-section:not(.cat-style-pill).cat-size-large .tile-title,
+.category-section:not(.cat-style-pill):not(.cat-size-medium):not(.cat-size-compact) .tile-title {
+  font-size: 0.98rem !important;
+  font-weight: 600 !important;
+}
+.category-section.cat-style-grid.cat-size-large .tile-subtitle,
+.category-section:not(.cat-style-pill).cat-size-large .tile-subtitle,
+.category-section:not(.cat-style-pill):not(.cat-size-medium):not(.cat-size-compact) .tile-subtitle {
+  font-size: 0.74rem !important;
+  margin-top: 2px !important;
+}
+
+/* Medium Grid */
+.category-section.cat-style-grid.cat-size-medium .tile-card,
+.category-section:not(.cat-style-pill).cat-size-medium .tile-card {
+  min-height: 125px !important;
+  border-radius: 14px !important;
+}
+.category-section.cat-style-grid.cat-size-medium .tile-main-link,
+.category-section:not(.cat-style-pill).cat-size-medium .tile-main-link {
+  padding: 0.95rem 0.75rem 0.8rem 0.75rem !important;
+  gap: 0.5rem !important;
+}
+.category-section.cat-style-grid.cat-size-medium .tile-icon-box,
+.category-section:not(.cat-style-pill).cat-size-medium .tile-icon-box {
+  width: 50px !important;
+  height: 50px !important;
+  min-width: 50px !important;
+  border-radius: 14px !important;
+  padding: 5px !important;
+}
+.category-section.cat-style-grid.cat-size-medium .tile-icon-box svg,
+.category-section.cat-style-grid.cat-size-medium .tile-icon-box img,
+.category-section:not(.cat-style-pill).cat-size-medium .tile-icon-box svg,
+.category-section:not(.cat-style-pill).cat-size-medium .tile-icon-box img {
+  width: 38px !important;
+  height: 38px !important;
+  object-fit: contain !important;
+}
+.category-section.cat-style-grid.cat-size-medium .tile-title,
+.category-section:not(.cat-style-pill).cat-size-medium .tile-title {
+  font-size: 0.88rem !important;
+}
+.category-section.cat-style-grid.cat-size-medium .tile-subtitle,
+.category-section:not(.cat-style-pill).cat-size-medium .tile-subtitle {
+  font-size: 0.7rem !important;
+  margin-top: 1px !important;
+}
+
+/* Compact Grid */
+.category-section.cat-style-grid.cat-size-compact .tile-card,
+.category-section:not(.cat-style-pill).cat-size-compact .tile-card {
+  min-height: 105px !important;
+  border-radius: 12px !important;
+}
+.category-section.cat-style-grid.cat-size-compact .tile-main-link,
+.category-section:not(.cat-style-pill).cat-size-compact .tile-main-link {
+  padding: 0.75rem 0.6rem 0.65rem 0.6rem !important;
+  gap: 0.4rem !important;
+}
+.category-section.cat-style-grid.cat-size-compact .tile-icon-box,
+.category-section:not(.cat-style-pill).cat-size-compact .tile-icon-box {
+  width: 38px !important;
+  height: 38px !important;
+  min-width: 38px !important;
+  border-radius: 10px !important;
+  padding: 4px !important;
+}
+.category-section.cat-style-grid.cat-size-compact .tile-icon-box svg,
+.category-section.cat-style-grid.cat-size-compact .tile-icon-box img,
+.category-section:not(.cat-style-pill).cat-size-compact .tile-icon-box svg,
+.category-section:not(.cat-style-pill).cat-size-compact .tile-icon-box img {
+  width: 28px !important;
+  height: 28px !important;
+  object-fit: contain !important;
+}
+.category-section.cat-style-grid.cat-size-compact .tile-title,
+.category-section:not(.cat-style-pill).cat-size-compact .tile-title {
+  font-size: 0.82rem !important;
+}
+.category-section.cat-style-grid.cat-size-compact .tile-subtitle,
+.category-section:not(.cat-style-pill).cat-size-compact .tile-subtitle {
+  font-size: 0.66rem !important;
+}
+
+/* --------------------------------------------------------------------------
+   Horizontal Pill Layout (.cat-style-pill)
+   -------------------------------------------------------------------------- */
+.category-section.cat-style-pill .tile-card {
+  width: 100% !important;
+  border-radius: 12px !important;
   background: rgba(22, 29, 44, 0.92) !important;
   backdrop-filter: blur(14px) !important;
   -webkit-backdrop-filter: blur(14px) !important;
@@ -1233,55 +1573,43 @@ body.page-view-apps .widgets-grid .widget-card {
   box-sizing: border-box !important;
 }
 
-.tile-card:hover {
+.category-section.cat-style-pill .tile-card:hover {
   background: rgba(30, 40, 60, 0.98) !important;
   border-color: rgba(99, 102, 241, 0.55) !important;
   transform: translateY(-2px) !important;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55), 0 0 16px rgba(99, 102, 241, 0.28) !important;
 }
 
-.tile-main-link {
+.category-section.cat-style-pill .tile-main-link {
   display: flex !important;
   flex-direction: row !important;
   align-items: center !important;
   justify-content: flex-start !important;
-  gap: 0.85rem !important;
-  padding: 0.65rem 0.95rem !important;
   width: 100% !important;
   text-decoration: none !important;
   color: inherit !important;
   box-sizing: border-box !important;
 }
 
-.tile-top {
-  margin: 0 !important;
-  padding: 0 !important;
+.category-section.cat-style-pill .tile-top {
   display: flex !important;
   align-items: center !important;
   flex-shrink: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
-.tile-icon-box {
-  width: 38px !important;
-  height: 38px !important;
-  min-width: 38px !important;
-  border-radius: 9px !important;
+.category-section.cat-style-pill .tile-icon-box {
   background: transparent !important;
   border: none !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   flex-shrink: 0 !important;
+  box-shadow: none !important;
 }
 
-.tile-icon-box svg,
-.tile-icon-box img {
-  width: 30px !important;
-  height: 30px !important;
-  object-fit: contain !important;
-}
-
-.tile-info {
+.category-section.cat-style-pill .tile-info {
   flex: 1 !important;
   margin: 0 !important;
   padding: 0 !important;
@@ -1289,33 +1617,99 @@ body.page-view-apps .widgets-grid .widget-card {
   min-width: 0 !important;
 }
 
-.tile-title {
-  font-size: 0.95rem !important;
-  font-weight: 600 !important;
+.category-section.cat-style-pill .tile-title {
   color: #ffffff !important;
   margin: 0 0 2px 0 !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   letter-spacing: 0.2px !important;
+  text-align: left !important;
 }
 
-.tile-subtitle {
-  font-size: 0.76rem !important;
+.category-section.cat-style-pill .tile-subtitle {
   color: #94a3b8 !important;
   margin: 0 !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
+  text-align: left !important;
 }
 
-.tile-footer {
+.category-section.cat-style-pill .tile-footer {
   margin: 0 !important;
   padding: 0 !important;
   flex-shrink: 0 !important;
   display: flex !important;
   align-items: center !important;
   gap: 0.35rem !important;
+  position: static !important;
+}
+
+.category-section.cat-style-pill.cat-size-large .tile-main-link {
+  padding: 0.85rem 1.1rem !important;
+  gap: 1rem !important;
+}
+.category-section.cat-style-pill.cat-size-large .tile-icon-box {
+  width: 52px !important;
+  height: 52px !important;
+  min-width: 52px !important;
+  border-radius: 14px !important;
+}
+.category-section.cat-style-pill.cat-size-large .tile-icon-box svg,
+.category-section.cat-style-pill.cat-size-large .tile-icon-box img {
+  width: 42px !important;
+  height: 42px !important;
+}
+.category-section.cat-style-pill.cat-size-large .tile-title {
+  font-size: 1.02rem !important;
+}
+.category-section.cat-style-pill.cat-size-large .tile-subtitle {
+  font-size: 0.78rem !important;
+}
+
+.category-section.cat-style-pill.cat-size-medium .tile-main-link {
+  padding: 0.65rem 0.95rem !important;
+  gap: 0.85rem !important;
+}
+.category-section.cat-style-pill.cat-size-medium .tile-icon-box {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  border-radius: 10px !important;
+}
+.category-section.cat-style-pill.cat-size-medium .tile-icon-box svg,
+.category-section.cat-style-pill.cat-size-medium .tile-icon-box img {
+  width: 30px !important;
+  height: 30px !important;
+}
+.category-section.cat-style-pill.cat-size-medium .tile-title {
+  font-size: 0.94rem !important;
+}
+.category-section.cat-style-pill.cat-size-medium .tile-subtitle {
+  font-size: 0.74rem !important;
+}
+
+.category-section.cat-style-pill.cat-size-compact .tile-main-link {
+  padding: 0.45rem 0.75rem !important;
+  gap: 0.65rem !important;
+}
+.category-section.cat-style-pill.cat-size-compact .tile-icon-box {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  border-radius: 8px !important;
+}
+.category-section.cat-style-pill.cat-size-compact .tile-icon-box svg,
+.category-section.cat-style-pill.cat-size-compact .tile-icon-box img {
+  width: 24px !important;
+  height: 24px !important;
+}
+.category-section.cat-style-pill.cat-size-compact .tile-title {
+  font-size: 0.85rem !important;
+}
+.category-section.cat-style-pill.cat-size-compact .tile-subtitle {
+  font-size: 0.68rem !important;
 }
 
 .status-badge {
@@ -1788,17 +2182,20 @@ body.card-style-pill .tile-footer {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.3rem;
-  padding: 0.5rem 0.2rem;
+  gap: 0.35rem;
+  padding: 0.55rem 0.25rem;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid transparent;
+  border: 1px solid rgba(255, 255, 255, 0.05);
   cursor: pointer;
   transition: var(--transition-smooth);
+  overflow: hidden !important;
+  box-sizing: border-box;
 }
 .icon-cell:hover {
   background: rgba(255, 255, 255, 0.12);
-  transform: scale(1.05);
+  transform: translateY(-2px);
+  border-color: rgba(99, 102, 241, 0.4);
 }
 .icon-cell.selected {
   background: rgba(99, 102, 241, 0.25);
@@ -1808,7 +2205,13 @@ body.card-style-pill .tile-footer {
 .icon-cell svg, .icon-cell img {
   width: 28px;
   height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  max-width: 28px;
+  max-height: 28px;
   object-fit: contain;
+  overflow: hidden;
+  display: block;
 }
 .icon-cell-name {
   font-size: 0.65rem;
@@ -1818,6 +2221,7 @@ body.card-style-pill .tile-footer {
   text-overflow: ellipsis;
   max-width: 58px;
   text-align: center;
+  display: block;
 }
 
 /* Legacy board styles unified into core Island Grid Canvas above */
@@ -3146,6 +3550,8 @@ body:not(.admin-mode) .cat-drag-handle,
 body:not(.admin-mode) .tile-drag-handle,
 body:not(.admin-mode) .widget-drag-handle,
 body:not(.admin-mode) .cat-island-controls,
+body:not(.admin-mode) .cat-style-controls,
+body:not(.admin-mode) .cat-size-controls,
 body:not(.admin-mode) .btn-del-widget,
 body:not(.admin-mode) .tile-admin-bar,
 body:not(.admin-mode) .tile-arrange-controls,
