@@ -8,6 +8,8 @@ class SystemStatsCollector {
     this.prevCpuTimes = this.getCpuTimes();
     this.prevNetBytes = this.getNetBytes();
     this.prevNetTime = Date.now();
+    this.lastDiskCheck = 0;
+    this.dockerCliCooldown = 0;
 
     this.currentStats = {
       timestamp: Date.now(),
@@ -168,25 +170,28 @@ class SystemStatsCollector {
 
     this.currentStats.timestamp = now;
 
-    // 5. Disk Usage (Async execution of df -k)
-    exec('df -k / | tail -1', { timeout: 1500 }, (err, stdout) => {
-      if (!err && stdout) {
-        const parts = stdout.trim().split(/\s+/);
-        if (parts.length >= 5) {
-          const totalKb = parseInt(parts[1], 10) || 0;
-          const usedKb = parseInt(parts[2], 10) || 0;
-          const availKb = parseInt(parts[3], 10) || 0;
-          const percent = totalKb > 0 ? Math.round((usedKb / totalKb) * 100) : 0;
-          this.currentStats.disk = {
-            totalGb: Number((totalKb / (1024 * 1024)).toFixed(1)),
-            usedGb: Number((usedKb / (1024 * 1024)).toFixed(1)),
-            freeGb: Number((availKb / (1024 * 1024)).toFixed(1)),
-            percent,
-            mount: parts[5] || '/'
-          };
+    // 5. Disk Usage (Throttled async execution of df -k every 30s)
+    if (now - this.lastDiskCheck > 30000 || !this.lastDiskCheck) {
+      this.lastDiskCheck = now;
+      exec('df -k / | tail -1', { timeout: 1500 }, (err, stdout) => {
+        if (!err && stdout) {
+          const parts = stdout.trim().split(/\s+/);
+          if (parts.length >= 5) {
+            const totalKb = parseInt(parts[1], 10) || 0;
+            const usedKb = parseInt(parts[2], 10) || 0;
+            const availKb = parseInt(parts[3], 10) || 0;
+            const percent = totalKb > 0 ? Math.round((usedKb / totalKb) * 100) : 0;
+            this.currentStats.disk = {
+              totalGb: Number((totalKb / (1024 * 1024)).toFixed(1)),
+              usedGb: Number((usedKb / (1024 * 1024)).toFixed(1)),
+              freeGb: Number((availKb / (1024 * 1024)).toFixed(1)),
+              percent,
+              mount: parts[5] || '/'
+            };
+          }
         }
-      }
-    });
+      });
+    }
 
     // 6. Docker Containers (Native Socket REST API first, fallback to CLI)
     this.collectDockerStats();
@@ -199,7 +204,7 @@ class SystemStatsCollector {
         socketPath,
         path: '/containers/json?all=1',
         method: 'GET',
-        timeout: 1800
+        timeout: 1000
       }, (res) => {
         let raw = '';
         res.on('data', chunk => raw += chunk);
@@ -234,6 +239,9 @@ class SystemStatsCollector {
   }
 
   fallbackDockerCli() {
+    const now = Date.now();
+    if (now < this.dockerCliCooldown) return;
+
     exec('docker ps -a --format "{{.Status}}"', { timeout: 1500 }, (err, stdout) => {
       if (!err && stdout !== undefined) {
         const lines = stdout.trim().split('\n').filter(Boolean);
@@ -246,6 +254,8 @@ class SystemStatsCollector {
         };
       } else {
         this.currentStats.docker.available = false;
+        // Don't hammer failing docker CLI every 2 seconds: back off for 60 seconds
+        this.dockerCliCooldown = now + 60000;
       }
     });
   }

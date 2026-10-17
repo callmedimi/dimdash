@@ -20,6 +20,7 @@ settings:
     enabled: true
     focus_hotkey: /
     instant_filter: true
+  show_stats_bar: true
   admin_pin: "1234"
   user_pin: "5678"
 categories:
@@ -80,10 +81,12 @@ categories:
           ignore_ssl: false
     tile_size: large
     tile_style: grid
+    col_start: "1"
+    bg_style: transparent
   - id: cat-1792219632141
     name: Tools
     color: "#991a1a"
-    layout: vertical
+    layout: wide
     icon: folder
     is_collapsed: false
     tiles:
@@ -112,6 +115,8 @@ categories:
           interval: 15
           ignore_ssl: false
     tile_size: medium
+    icon_plate: light
+    col_start: "3"
 servers:
   - id: local
     name: Master Node (Local)
@@ -127,6 +132,7 @@ widgets:
     show_seconds: true
     color: "#38bdf8"
     size: normal
+    align: center
   - id: widget-cpu
     server_id: local
     type: cpu_gauge

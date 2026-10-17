@@ -230,6 +230,9 @@
             </svg>
             <span>Probe All</span>
           </button>
+          <button type="button" class="btn-hide-stats-bar" id="btnHideStatsBar" title="حذف / پنهان‌سازی نوار وضعیت (Hide Status Bar)" style="display: none;">
+            ✕
+          </button>
         </div>
       </section>
 
@@ -271,6 +274,9 @@
         <div class="category-tabs" id="categoryTabs">
           <!-- Rendered dynamically -->
         </div>
+        <button type="button" class="btn-restore-stats-bar" id="btnRestoreStatsBar" title="نمایش مجدد نوار وضعیت سرویس‌ها (Restore Status Bar)" style="display: none;">
+          📊 نمایش نوار وضعیت
+        </button>
       </nav>
 
       <!-- Main Content Area -->
@@ -655,6 +661,26 @@
           <input type="hidden" id="selectedIconValue" value="server">
         </div>
 
+        <!-- Icon Contrast & Visibility on Dark Backgrounds -->
+        <div class="form-row" style="margin-bottom: 0.85rem;">
+          <div class="form-group" style="flex:1;">
+            <label class="form-label">Icon Contrast Plate (بستر آیکون)</label>
+            <select id="tileIconPlateSelect" class="form-select">
+              <option value="none">استاندارد / بدون پلاک (Standard)</option>
+              <option value="light">💡 بستر سفید روشن (Light Plate — حل مشکل لوگو و متون مشکی)</option>
+              <option value="invert">🔄 معکوس‌سازی رنگ (Invert Black to White)</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label class="form-label">Card Background (پس‌زمینه تایل)</label>
+            <select id="tileBgStyleSelect" class="form-select">
+              <option value="default">پیش‌فرض گروه (Inherit from Group)</option>
+              <option value="transparent">کاملاً شفاف (Transparent Card)</option>
+              <option value="light">کارت روشن کنتراست بالا (Light Card)</option>
+            </select>
+          </div>
+        </div>
+
         <!-- Generic Probe / Monitoring Engine Config -->
         <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1rem;">
           <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem; color: #a5b4fc;">Live Health Probe & Monitoring Engine</h4>
@@ -738,16 +764,49 @@
           <label class="form-label">Indicator Color</label>
           <input type="color" id="catColorInput" class="form-input" value="#6366f1" style="height: 42px; padding: 2px;">
         </div>
-        <div class="form-group">
-          <label class="form-label">Category Width on Board (عرض گروه در داشبورد)</label>
-          <select id="catLayoutSelect" class="form-input">
-            <option value="vertical">Column Board (تک ستون — در کنار بقیه)</option>
-            <option value="wide">Wide Island (دو ستون — پهن)</option>
-            <option value="horizontal">Full Row (تمام‌عرض سراسری)</option>
-          </select>
-          <span style="font-size:0.75rem; color:#94a3b8; margin-top:4px; display:block;">
-            گروه‌ها می‌توانند تک‌ستون در کنار هم، دو ستون پهن یا ردیف تمام‌عرض باشند.
-          </span>
+        <div class="form-row">
+          <div class="form-group" style="flex:1;">
+            <label class="form-label">Position / Start Column (ستون قرارگیری)</label>
+            <select id="catColStartSelect" class="form-input">
+              <option value="auto">تراز خودکار (Auto Flow)</option>
+              <option value="1">ستون ۱ (سمت چپ / اول)</option>
+              <option value="2">ستون ۲ (ستون وسط)</option>
+              <option value="3">ستون ۳ (سمت راست)</option>
+              <option value="4">ستون ۴ (انتهای راست)</option>
+            </select>
+            <span style="font-size:0.72rem; color:#94a3b8; margin-top:3px; display:block;">
+              امکان خالی گذاشتن بخشی از صفحه با انتخاب ستون دلخواه
+            </span>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label class="form-label">Width on Board (عرض گروه)</label>
+            <select id="catLayoutSelect" class="form-input">
+              <option value="vertical">Column (تک ستون)</option>
+              <option value="wide">Wide Island (دو ستون پهن)</option>
+              <option value="horizontal">Full Row (تمام‌عرض سراسری)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group" style="flex:1;">
+            <label class="form-label">Group Transparency (شفافیت گروه)</label>
+            <select id="catBgStyleSelect" class="form-input">
+              <option value="glass">شیشه‌ای مات استاندارد (Glassmorphic)</option>
+              <option value="transparent">🫥 کاملاً شفاف (100% Transparent — بدون رنگ تیره)</option>
+              <option value="ghost">فریم سبک (Subtle Ghost Border)</option>
+              <option value="light">کنتراست روشن (Light Island Plate)</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label class="form-label">Icon Contrast Plate (کنتراست آیکون‌ها)</label>
+            <select id="catIconPlateSelect" class="form-input">
+              <option value="none">عادی (Standard Dark)</option>
+              <option value="light">💡 بستر سفید برای همه آیکون‌ها (حل مشکل لوگوی مشکی)</option>
+              <option value="invert">🔄 معکوس‌سازی رنگ آیکون‌ها</option>
+              <option value="cards-transparent">کارت‌های شفاف (Transparent Cards)</option>
+            </select>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label">Tile Display Style (حالت نمایش تایل‌ها)</label>
@@ -808,13 +867,13 @@
           </div>
 
           <div class="wallpaper-picker-grid" id="themeWallpaperGrid">
-            <div class="wallpaper-card" data-val="/wallpapers/twilight_pines.jpg" style="background-image: url('/wallpapers/twilight_pines.jpg');">
+            <div class="wallpaper-card" data-val="/wallpapers/twilight_pines.jpg" data-bg="/wallpapers/twilight_pines.jpg" style="background: linear-gradient(135deg, #1e293b, #0f172a);">
               <span class="wallpaper-card-title">🌲 Twilight Pines (Heimdall)</span>
             </div>
-            <div class="wallpaper-card" data-val="/wallpapers/crystal_poly.jpg" style="background-image: url('/wallpapers/crystal_poly.jpg');">
+            <div class="wallpaper-card" data-val="/wallpapers/crystal_poly.jpg" data-bg="/wallpapers/crystal_poly.jpg" style="background: linear-gradient(135deg, #312e81, #1e1b4b);">
               <span class="wallpaper-card-title">💎 Crystal Poly (Low-Poly)</span>
             </div>
-            <div class="wallpaper-card" data-val="/wallpapers/cyber_space.jpg" style="background-image: url('/wallpapers/cyber_space.jpg');">
+            <div class="wallpaper-card" data-val="/wallpapers/cyber_space.jpg" data-bg="/wallpapers/cyber_space.jpg" style="background: linear-gradient(135deg, #0f172a, #020617);">
               <span class="wallpaper-card-title">🌌 Deep Cyber Space</span>
             </div>
             <div class="wallpaper-card" data-val="none" style="background: #020617; border: 2px dashed rgba(255,255,255,0.2);">
@@ -939,6 +998,21 @@
                 <option value="repeat">Tiled Pattern (Watermark Grid)</option>
               </select>
             </div>
+          </div>
+        </div>
+
+        <!-- Dashboard Layout Elements Visibility -->
+        <div class="form-group" style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.85rem;">
+          <label class="form-label">اجزای فعال صفحه اصلی (Dashboard Elements Visibility)</label>
+          <div style="display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.35rem;">
+            <label style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.85rem; color: #f1f5f9; cursor: pointer;">
+              <input type="checkbox" id="themeShowStatsBarInput" style="width: 17px; height: 17px; accent-color: var(--accent-color);">
+              <span>نمایش نوار آمار و وضعیت سرویس‌ها (Total / Online / Warning / Offline Bar)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.85rem; color: #f1f5f9; cursor: pointer;">
+              <input type="checkbox" id="themeShowClockInput" style="width: 17px; height: 17px; accent-color: var(--accent-color);">
+              <span>نمایش ساعت دیجیتال و تقویم خورشیدی / میلادی (Clock Widget)</span>
+            </label>
           </div>
         </div>
       </div>

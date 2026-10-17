@@ -8,19 +8,30 @@ const IconCatalog = {
 
   async init() {
     try {
-      const [resIcons, resHeimdall] = await Promise.all([
-        fetch('/api/icons'),
-        fetch('/api/icons/heimdall')
-      ]);
+      const resIcons = await fetch('/api/icons');
       if (resIcons.ok) {
         this.icons = await resIcons.json();
-      }
-      if (resHeimdall.ok) {
-        this.heimdallApps = await resHeimdall.json();
       }
     } catch (e) {
       console.warn('Failed to fetch icon catalog', e);
     }
+    // Background async load for Heimdall app catalog (220KB+)
+    this.loadHeimdall();
+  },
+
+  async loadHeimdall() {
+    if (this._heimdallPromise) return this._heimdallPromise;
+    this._heimdallPromise = (async () => {
+      try {
+        const res = await fetch('/api/icons/heimdall');
+        if (res.ok) {
+          this.heimdallApps = await res.json();
+        }
+      } catch (e) {
+        console.warn('Failed to fetch Heimdall catalog in background', e);
+      }
+    })();
+    return this._heimdallPromise;
   },
 
   getAll() {

@@ -153,7 +153,7 @@ class MetricsHistoryCollector {
       if (!fs.existsSync(this.dataDir)) {
         fs.mkdirSync(this.dataDir, { recursive: true });
       }
-      fs.writeFileSync(this.storageFile, JSON.stringify(this.historyByServer), 'utf8');
+      fs.writeFile(this.storageFile, JSON.stringify(this.historyByServer), 'utf8', () => {});
     } catch (_) {}
   }
 

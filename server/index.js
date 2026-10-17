@@ -6,6 +6,7 @@ const ConfigManager = require('./configManager');
 const Prober = require('./prober');
 const DEFAULT_ICONS = require('./defaultIcons');
 const systemStats = require('./systemStats');
+const zlib = require('zlib');
 const ClusterManager = require('./clusterManager');
 
 const app = express();
@@ -29,12 +30,36 @@ const clusterManager = new ClusterManager(configManager, systemStats);
 const MetricsHistoryCollector = require('./metricsHistory');
 const metricsHistory = new MetricsHistoryCollector(dataDir);
 
+// Fast non-blocking Gzip for large JSON responses
+function sendGzipJson(req, res, data) {
+  const enc = req.headers['accept-encoding'] || '';
+  const jsonStr = JSON.stringify(data);
+  if (enc.includes('gzip') && jsonStr.length > 2048) {
+    zlib.gzip(jsonStr, (err, buf) => {
+      if (!err && buf) {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Content-Encoding', 'gzip');
+        res.setHeader('Content-Length', buf.length);
+        return res.end(buf);
+      }
+      res.json(data);
+    });
+  } else {
+    res.json(data);
+  }
+}
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Static file serving
-app.use('/uploads', express.static(uploadsDir));
-app.use(express.static(path.resolve(__dirname, '../public')));
+// Static file serving with browser caching headers
+const staticCacheOptions = {
+  maxAge: '1d',
+  etag: true,
+  lastModified: true
+};
+app.use('/uploads', express.static(uploadsDir, staticCacheOptions));
+app.use(express.static(path.resolve(__dirname, '../public'), staticCacheOptions));
 
 // Server-Sent Events (SSE) clients
 const sseClients = new Set();
@@ -304,15 +329,21 @@ app.get('/api/icons', (req, res) => {
   res.json(DEFAULT_ICONS);
 });
 
+let cachedHeimdallApps = null;
 app.get('/api/icons/heimdall', (req, res) => {
-  const filePath = path.join(__dirname, '../data/heimdall_apps.json');
-  if (fs.existsSync(filePath)) {
-    try {
-      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-      return res.json(data);
-    } catch (_) {}
+  if (!cachedHeimdallApps) {
+    const filePath = path.join(__dirname, '../data/heimdall_apps.json');
+    if (fs.existsSync(filePath)) {
+      try {
+        cachedHeimdallApps = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      } catch (_) {
+        cachedHeimdallApps = [];
+      }
+    } else {
+      cachedHeimdallApps = [];
+    }
   }
-  res.json([]);
+  return sendGzipJson(req, res, cachedHeimdallApps);
 });
 
 app.post('/api/upload', (req, res) => {
@@ -392,7 +423,12 @@ app.get(['/admin', '/admin/*'], (req, res) => {
   }
 });
 
-// Fallback to index.html for SPA feel
+// Fast 404 for missing assets or API calls (do not return index.html for assets!)
+app.all(['/api/*', '/uploads/*', '/icons/*', '/fonts/*', '/wallpapers/*', '/css/*', '/js/*'], (req, res) => {
+  res.status(404).end();
+});
+
+// Fallback to index.html for SPA page navigation
 app.get('*', (req, res) => {
   res.sendFile(path.resolve(__dirname, '../public/index.html'));
 });

@@ -929,6 +929,49 @@ body::before {
   box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
 }
 
+.btn-hide-stats-bar {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #94a3b8;
+  border-radius: 999px;
+  width: 22px;
+  height: 22px;
+  margin-left: 0.35rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-hide-stats-bar:hover {
+  background: rgba(239, 68, 68, 0.28);
+  border-color: rgba(239, 68, 68, 0.6);
+  color: #fff;
+  transform: scale(1.1);
+}
+
+.btn-restore-stats-bar {
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px dashed rgba(99, 102, 241, 0.45);
+  color: #c7d2fe;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.35rem 0.85rem;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: 0.75rem;
+  white-space: nowrap;
+}
+.btn-restore-stats-bar:hover {
+  background: rgba(99, 102, 241, 0.32);
+  border-color: rgba(99, 102, 241, 0.8);
+  color: #fff;
+  box-shadow: 0 0 14px rgba(99, 102, 241, 0.35);
+}
+
 /* --------------------------------------------------------------------------
    Sub-Navigation Category Filter Tabs
    -------------------------------------------------------------------------- */
@@ -936,6 +979,7 @@ body::before {
   padding: 0.75rem 2rem;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   overflow-x: auto;
 }
 
@@ -988,14 +1032,33 @@ body::before {
 .main-content,
 #contentArea {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
-  gap: 1.25rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.35rem;
   align-items: start;
   width: 100%;
   max-width: 1920px;
   margin: 0 auto;
   padding: 1.25rem 2rem 3rem 2rem;
   box-sizing: border-box;
+}
+
+@media (min-width: 1680px) {
+  #contentArea {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1120px) {
+  #contentArea {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  #contentArea {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -1050,18 +1113,20 @@ body.page-view-apps .widgets-grid .widget-card {
    -------------------------------------------------------------------------- */
 .category-section {
   position: relative;
-  background: rgba(18, 24, 38, 0.78) !important;
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  background: rgba(18, 24, 38, 0.82) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
   border-radius: 16px !important;
   padding: 1.15rem 1.05rem !important;
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
   transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
   width: 100% !important;
   box-sizing: border-box !important;
   display: flex !important;
   flex-direction: column !important;
+  contain: layout style;
+  transform: translateZ(0);
 }
 
 .category-section:hover {
@@ -1069,18 +1134,193 @@ body.page-view-apps .widgets-grid .widget-card {
   box-shadow: 0 16px 42px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
 }
 
-/* 1. Island Board Column Spans */
+/* 1. Island Board Column Spans & Positioning (Free Placement & Empty Slots) */
+.category-section.cat-col-1 { grid-column-start: 1 !important; }
+.category-section.cat-col-2 { grid-column-start: 2 !important; }
+.category-section.cat-col-3 { grid-column-start: 3 !important; }
+.category-section.cat-col-4 { grid-column-start: 4 !important; }
+
 .category-section.cat-layout-vertical,
 .category-section:not(.cat-layout-wide):not(.cat-layout-horizontal) {
-  grid-column: span 1 !important;
+  grid-column-end: span 1 !important;
 }
 
 .category-section.cat-layout-wide {
-  grid-column: span 2 !important;
+  grid-column-end: span 2 !important;
 }
 
 .category-section.cat-layout-horizontal {
   grid-column: 1 / -1 !important;
+}
+
+@media (max-width: 768px) {
+  .category-section.cat-col-1,
+  .category-section.cat-col-2,
+  .category-section.cat-col-3,
+  .category-section.cat-col-4,
+  .category-section.cat-layout-vertical,
+  .category-section.cat-layout-wide,
+  .category-section.cat-layout-horizontal {
+    grid-column: 1 / -1 !important;
+  }
+}
+
+/* 2. Group Transparency & Appearance Modes */
+.category-section.cat-transparent {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px dashed rgba(255, 255, 255, 0.22) !important;
+  box-shadow: none !important;
+}
+.category-section.cat-transparent:hover {
+  border-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.category-section.cat-ghost {
+  background: rgba(18, 24, 38, 0.28) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
+}
+
+.category-section.cat-light {
+  background: rgba(248, 250, 252, 0.92) !important;
+  border: 1px solid rgba(255, 255, 255, 0.8) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+}
+.category-section.cat-light .category-title {
+  color: #0f172a !important;
+}
+.category-section.cat-light .cat-pill-count {
+  background: rgba(15, 23, 42, 0.1) !important;
+  color: #0f172a !important;
+}
+
+/* Card Transparency */
+.category-section.cat-cards-transparent .tile-card,
+.tile-card.card-transparent {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: none !important;
+}
+.category-section.cat-cards-transparent .tile-card:hover,
+.tile-card.card-transparent:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Light / High-Contrast Cards */
+.tile-card.card-light {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18) !important;
+}
+.tile-card.card-light .tile-title {
+  color: #0f172a !important;
+}
+.tile-card.card-light .tile-subtitle {
+  color: #64748b !important;
+}
+
+/* 3. Icon Contrast Plates for Dark & Black Logos */
+.tile-icon-box.plate-light,
+.category-section.cat-icon-plate-light .tile-icon-box {
+  background: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45), 0 0 1px rgba(0, 0, 0, 0.9), inset 0 1px 0 #ffffff !important;
+}
+.tile-icon-box.plate-light img,
+.tile-icon-box.plate-light svg,
+.category-section.cat-icon-plate-light .tile-icon-box img,
+.category-section.cat-icon-plate-light .tile-icon-box svg {
+  filter: contrast(110%) !important;
+}
+
+/* Invert Monochromatic Dark Icons to White */
+.tile-icon-box.filter-invert img,
+.tile-icon-box.filter-invert svg,
+.category-section.cat-icon-plate-invert .tile-icon-box img,
+.category-section.cat-icon-plate-invert .tile-icon-box svg {
+  filter: invert(1) brightness(1.2) drop-shadow(0 2px 4px rgba(0,0,0,0.6)) !important;
+}
+
+/* Category Quick Control Buttons in Island Header */
+.cat-move-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #cbd5e1;
+  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+.cat-move-btn:hover {
+  background: rgba(99, 102, 241, 0.4);
+  border-color: rgba(99, 102, 241, 0.7);
+  color: #fff;
+  transform: scale(1.1);
+}
+
+.btn-island-col {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.22rem 0.55rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.btn-island-col:hover {
+  background: rgba(99, 102, 241, 0.25);
+  border-color: rgba(99, 102, 241, 0.5);
+  color: #fff;
+}
+
+.btn-island-trans {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.22rem 0.55rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.btn-island-trans.active,
+.btn-island-trans:hover {
+  background: rgba(56, 189, 248, 0.25);
+  border-color: rgba(56, 189, 248, 0.6);
+  color: #38bdf8;
+}
+
+.btn-island-plate {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.22rem 0.55rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.btn-island-plate.active,
+.btn-island-plate:hover {
+  background: rgba(250, 204, 21, 0.25);
+  border-color: rgba(250, 204, 21, 0.6);
+  color: #facc15;
 }
 
 /* --------------------------------------------------------------------------
@@ -1157,20 +1397,21 @@ body.page-view-apps .widgets-grid .widget-card {
    -------------------------------------------------------------------------- */
 .category-header {
   display: flex !important;
+  flex-wrap: wrap !important;
   align-items: center !important;
   justify-content: space-between !important;
   margin-bottom: 0.95rem !important;
   padding-bottom: 0.75rem !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-  gap: 0.5rem !important;
+  gap: 0.6rem !important;
 }
 
 .category-title-group {
   display: flex !important;
   align-items: center !important;
   gap: 0.55rem !important;
-  min-width: 0 !important;
-  flex: 1 !important;
+  min-width: fit-content !important;
+  flex-shrink: 0 !important;
 }
 
 .category-badge-dot {
@@ -1205,9 +1446,12 @@ body.page-view-apps .widgets-grid .widget-card {
 
 .category-actions {
   display: flex !important;
+  flex-wrap: wrap !important;
   align-items: center !important;
-  gap: 0.4rem !important;
-  flex-shrink: 0 !important;
+  justify-content: flex-end !important;
+  gap: 0.35rem !important;
+  flex: 1 !important;
+  min-width: 0 !important;
 }
 
 /* Island Layout Switcher Buttons */
@@ -1302,9 +1546,7 @@ body.page-view-apps .widgets-grid .widget-card {
 .category-section:not(.cat-style-pill) .tile-card {
   width: 100% !important;
   border-radius: 18px !important;
-  background: rgba(22, 29, 44, 0.88) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
+  background: rgba(22, 29, 44, 0.90) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35) !important;
   padding: 0 !important;
@@ -1316,6 +1558,8 @@ body.page-view-apps .widgets-grid .widget-card {
   justify-content: center !important;
   transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.22s ease, background 0.22s ease !important;
   box-sizing: border-box !important;
+  contain: content;
+  transform: translateZ(0);
 }
 
 .category-section.cat-style-grid .tile-card:hover,
@@ -1562,8 +1806,6 @@ body.page-view-apps .widgets-grid .widget-card {
   width: 100% !important;
   border-radius: 12px !important;
   background: rgba(22, 29, 44, 0.92) !important;
-  backdrop-filter: blur(14px) !important;
-  -webkit-backdrop-filter: blur(14px) !important;
   border: 1px solid rgba(255, 255, 255, 0.07) !important;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
   padding: 0 !important;
@@ -1571,6 +1813,8 @@ body.page-view-apps .widgets-grid .widget-card {
   overflow: hidden !important;
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease !important;
   box-sizing: border-box !important;
+  contain: content;
+  transform: translateZ(0);
 }
 
 .category-section.cat-style-pill .tile-card:hover {
@@ -1718,6 +1962,37 @@ body.page-view-apps .widgets-grid .widget-card {
   gap: 0.35rem !important;
 }
 
+/* --------------------------------------------------------------------------
+   Absolute Override: High-Contrast Icon Plates (Pure White Squircle & Invert)
+   Fixes black/dark logos blending into dark cards and category backgrounds
+   -------------------------------------------------------------------------- */
+.category-section .tile-card .tile-icon-box.plate-light,
+.category-section.cat-icon-plate-light .tile-card .tile-icon-box,
+.category-section.cat-icon-plate-light .tile-icon-box,
+.tile-icon-box.plate-light {
+  background: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.1) !important;
+}
+
+.category-section .tile-card .tile-icon-box.plate-light img,
+.category-section .tile-card .tile-icon-box.plate-light svg,
+.category-section.cat-icon-plate-light .tile-card .tile-icon-box img,
+.category-section.cat-icon-plate-light .tile-card .tile-icon-box svg,
+.tile-icon-box.plate-light img,
+.tile-icon-box.plate-light svg {
+  filter: contrast(115%) !important;
+}
+
+.category-section .tile-card .tile-icon-box.filter-invert img,
+.category-section .tile-card .tile-icon-box.filter-invert svg,
+.category-section.cat-icon-plate-invert .tile-card .tile-icon-box img,
+.category-section.cat-icon-plate-invert .tile-card .tile-icon-box svg,
+.tile-icon-box.filter-invert img,
+.tile-icon-box.filter-invert svg {
+  filter: invert(1) brightness(1.25) drop-shadow(0 2px 4px rgba(0,0,0,0.6)) !important;
+}
+
 .status-dot {
   width: 8px !important;
   height: 8px !important;
@@ -1761,13 +2036,13 @@ body.page-view-apps .widgets-grid .widget-card {
   position: absolute;
   top: 0.6rem;
   left: 0.6rem;
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(8px);
+  background: rgba(15, 23, 42, 0.94);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   padding: 0.2rem;
   gap: 0.3rem;
   z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 body.admin-mode .tile-card:hover .tile-admin-bar {
@@ -1990,11 +2265,11 @@ body.has-wallpaper::before {
 }
 
 body.has-wallpaper .tile-card {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(18, 26, 46, 0.90);
   border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  contain: content;
+  transform: translateZ(0);
 }
 
 body.has-wallpaper .top-header,
@@ -2013,12 +2288,12 @@ body.card-style-pill .tile-card {
   padding: 0 !important;
   border-radius: 12px;
   overflow: hidden;
-  background: rgba(30, 36, 44, 0.92) !important;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(26, 34, 48, 0.92) !important;
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+  contain: content;
+  transform: translateZ(0);
 }
 
 body.card-style-pill .tile-card:hover {
@@ -3665,19 +3940,66 @@ body:not(.admin-mode) .category-section {
   border-color: var(--widget-accent, #38bdf8);
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 0 20px -5px var(--widget-accent, #38bdf8);
 }
+
+/* Clock Transparency Modes */
+.clock-widget-card.clock-transparent {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px dashed rgba(255, 255, 255, 0.22) !important;
+  box-shadow: none !important;
+}
+.clock-widget-card.clock-transparent:hover {
+  border-color: rgba(255, 255, 255, 0.45) !important;
+  box-shadow: 0 0 25px -5px var(--widget-accent, #38bdf8) !important;
+}
+
+.clock-widget-card.clock-ghost {
+  background: rgba(18, 24, 38, 0.25) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
+}
+
+/* Clock Alignment & Layout */
+body.page-view-apps .widgets-grid .clock-widget-card.clock-align-center {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+body.page-view-apps .widgets-grid .clock-widget-card.clock-align-start {
+  margin-left: 0 !important;
+  margin-right: auto !important;
+}
+body.page-view-apps .widgets-grid .clock-widget-card.clock-align-end {
+  margin-left: auto !important;
+  margin-right: 0 !important;
+}
+body.page-view-apps .widgets-grid .clock-widget-card.clock-align-full {
+  flex: 1 1 100% !important;
+  max-width: 100% !important;
+  width: 100% !important;
+}
+body.page-view-apps .widgets-grid .clock-widget-card {
+  min-width: 320px !important;
+  max-width: 480px !important;
+  flex: 0 1 450px !important;
+}
+
 .clock-widget-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 0.5rem;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 .clock-widget-title-group {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.84rem;
+  gap: 0.4rem;
+  font-size: 0.82rem;
   font-weight: 600;
   color: #f1f5f9;
+  flex-shrink: 0;
 }
 .clock-widget-mode-pill {
   font-size: 0.68rem;
@@ -3692,6 +4014,31 @@ body:not(.admin-mode) .category-section {
 }
 .clock-widget-mode-pill:hover {
   background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+.btn-clock-trans,
+.btn-clock-align {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+.btn-clock-trans.active,
+.btn-clock-trans:hover {
+  background: rgba(56, 189, 248, 0.25);
+  border-color: rgba(56, 189, 248, 0.6);
+  color: #38bdf8;
+}
+.btn-clock-align:hover {
+  background: rgba(99, 102, 241, 0.25);
+  border-color: rgba(99, 102, 241, 0.6);
   color: #fff;
 }
 .clock-widget-body {

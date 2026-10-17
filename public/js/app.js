@@ -360,11 +360,37 @@ async function fetchSystemTelemetry() {
   } catch (_) {}
 }
 
+// Stats Overview Bar Visibility (Total / Online / Warning / Offline Capsule)
+function renderStatsBarVisibility() {
+  const showStats = AppState.config?.settings?.show_stats_bar !== false;
+  const isMonitoring = AppState.currentView === 'server-monitor';
+  const statsBar = document.getElementById('statsOverviewBar');
+  const restoreBtn = document.getElementById('btnRestoreStatsBar');
+  const hideBtn = document.getElementById('btnHideStatsBar');
+
+  if (statsBar) {
+    if (!showStats || isMonitoring) {
+      statsBar.style.setProperty('display', 'none', 'important');
+    } else {
+      statsBar.style.removeProperty('display');
+    }
+  }
+
+  if (hideBtn) {
+    hideBtn.style.display = (AppState.authRole === 'admin' && showStats && !isMonitoring) ? 'inline-flex' : 'none';
+  }
+
+  if (restoreBtn) {
+    restoreBtn.style.display = (!showStats && AppState.authRole === 'admin' && !isMonitoring) ? 'inline-flex' : 'none';
+  }
+}
+
 // Render Dashboard
 function renderDashboard() {
   renderCategoryTabs();
   renderWidgets();
   renderGrid();
+  renderStatsBarVisibility();
   switchDashboardView(AppState.currentView || 'apps');
 }
 
@@ -472,10 +498,27 @@ function getWidgetCardHeader(w, icon) {
   if (isClock) {
     const mode = w.calendar_mode || 'both';
     const modeLabel = mode === 'shamsi' ? '☀️ فقط شمسی' : (mode === 'gregorian' ? '📅 Gregorian' : '⚡ شمسی + میلادی');
+    const isTrans = w.bg_style === 'transparent';
+    const align = w.align || 'center';
+    const alignLabels = {
+      center: '📍 وسط',
+      start: '⮜ چپ',
+      end: '⮞ راست',
+      full: '↔ عریض'
+    };
+
     rightActionHtml = `
-      <button type="button" class="clock-widget-mode-pill" data-widget-id="${w.id}" title="تغییر نمایش تقویم (کلیک کنید)">
+      <button type="button" class="clock-widget-mode-pill" data-widget-id="${w.id}" title="تغییر نمایش تقویم (شمسی / میلادی / هر دو)">
         ${modeLabel}
       </button>
+      ${isAdmin ? `
+        <button type="button" class="btn-clock-trans ${isTrans ? 'active' : ''}" data-widget-id="${w.id}" title="شفاف‌سازی ساعت (Transparent / Glass)">
+          ${isTrans ? '🫥 شفاف' : '🫧 مات'}
+        </button>
+        <button type="button" class="btn-clock-align" data-widget-id="${w.id}" title="تراز و موقعیت ساعت (وسط، چپ، راست، تمام‌عرض)">
+          ${alignLabels[align] || '📍 وسط'}
+        </button>
+      ` : ''}
     `;
   } else if (!isChart) {
     rightActionHtml = `
@@ -515,6 +558,9 @@ function renderWidgets() {
   // - On apps view: only show widgets targeted for 'apps' or 'both' (default for clock_widget is 'both', hardware gauges default to 'monitoring')
   // - On monitoring view: show monitoring gauges, charts, and widgets targeted for 'monitoring' or 'both'
   const viewFilteredWidgets = allWidgets.filter(w => {
+    if (w.type === 'clock_widget' && AppState.config?.settings?.show_clock === false && !isMonitoring) {
+      return false;
+    }
     const target = w.target_view || (w.type === 'clock_widget' ? 'both' : 'monitoring');
     if (target === 'both') return true;
     return isMonitoring ? target === 'monitoring' : target === 'apps';
@@ -592,8 +638,11 @@ function renderWidgets() {
         datesHtml = `${shamsiHtml} ${gregorianHtml}`;
       }
 
+      const clockBgClass = w.bg_style ? `clock-${w.bg_style}` : '';
+      const clockAlignClass = w.align ? `clock-align-${w.align}` : 'clock-align-center';
+
       html += `
-        <div class="widget-card clock-widget-card ${sizeClass}" id="widget-card-${w.id}" data-widget-id="${w.id}" ${isDraggable} style="--widget-accent: ${accent};">
+        <div class="widget-card clock-widget-card ${sizeClass} ${clockBgClass} ${clockAlignClass}" id="widget-card-${w.id}" data-widget-id="${w.id}" ${isDraggable} style="--widget-accent: ${accent};">
           ${getWidgetCardHeader(w, '⏰')}
           <div class="clock-widget-body">
             <div class="clock-time-display" id="clock-display-${w.id}" data-time-format="${timeFmt}">
@@ -847,6 +896,44 @@ function renderWidgets() {
           saveConfigToServer('Calendar mode updated');
         }
         renderWidgets();
+      }
+    });
+  });
+
+  // Attach interactive transparency switcher for clock widgets
+  elements.widgetsContainer.querySelectorAll('.btn-clock-trans').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const wId = btn.dataset.widgetId;
+      const widget = AppState.config?.widgets?.find(w => w.id === wId);
+      if (widget) {
+        widget.bg_style = (widget.bg_style === 'transparent') ? undefined : 'transparent';
+        if (AppState.authRole === 'admin') {
+          await saveConfigToServer('Clock transparency updated');
+        }
+        renderWidgets();
+        showToast(`شفافیت ساعت ${widget.bg_style === 'transparent' ? 'فعال شد (کاملاً شفاف)' : 'به شیشه‌ای مات بازگشت'}`, 'info');
+      }
+    });
+  });
+
+  // Attach interactive alignment switcher for clock widgets
+  elements.widgetsContainer.querySelectorAll('.btn-clock-align').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const wId = btn.dataset.widgetId;
+      const widget = AppState.config?.widgets?.find(w => w.id === wId);
+      if (widget) {
+        const aligns = ['center', 'start', 'end', 'full'];
+        const curIdx = aligns.indexOf(widget.align || 'center');
+        const nextAlign = aligns[(curIdx + 1) % aligns.length];
+        widget.align = nextAlign;
+        if (AppState.authRole === 'admin') {
+          await saveConfigToServer('Clock alignment updated');
+        }
+        renderWidgets();
+        const alignNames = { center: 'وسط‌چین (Center)', start: 'چپ‌چین (Left)', end: 'راست‌چین (Right)', full: 'تمام‌عرض (Full Width)' };
+        showToast(`موقعیت ساعت به ${alignNames[nextAlign]} تنظیم شد`, 'info');
       }
     });
   });
@@ -1293,6 +1380,10 @@ function renderGrid() {
     if (catLayout === 'wide') catLayoutClass = 'cat-layout-wide';
     else if (catLayout === 'horizontal') catLayoutClass = 'cat-layout-horizontal';
 
+    const catColClass = cat.col_start && cat.col_start !== 'auto' ? `cat-col-${cat.col_start}` : '';
+    const catBgClass = cat.bg_style ? `cat-${cat.bg_style}` : '';
+    const catPlateClass = cat.icon_plate ? `cat-icon-plate-${cat.icon_plate}` : '';
+
     const tileStyle = cat.tile_style || 'grid';
     const tileSize = cat.tile_size || 'large';
     const catStyleClass = `cat-style-${tileStyle}`;
@@ -1300,14 +1391,18 @@ function renderGrid() {
 
     const isDraggable = AppState.authRole === 'admin' ? 'draggable="true"' : 'draggable="false"';
 
+    const colLabel = cat.col_start && cat.col_start !== 'auto' ? `ستون ${cat.col_start}` : 'Auto';
+    const isTrans = cat.bg_style === 'transparent';
+    const hasCatPlate = cat.icon_plate === 'light';
+
     html += `
-      <section class="category-section ${catLayoutClass} ${catStyleClass} ${catSizeClass}" data-cat-id="${cat.id}" ${isDraggable}>
+      <section class="category-section ${catLayoutClass} ${catColClass} ${catBgClass} ${catPlateClass} ${catStyleClass} ${catSizeClass}" data-cat-id="${cat.id}" ${isDraggable}>
         <div class="category-header">
           <div class="category-title-group">
-            ${AppState.authRole === 'admin' ? '<span class="cat-drag-handle" title="Drag to reorder category">⠿</span>' : ''}
-            ${AppState.authRole === 'admin' && AppState.isArrangeMode ? `
-              <button type="button" class="cat-move-btn btn-cat-move-left" data-cat-id="${cat.id}" title="Move left">◀</button>
-              <button type="button" class="cat-move-btn btn-cat-move-right" data-cat-id="${cat.id}" title="Move right">▶</button>
+            ${AppState.authRole === 'admin' ? `
+              <span class="cat-drag-handle" title="Drag to reorder category">⠿</span>
+              <button type="button" class="cat-move-btn btn-cat-move-left" data-cat-id="${cat.id}" title="Move left / up (جابجایی به چپ/بالا)">◀</button>
+              <button type="button" class="cat-move-btn btn-cat-move-right" data-cat-id="${cat.id}" title="Move right / down (جابجایی به راست/پایین)">▶</button>
             ` : ''}
             <span class="category-badge-dot" style="background: ${cat.color || 'var(--accent-color)'}; box-shadow: 0 0 8px ${cat.color || 'var(--accent-color)'};"></span>
             <h2 class="category-title">${cat.name}</h2>
@@ -1316,6 +1411,9 @@ function renderGrid() {
 
           <div class="category-actions">
             ${AppState.authRole === 'admin' ? `
+              <div class="cat-island-controls" title="موقعیت ستون در صفحه (خالی گذاشتن بخش‌های دلخواه صفحه)">
+                <button type="button" class="btn-island-col" data-cat-id="${cat.id}" title="تغییر ستون شروع: Auto / ستون ۱ / ۲ / ۳ / ۴">📍 ${colLabel}</button>
+              </div>
               <div class="cat-island-controls" title="عرض گروه در صفحه">
                 <button type="button" class="btn-island-size ${(!cat.layout || cat.layout === 'vertical') ? 'active' : ''}" data-cat-id="${cat.id}" data-layout="vertical" title="تک ستون">▮ Col</button>
                 <button type="button" class="btn-island-size ${cat.layout === 'wide' ? 'active' : ''}" data-cat-id="${cat.id}" data-layout="wide" title="دو ستون (Wide)">▬ Wide</button>
@@ -1329,6 +1427,10 @@ function renderGrid() {
                 <button type="button" class="btn-cat-size ${cat.tile_size === 'compact' ? 'active' : ''}" data-cat-id="${cat.id}" data-size="compact" title="فشرده و کوچک (Compact)">S</button>
                 <button type="button" class="btn-cat-size ${cat.tile_size === 'medium' ? 'active' : ''}" data-cat-id="${cat.id}" data-size="medium" title="متوسط (Medium)">M</button>
                 <button type="button" class="btn-cat-size ${(!cat.tile_size || cat.tile_size === 'large') ? 'active' : ''}" data-cat-id="${cat.id}" data-size="large" title="بزرگ جزیره‌ای (Large)">L</button>
+              </div>
+              <div class="cat-island-controls" title="شفافیت و پلاک کنتراست آیکون‌های مشکی">
+                <button type="button" class="btn-island-trans ${isTrans ? 'active' : ''}" data-cat-id="${cat.id}" title="شفاف‌سازی گروه (Transparent / Glass)">${isTrans ? '🫥 شفاف' : '🫧 مات'}</button>
+                <button type="button" class="btn-island-plate ${hasCatPlate ? 'active' : ''}" data-cat-id="${cat.id}" title="پلاک سفید زیر تمام آیکون‌ها برای نمایش لوگوهای تیره و مشکی">💡 بستر روشن</button>
               </div>
               <button class="btn btn-icon btn-edit-cat" data-id="${cat.id}" title="تنظیمات گروه">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
@@ -1352,8 +1454,13 @@ function renderGrid() {
         visBadge = `<span class="tile-visibility-badge vis-${vis}" title="دسترسی: ${vis === 'admin' ? 'فقط ادمین' : 'کاربران وارد شده'}">${vis === 'admin' ? '🛡️ Admin' : '🔒 Member'}</span>`;
       }
 
+      const hasLightPlate = tile.icon_plate === 'light' || cat.icon_plate === 'light';
+      const hasInvert = tile.icon_plate === 'invert' || cat.icon_plate === 'invert';
+      const plateClass = hasLightPlate ? 'plate-light' : (hasInvert ? 'filter-invert' : '');
+      const cardClass = tile.bg_style === 'transparent' ? 'card-transparent' : (tile.bg_style === 'light' ? 'card-light' : '');
+
       html += `
-        <div class="tile-card" 
+        <div class="tile-card ${cardClass}" 
              data-tile-id="${tile.id}" 
              data-cat-id="${cat.id}"
              ${isDraggable}>
@@ -1384,7 +1491,7 @@ function renderGrid() {
 
           <a href="${tile.target_url}" ${targetAttr} class="tile-main-link">
             <div class="tile-top">
-              <div class="tile-icon-box" ${customBg}>
+              <div class="tile-icon-box ${plateClass}" ${customBg}>
                 ${iconMarkup}
               </div>
               ${visBadge}
@@ -1670,6 +1777,56 @@ function attachCardEvents() {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       handleCategoryShift(btn.dataset.catId, 1);
+    });
+  });
+
+  // Category Column Position Cycle (Auto -> Col 1 -> Col 2 -> Col 3 -> Col 4 -> Auto)
+  document.querySelectorAll('.btn-island-col').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const catId = btn.dataset.catId;
+      const cat = AppState.config?.categories.find(c => c.id === catId);
+      if (cat) {
+        const order = ['auto', '1', '2', '3', '4'];
+        const current = cat.col_start || 'auto';
+        const nextIdx = (order.indexOf(current) + 1) % order.length;
+        const nextVal = order[nextIdx];
+        cat.col_start = nextVal !== 'auto' ? nextVal : undefined;
+        await saveConfigToServer();
+        renderDashboard();
+        const colMsg = nextVal !== 'auto' ? `ستون ${nextVal}` : 'تراز خودکار (Auto Flow)';
+        showToast(`موقعیت ستون "${cat.name}" به ${colMsg} تنظیم شد`, 'info');
+      }
+    });
+  });
+
+  // Category Group Transparency Toggle (Glass vs 100% Transparent)
+  document.querySelectorAll('.btn-island-trans').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const catId = btn.dataset.catId;
+      const cat = AppState.config?.categories.find(c => c.id === catId);
+      if (cat) {
+        cat.bg_style = (cat.bg_style === 'transparent') ? undefined : 'transparent';
+        await saveConfigToServer();
+        renderDashboard();
+        showToast(`شفافیت گروه "${cat.name}" ${cat.bg_style === 'transparent' ? 'فعال شد (کاملاً شفاف)' : 'به شیشه‌ای مات بازگشت'}`, 'info');
+      }
+    });
+  });
+
+  // Category Icon Contrast Light Plate Toggle (for dark / black logos)
+  document.querySelectorAll('.btn-island-plate').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const catId = btn.dataset.catId;
+      const cat = AppState.config?.categories.find(c => c.id === catId);
+      if (cat) {
+        cat.icon_plate = (cat.icon_plate === 'light') ? undefined : 'light';
+        await saveConfigToServer();
+        renderDashboard();
+        showToast(`بستر سفید روشن آیکون‌های "${cat.name}" ${cat.icon_plate === 'light' ? 'فعال شد (حل مشکل لوگوی مشکی)' : 'غیرفعال شد'}`, 'info');
+      }
     });
   });
 
@@ -2049,6 +2206,31 @@ function setupEventListeners() {
     });
   }
 
+  // Hide & Restore Stats Overview Bar
+  const btnHideStats = document.getElementById('btnHideStatsBar');
+  if (btnHideStats) {
+    btnHideStats.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      AppState.config.settings = AppState.config.settings || {};
+      AppState.config.settings.show_stats_bar = false;
+      await saveConfigToServer();
+      renderDashboard();
+      showToast('نوار وضعیت سرویس‌ها مخفی شد (از طریق دکمه "نمایش نوار وضعیت" یا در تنظیمات قابل بازگردانی است)', 'info');
+    });
+  }
+
+  const btnRestoreStats = document.getElementById('btnRestoreStatsBar');
+  if (btnRestoreStats) {
+    btnRestoreStats.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      AppState.config.settings = AppState.config.settings || {};
+      AppState.config.settings.show_stats_bar = true;
+      await saveConfigToServer();
+      renderDashboard();
+      showToast('نوار وضعیت سرویس‌ها بازگردانی و نمایان شد', 'success');
+    });
+  }
+
   // Sidebar & Arrange buttons
   if (elements.sideNavArrange) {
     elements.sideNavArrange.addEventListener('click', () => toggleArrangeMode());
@@ -2091,10 +2273,7 @@ function setupEventListeners() {
     }
     
     // 5. Telemetry Stats Bar
-    const statsBar = document.getElementById('statsOverviewBar');
-    if (statsBar) {
-      statsBar.style.removeProperty('display');
-    }
+    renderStatsBarVisibility();
 
     if (elements.sideNavAll) elements.sideNavAll.classList.toggle('active', !isMonitoring);
     if (elements.sideNavCharts) elements.sideNavCharts.classList.toggle('active', isMonitoring);
@@ -2440,6 +2619,12 @@ function openTileModal(catId = null, tileId = null) {
   if (document.getElementById('tileVisibilitySelect')) {
     document.getElementById('tileVisibilitySelect').value = existing?.visibility || 'public';
   }
+  if (document.getElementById('tileIconPlateSelect')) {
+    document.getElementById('tileIconPlateSelect').value = existing?.icon_plate || 'none';
+  }
+  if (document.getElementById('tileBgStyleSelect')) {
+    document.getElementById('tileBgStyleSelect').value = existing?.bg_style || 'default';
+  }
 
   // Probe inputs
   const probe = existing?.probe || {};
@@ -2465,6 +2650,9 @@ function openTileModal(catId = null, tileId = null) {
       return;
     }
 
+    const icon_plate = document.getElementById('tileIconPlateSelect')?.value || 'none';
+    const bg_style = document.getElementById('tileBgStyleSelect')?.value || 'default';
+
     const tileData = {
       id: existing ? existing.id : 'tile-' + Date.now(),
       title,
@@ -2474,6 +2662,8 @@ function openTileModal(catId = null, tileId = null) {
       visibility: document.getElementById('tileVisibilitySelect')?.value || 'public',
       icon_type: selectedIconType,
       icon_value: selectedIconValue,
+      icon_plate: icon_plate !== 'none' ? icon_plate : undefined,
+      bg_style: bg_style !== 'default' ? bg_style : undefined,
       bg_color: document.getElementById('tileColorInput').value.trim() || undefined,
       probe: {
         type: document.getElementById('probeTypeSelect').value,
@@ -2548,6 +2738,18 @@ function openCategoryModal(catId = null) {
   if (sizeSelect) {
     sizeSelect.value = existing?.tile_size || 'large';
   }
+  const colStartSelect = document.getElementById('catColStartSelect');
+  if (colStartSelect) {
+    colStartSelect.value = existing?.col_start || 'auto';
+  }
+  const bgStyleSelect = document.getElementById('catBgStyleSelect');
+  if (bgStyleSelect) {
+    bgStyleSelect.value = existing?.bg_style || 'glass';
+  }
+  const iconPlateSelect = document.getElementById('catIconPlateSelect');
+  if (iconPlateSelect) {
+    iconPlateSelect.value = existing?.icon_plate || 'none';
+  }
 
   modal.classList.add('open');
 
@@ -2562,6 +2764,9 @@ function openCategoryModal(catId = null) {
     const layout = document.getElementById('catLayoutSelect')?.value || 'vertical';
     const tile_style = document.getElementById('catTileStyleSelect')?.value || 'grid';
     const tile_size = document.getElementById('catTileSizeSelect')?.value || 'large';
+    const col_start = document.getElementById('catColStartSelect')?.value || 'auto';
+    const bg_style = document.getElementById('catBgStyleSelect')?.value || 'glass';
+    const icon_plate = document.getElementById('catIconPlateSelect')?.value || 'none';
 
     if (isEdit && existing) {
       existing.name = name;
@@ -2569,6 +2774,9 @@ function openCategoryModal(catId = null) {
       existing.layout = layout;
       existing.tile_style = tile_style;
       existing.tile_size = tile_size;
+      existing.col_start = col_start !== 'auto' ? col_start : undefined;
+      existing.bg_style = bg_style !== 'glass' ? bg_style : undefined;
+      existing.icon_plate = icon_plate !== 'none' ? icon_plate : undefined;
     } else {
       AppState.config.categories = AppState.config.categories || [];
       AppState.config.categories.push({
@@ -2578,6 +2786,9 @@ function openCategoryModal(catId = null) {
         layout,
         tile_style,
         tile_size,
+        col_start: col_start !== 'auto' ? col_start : undefined,
+        bg_style: bg_style !== 'glass' ? bg_style : undefined,
+        icon_plate: icon_plate !== 'none' ? icon_plate : undefined,
         icon: 'folder',
         is_collapsed: false,
         tiles: []
@@ -2625,6 +2836,12 @@ function openThemeModal() {
 
   // Highlight active wallpaper card
   const wallpaperCards = document.querySelectorAll('#themeWallpaperGrid .wallpaper-card');
+  wallpaperCards.forEach(card => {
+    if (card.dataset.bg && !card.style.backgroundImage) {
+      card.style.backgroundImage = `url('${card.dataset.bg}')`;
+    }
+  });
+
   const updateWallpaperCardsActive = () => {
     wallpaperCards.forEach(card => {
       const val = card.dataset.val;
@@ -2840,11 +3057,24 @@ function openThemeModal() {
     };
   }
 
+  const chkStats = document.getElementById('themeShowStatsBarInput');
+  if (chkStats) chkStats.checked = AppState.config?.settings?.show_stats_bar !== false;
+
+  const chkClock = document.getElementById('themeShowClockInput');
+  if (chkClock) chkClock.checked = AppState.config?.settings?.show_clock !== false;
+
   modal.classList.add('open');
 
   document.getElementById('themeSaveBtn').onclick = () => {
     AppState.config.settings = AppState.config.settings || {};
     AppState.config.settings.dashboard_title = document.getElementById('themeTitleInput').value.trim() || 'DimDash';
+    
+    const chkStats = document.getElementById('themeShowStatsBarInput');
+    if (chkStats) AppState.config.settings.show_stats_bar = chkStats.checked;
+
+    const chkClock = document.getElementById('themeShowClockInput');
+    if (chkClock) AppState.config.settings.show_clock = chkClock.checked;
+
     AppState.config.settings.theme = {
       ...AppState.config.settings.theme,
       accent_color: document.getElementById('themeAccentInput').value,
