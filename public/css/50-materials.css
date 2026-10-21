@@ -1,0 +1,154 @@
+/* ==========================================================================
+   DimDash Design System: 50-materials.css
+   6 Core Materials — Matte, Glass-Static, Paper, LCD, Blueprint, Signal-Plate
+   Layered with @layer materials for predictable cascade
+   ========================================================================== */
+
+@layer materials {
+  /* ------------------------------------------------------------------------
+     1. Material: Matte (Default — Perf Class A: Free)
+     Flat surface, crisp hairline border, 1px top edge specular highlight
+     ------------------------------------------------------------------------ */
+  .material-matte,
+  [data-material="matte"] {
+    background-color: var(--surface-2);
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--edge-highlight), var(--shadow-sm);
+    color: var(--text-primary);
+    backdrop-filter: none;
+    transition: border-color var(--dur-fast) var(--ease-standard),
+                box-shadow var(--dur-fast) var(--ease-standard);
+  }
+
+  .material-matte:hover {
+    border-color: var(--border-strong);
+    box-shadow: var(--edge-highlight), var(--shadow-md);
+  }
+
+  /* ------------------------------------------------------------------------
+     2. Material: Glass-Static (Translucent — Perf Class B: Cheap)
+     Translucent surface with static pre-blurred backing or adaptive blur
+     ------------------------------------------------------------------------ */
+  .material-glass-static,
+  [data-material="glass-static"] {
+    background-color: color-mix(in oklch, var(--surface-2) 75%, transparent);
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--edge-highlight), var(--shadow-md);
+    color: var(--text-primary);
+  }
+
+  [data-quality="high"] .material-glass-static,
+  [data-quality="high"] [data-material="glass-static"] {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  /* ------------------------------------------------------------------------
+     3. Material: Paper (E-Ink / Daylight — Perf Class A: Free)
+     Warm daylight card, subtle tactile paper grain, crisp ink hairlines
+     ------------------------------------------------------------------------ */
+  .material-paper,
+  [data-material="paper"] {
+    background-color: var(--surface-2);
+    background-image: radial-gradient(var(--border-subtle) 0.5px, transparent 0.5px);
+    background-size: 6px 6px;
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-sm);
+    color: var(--text-primary);
+  }
+
+  /* ------------------------------------------------------------------------
+     4. Material: LCD / Dot-Matrix (Industrial Retro Telemetry — Perf Class A)
+     Segmented/dot-matrix pattern with subtle 2% horizontal scanlines
+     ------------------------------------------------------------------------ */
+  .material-lcd,
+  [data-material="lcd"] {
+    background-color: oklch(0.12 0.02 140);
+    color: oklch(0.85 0.18 135); /* Glowing matrix green/amber */
+    border: 1px solid oklch(0.85 0.18 135 / 0.35);
+    box-shadow: inset 0 0 12px oklch(0 0 0 / 0.8), var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .material-lcd::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: 
+      radial-gradient(oklch(0.85 0.18 135 / 0.12) 1px, transparent 1px),
+      repeating-linear-gradient(0deg, transparent, transparent 2px, oklch(0 0 0 / 0.15) 3px);
+    background-size: 4px 4px, 100% 3px;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .material-lcd > * {
+    position: relative;
+    z-index: 2;
+  }
+
+  /* Amber variation for LCD */
+  .material-lcd[data-lcd-tone="amber"] {
+    background-color: oklch(0.13 0.03 65);
+    color: oklch(0.84 0.17 75);
+    border-color: oklch(0.84 0.17 75 / 0.35);
+  }
+
+  .material-lcd[data-lcd-tone="amber"]::before {
+    background-image: 
+      radial-gradient(oklch(0.84 0.17 75 / 0.12) 1px, transparent 1px),
+      repeating-linear-gradient(0deg, transparent, transparent 2px, oklch(0 0 0 / 0.15) 3px);
+  }
+
+  /* ------------------------------------------------------------------------
+     5. Material: Blueprint (Technical Drafting / Schematic — Perf Class A)
+     Transparent navy/cyan, 1px accent hairlines, corner registration crosshairs
+     ------------------------------------------------------------------------ */
+  .material-blueprint,
+  [data-material="blueprint"] {
+    background-color: color-mix(in oklch, var(--surface-0) 80%, transparent);
+    border: 1px solid var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+    color: var(--text-primary);
+    position: relative;
+  }
+
+  /* Corner Registration Crosshairs */
+  .material-blueprint::after {
+    content: '+';
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--accent);
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  /* ------------------------------------------------------------------------
+     6. Material: Signal-Plate (High-Priority Alert / Kiosk — Perf Class A)
+     Saturated header bar, stark high-contrast typography, zero soft shadows
+     ------------------------------------------------------------------------ */
+  .material-signal-plate,
+  [data-material="signal-plate"] {
+    background-color: var(--surface-1);
+    border: 2px solid var(--accent);
+    border-top: 4px solid var(--accent);
+    box-shadow: var(--shadow-sm);
+    color: var(--text-primary);
+  }
+
+  /* ------------------------------------------------------------------------
+     7. Low Quality / Interaction Lite Variants
+     ------------------------------------------------------------------------ */
+  [data-quality="low"] .material-glass-static,
+  [data-quality="low"] [data-material="glass-static"],
+  .is-interacting .material-glass-static {
+    background-color: var(--surface-2);
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+  }
+}

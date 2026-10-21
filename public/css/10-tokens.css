@@ -1,0 +1,128 @@
+/* ==========================================================================
+   DimDash Design System: 10-tokens.css
+   Token Architecture — OKLCH Palette, Spatial Scale, Radii, Shadows, Motion
+   ========================================================================== */
+
+:root {
+  /* ------------------------------------------------------------------------
+     1. Base World Unit & Spatial Rhythm (Rooted in P03 Scale Math)
+     ------------------------------------------------------------------------ */
+  --wu: 4px; /* World unit: 1wu = 4px on standard 1080p desktop */
+  --space-1: calc(1 * var(--wu));   /* 4px */
+  --space-2: calc(2 * var(--wu));   /* 8px */
+  --space-3: calc(3 * var(--wu));   /* 12px */
+  --space-4: calc(4 * var(--wu));   /* 16px */
+  --space-6: calc(6 * var(--wu));   /* 24px */
+  --space-8: calc(8 * var(--wu));   /* 32px */
+  --space-12: calc(12 * var(--wu)); /* 48px */
+  --space-16: calc(16 * var(--wu)); /* 64px */
+
+  /* ------------------------------------------------------------------------
+     2. Role-Based Radii Tokens
+     ------------------------------------------------------------------------ */
+  --r-island: 12px;
+  --r-tile: 8px;
+  --r-chip: 9999px;
+  --r-input: 6px;
+  --r-control: 4px;
+  --r-icon-plate: 8px;
+
+  /* ------------------------------------------------------------------------
+     3. Primary Accents (Curated Industrial Spectrum in OKLCH)
+     ------------------------------------------------------------------------ */
+  /* Default: Signal Amber (Aircraft / High-Visibility Telemetry) */
+  --accent-amber: oklch(0.80 0.16 75);
+  --accent-amber-glow: oklch(0.80 0.16 75 / 0.18);
+
+  /* Alternate Accents */
+  --accent-cyan: oklch(0.78 0.14 210);
+  --accent-cyan-glow: oklch(0.78 0.14 210 / 0.18);
+
+  --accent-coral: oklch(0.75 0.17 35);
+  --accent-coral-glow: oklch(0.75 0.17 35 / 0.18);
+
+  --accent-lime: oklch(0.82 0.18 135);
+  --accent-lime-glow: oklch(0.82 0.18 135 / 0.18);
+
+  /* Active Accent (Default: Amber) */
+  --accent: var(--accent-amber);
+  --accent-glow: var(--accent-amber-glow);
+  --accent-contrast: oklch(0.12 0.02 75);
+
+  /* ------------------------------------------------------------------------
+     4. Semantic Status Tokens (Color + Shape Glyphs)
+     ------------------------------------------------------------------------ */
+  /* OK: Circle ● */
+  --status-ok: oklch(0.72 0.17 142);
+  --status-ok-bg: oklch(0.72 0.17 142 / 0.14);
+  --status-ok-border: oklch(0.72 0.17 142 / 0.35);
+
+  /* Warning: Triangle ▲ */
+  --status-warn: oklch(0.79 0.16 78);
+  --status-warn-bg: oklch(0.79 0.16 78 / 0.14);
+  --status-warn-border: oklch(0.79 0.16 78 / 0.35);
+
+  /* Critical: Square ■ */
+  --status-crit: oklch(0.63 0.24 29);
+  --status-crit-bg: oklch(0.63 0.24 29 / 0.16);
+  --status-crit-border: oklch(0.63 0.24 29 / 0.40);
+
+  /* Info: Diamond ◆ */
+  --status-info: oklch(0.70 0.15 235);
+  --status-info-bg: oklch(0.70 0.15 235 / 0.14);
+  --status-info-border: oklch(0.70 0.15 235 / 0.35);
+
+  /* Unknown / Idle: Hollow Circle ○ */
+  --status-unknown: oklch(0.60 0.04 260);
+  --status-unknown-bg: oklch(0.60 0.04 260 / 0.12);
+  --status-unknown-border: oklch(0.60 0.04 260 / 0.25);
+
+  /* ------------------------------------------------------------------------
+     5. Elevation & Edge-Light Depth Tokens
+     ------------------------------------------------------------------------ */
+  /* Specular top highlight: 1px inner edge-light */
+  --edge-highlight: inset 0 1px 0 0 oklch(1 0 0 / 0.12);
+  --edge-highlight-subtle: inset 0 1px 0 0 oklch(1 0 0 / 0.06);
+
+  /* Ambient soft shadows (Never more than 2 layers) */
+  --shadow-flat: none;
+  --shadow-sm: 0 1px 3px oklch(0 0 0 / 0.24);
+  --shadow-md: 0 4px 16px -2px oklch(0 0 0 / 0.36);
+  --shadow-lg: 0 12px 32px -4px oklch(0 0 0 / 0.52);
+
+  /* Hairline Borders */
+  --border-hairline: 1px solid var(--border-subtle);
+  --border-active: 1px solid var(--accent);
+
+  /* ------------------------------------------------------------------------
+     6. Motion Tokens (Curated Timing & Spring Presets)
+     ------------------------------------------------------------------------ */
+  --dur-instant: 90ms;
+  --dur-fast: 140ms;
+  --dur-normal: 220ms;
+  --dur-slow: 360ms;
+
+  --ease-standard: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+  --ease-emphasized: cubic-bezier(0.05, 0.7, 0.1, 1.0);
+  --ease-decelerate: cubic-bezier(0.0, 0.0, 0.2, 1.0);
+
+  /* Dynamic linear() springs (Injected by motion.js or fallback bezier) */
+  --ease-spring-snappy: cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  --ease-spring-soft: cubic-bezier(0.25, 1.0, 0.5, 1.0);
+  --ease-spring-bouncy: cubic-bezier(0.34, 1.56, 0.64, 1.0);
+}
+
+/* Reduced Motion Override */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-instant: 0ms;
+    --dur-fast: 0ms;
+    --dur-normal: 0ms;
+    --dur-slow: 0ms;
+    --ease-standard: linear;
+    --ease-emphasized: linear;
+    --ease-spring-snappy: linear;
+    --ease-spring-soft: linear;
+    --ease-spring-bouncy: linear;
+  }
+}

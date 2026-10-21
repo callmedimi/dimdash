@@ -526,3 +526,32 @@ body.tenfoot-idle * {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.02); }
 }
+
+/* ==========================================================================
+   Phase P06: Material Quality Tiers (High / Medium / Low)
+   ========================================================================== */
+
+/* High Quality Tier (Full Hardware Blur) */
+[data-quality="high"] .stage-island {
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+}
+
+/* Medium Quality Tier (Static Glass / Zero per-frame blur) */
+[data-quality="medium"] .stage-island {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: rgba(20, 24, 38, 0.90) !important;
+}
+
+/* Low Quality Tier (Zero GPU Overhead / Flat Tinted Instruments) */
+[data-quality="low"] .stage-island {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: rgba(18, 22, 34, 0.96) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+}
+
+[data-quality="low"] * {
+  text-shadow: none !important;
+}

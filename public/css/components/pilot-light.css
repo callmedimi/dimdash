@@ -1,0 +1,107 @@
+/* ==========================================================================
+   DimDash Design System: components/pilot-light.css
+   The "Pilot Light" Status Glyph — Shape + Color + Micro-Motion (Accessible)
+   ● ok (circle) | ▲ warn (triangle) | ■ crit (square) | ◆ info (diamond) | ○ unknown
+   ========================================================================== */
+
+.pilot-light {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  vertical-align: middle;
+  line-height: 1;
+}
+
+.pilot-light-glyph {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  transition: transform var(--dur-fast) var(--ease-standard),
+              background-color var(--dur-fast) var(--ease-standard);
+}
+
+/* --------------------------------------------------------------------------
+   Status Shapes & Colors
+   -------------------------------------------------------------------------- */
+
+/* 1. OK: Solid Circle ● */
+.pilot-light[data-status="ok"] .pilot-light-glyph,
+.pilot-light.is-ok .pilot-light-glyph {
+  background-color: var(--status-ok);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--status-ok-bg);
+}
+
+/* 2. Warning: Equilateral Triangle ▲ */
+.pilot-light[data-status="warn"] .pilot-light-glyph,
+.pilot-light.is-warn .pilot-light-glyph {
+  background-color: var(--status-warn);
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  width: 9px;
+  height: 8px;
+}
+
+/* 3. Critical: Solid Square ■ (With Subtle Pulse) */
+.pilot-light[data-status="crit"] .pilot-light-glyph,
+.pilot-light.is-crit .pilot-light-glyph {
+  background-color: var(--status-crit);
+  border-radius: 1.5px;
+  box-shadow: 0 0 8px var(--status-crit-border);
+  animation: pilot-pulse 1.8s infinite ease-in-out;
+}
+
+/* 4. Info: Diamond ◆ */
+.pilot-light[data-status="info"] .pilot-light-glyph,
+.pilot-light.is-info .pilot-light-glyph {
+  background-color: var(--status-info);
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  width: 9px;
+  height: 9px;
+}
+
+/* 5. Unknown: Hollow Circle ○ */
+.pilot-light[data-status="unknown"] .pilot-light-glyph,
+.pilot-light.is-unknown .pilot-light-glyph {
+  background-color: transparent;
+  border: 1.5px solid var(--status-unknown);
+  border-radius: 50%;
+  width: 8px;
+  height: 8px;
+  box-sizing: border-box;
+}
+
+/* --------------------------------------------------------------------------
+   Sizes
+   -------------------------------------------------------------------------- */
+.pilot-light.size-xs .pilot-light-glyph { width: 5px; height: 5px; }
+.pilot-light.size-sm .pilot-light-glyph { width: 6px; height: 6px; }
+.pilot-light.size-md .pilot-light-glyph { width: 8px; height: 8px; }
+.pilot-light.size-lg .pilot-light-glyph { width: 12px; height: 12px; }
+.pilot-light.size-xl .pilot-light-glyph { width: 16px; height: 16px; }
+
+/* --------------------------------------------------------------------------
+   Micro-Motion Animations
+   -------------------------------------------------------------------------- */
+@keyframes pilot-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 0.85;
+  }
+}
+
+/* Obey Reduced Motion & Low Quality Tier */
+@media (prefers-reduced-motion: reduce) {
+  .pilot-light-glyph {
+    animation: none !important;
+  }
+}
+
+[data-quality="low"] .pilot-light-glyph {
+  animation: none !important;
+  box-shadow: none !important;
+}

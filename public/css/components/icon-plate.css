@@ -1,0 +1,79 @@
+/* ==========================================================================
+   DimDash Design System: components/icon-plate.css
+   The Icon Plate Normalizer — Coherent Squircle Shapes, Brand / Mono / Duotone
+   ========================================================================== */
+
+.icon-plate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border-radius: var(--r-icon-plate);
+  background-color: var(--surface-3);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--edge-highlight-subtle);
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: transform var(--dur-fast) var(--ease-standard),
+              border-color var(--dur-fast) var(--ease-standard);
+}
+
+.icon-plate:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+/* Icon Plate Glyph / Image */
+.icon-plate img,
+.icon-plate svg {
+  width: 60%;
+  height: 60%;
+  object-fit: contain;
+  transition: transform var(--dur-fast) var(--ease-standard);
+}
+
+/* Fallback letter glyph */
+.icon-plate-fallback {
+  font-family: var(--font-ui);
+  font-weight: var(--weight-bold);
+  font-size: 1.1em;
+  color: var(--text-primary);
+  text-transform: uppercase;
+}
+
+/* --------------------------------------------------------------------------
+   Modes: Brand, Mono, Duotone
+   -------------------------------------------------------------------------- */
+
+/* 1. Brand: Original colors on neutral surface */
+.icon-plate.mode-brand {
+  background-color: var(--surface-3);
+}
+
+/* 2. Mono: Silhouette tinted to currentColor */
+.icon-plate.mode-mono svg {
+  fill: currentColor;
+  stroke: currentColor;
+}
+.icon-plate.mode-mono img {
+  filter: grayscale(100%) brightness(1.2);
+}
+
+/* 3. Duotone: Plate tinted with extracted accent, icon in high contrast */
+.icon-plate.mode-duotone {
+  background-color: color-mix(in oklch, var(--plate-accent, var(--accent)) 20%, var(--surface-2));
+  border-color: color-mix(in oklch, var(--plate-accent, var(--accent)) 40%, transparent);
+}
+.icon-plate.mode-duotone svg,
+.icon-plate.mode-duotone img {
+  filter: brightness(1.1);
+}
+
+/* --------------------------------------------------------------------------
+   Sizes (XS to XL)
+   -------------------------------------------------------------------------- */
+.icon-plate.size-xs { width: 24px; height: 24px; border-radius: 4px; }
+.icon-plate.size-sm { width: 32px; height: 32px; border-radius: 6px; }
+.icon-plate.size-md { width: 40px; height: 40px; border-radius: 8px; }
+.icon-plate.size-lg { width: 48px; height: 48px; border-radius: 10px; }
+.icon-plate.size-xl { width: 64px; height: 64px; border-radius: 14px; }

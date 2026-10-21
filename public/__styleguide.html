@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-theme="graphite" data-quality="high">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DimDash — Living Styleguide (Instrument ↔ Blueprint)</title>
+  
+  <!-- Design System Token Architecture -->
+  <link rel="stylesheet" href="css/10-tokens.css">
+  <link rel="stylesheet" href="css/11-themes.css">
+  <link rel="stylesheet" href="css/20-typography.css">
+  <link rel="stylesheet" href="css/50-materials.css">
+  
+  <!-- Signature Instrument Components -->
+  <link rel="stylesheet" href="css/components/pilot-light.css">
+  <link rel="stylesheet" href="css/components/tick-ruler.css">
+  <link rel="stylesheet" href="css/components/heartbeat.css">
+  <link rel="stylesheet" href="css/components/icon-plate.css">
+  <link rel="stylesheet" href="css/components/instruments.css">
+
+  <style>
+    body {
+      background-color: var(--surface-0);
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Styleguide Shell Header */
+    .sg-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background-color: var(--surface-1);
+      border-bottom: 1px solid var(--border-strong);
+      padding: var(--space-3) var(--space-6);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-4);
+      flex-wrap: wrap;
+    }
+
+    .sg-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .sg-controls {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      flex-wrap: wrap;
+    }
+
+    /* Main Container */
+    .sg-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: var(--space-6);
+      width: 100%;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-8);
+    }
+
+    .sg-section {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+    }
+
+    .sg-section-header {
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: var(--space-2);
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .sg-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: var(--space-4);
+    }
+
+    .sg-card {
+      padding: var(--space-4);
+      border-radius: var(--r-island);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+
+    /* Color Swatch */
+    .color-swatch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: var(--space-3);
+    }
+    .color-swatch {
+      height: 64px;
+      border-radius: var(--r-tile);
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: var(--space-2);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Living Styleguide Controls Header -->
+  <header class="sg-header">
+    <div class="sg-title-wrap">
+      <div class="pilot-light is-ok size-md">
+        <span class="pilot-light-glyph"></span>
+      </div>
+      <div>
+        <h3 style="margin:0; font-size: 1.05rem;">DimDash Living Styleguide</h3>
+        <span class="mono-micro">Token System & Authentic Instrument Components</span>
+      </div>
+    </div>
+
+    <div class="sg-controls">
+      <!-- Theme Switcher -->
+      <label class="mono-micro">Theme:</label>
+      <div class="segmented-control" id="themeSelector">
+        <button class="segmented-btn is-active" data-theme="graphite">Graphite</button>
+        <button class="segmented-btn" data-theme="signal">Signal</button>
+        <button class="segmented-btn" data-theme="paper">Paper</button>
+        <button class="segmented-btn" data-theme="blueprint">Blueprint</button>
+        <button class="segmented-btn" data-theme="oled">OLED</button>
+      </div>
+
+      <!-- Direction Switcher -->
+      <label class="mono-micro">Direction:</label>
+      <div class="segmented-control" id="dirSelector">
+        <button class="segmented-btn is-active" data-dir="ltr">LTR</button>
+        <button class="segmented-btn" data-dir="rtl">RTL (فارسی)</button>
+      </div>
+
+      <!-- Accent Switcher -->
+      <label class="mono-micro">Accent:</label>
+      <div class="segmented-control" id="accentSelector">
+        <button class="segmented-btn is-active" data-accent="amber">Amber</button>
+        <button class="segmented-btn" data-accent="cyan">Cyan</button>
+        <button class="segmented-btn" data-accent="coral">Coral</button>
+        <button class="segmented-btn" data-accent="lime">Lime</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Content Container -->
+  <main class="sg-container">
+
+    <!-- 1. Color System & Lightness Elevation -->
+    <section class="sg-section">
+      <div class="sg-section-header">
+        <h2 class="heading-display">1. Surfaces & Lightness Elevation</h2>
+        <span class="mono-micro">OKLCH Perception Scale</span>
+      </div>
+      <div class="color-swatch-grid">
+        <div class="color-swatch" style="background-color: var(--surface-0);">
+          <span class="mono-micro">Surface 0</span>
+        </div>
+        <div class="color-swatch" style="background-color: var(--surface-1);">
+          <span class="mono-micro">Surface 1</span>
+        </div>
+        <div class="color-swatch" style="background-color: var(--surface-2);">
+          <span class="mono-micro">Surface 2</span>
+        </div>
+        <div class="color-swatch" style="background-color: var(--surface-3);">
+          <span class="mono-micro">Surface 3</span>
+        </div>
+        <div class="color-swatch" style="background-color: var(--surface-4);">
+          <span class="mono-micro">Surface 4</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. The Pilot Light (Shape + Color + Motion) -->
+    <section class="sg-section">
+      <div class="sg-section-header">
+        <h2 class="heading-display">2. The "Pilot Light" (Accessible Status)</h2>
+        <span class="mono-micro">Color-blind safe shape glyphs</span>
+      </div>
+      <div class="sg-grid">
+        <!-- OK -->
+        <div class="sg-card material-matte">
+          <span class="mono-micro">Normal / Healthy</span>
+          <div class="pilot-light is-ok size-md">
+            <span class="pilot-light-glyph"></span>
+            <span class="text-body">Online (Circle ●)</span>
+          </div>
+        </div>
+
+        <!-- Warning -->
+        <div class="sg-card material-matte">
+          <span class="mono-micro">Degraded / High Load</span>
+          <div class="pilot-light is-warn size-md">
+            <span class="pilot-light-glyph"></span>
+            <span class="text-body">Warning (Triangle ▲)</span>
+          </div>
+        </div>
+
+        <!-- Critical -->
+        <div class="sg-card material-matte">
+          <span class="mono-micro">Offline / Outage</span>
+          <div class="pilot-light is-crit size-md">
+            <span class="pilot-light-glyph"></span>
+            <span class="text-body">Critical (Square ■)</span>
+          </div>
+        </div>
+
+        <!-- Info -->
+        <div class="sg-card material-matte">
+          <span class="mono-micro">Notice</span>
+          <div class="pilot-light is-info size-md">
+            <span class="pilot-light-glyph"></span>
+            <span class="text-body">Maintenance (Diamond ◆)</span>
+          </div>
+        </div>
+
+        <!-- Unknown -->
+        <div class="sg-card material-matte">
+          <span class="mono-micro">Unpolled</span>
+          <div class="pilot-light is-unknown size-md">
+            <span class="pilot-light-glyph"></span>
+            <span class="text-body">Unknown (Hollow ○)</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Big Numbers & Typographic Hierarchy -->
+    <section class="sg-section">
+      <div class="sg-section-header">
+        <h2 class="heading-display">3. Typographic Data Heroes</h2>
+        <span class="mono-micro">Tabular Figures & RTL Dual Script</span>
+      </div>
+      <div class="sg-grid">
+        <!-- Hero Metric -->
+        <div class="sg-card material-matte">
+          <span class="mono-micro">CPU Utilization</span>
+          <div class="instrument-hero">
+            <div class="instrument-hero-val-wrap">
+              <span class="instrument-hero-val">42.8</span>
+              <span class="instrument-hero-unit">%</span>
+              <span class="instrument-hero-delta is-positive">↑ 1.4%</span>
+            </div>
+            <span class="text-caption">32 Cores @ 3.4 GHz</span>
+          </div>
+        </div>
+
+        <!-- Persian Bilingual Metric -->
+        <div class="sg-card material-matte">
+          <span class="mono-micro">ترافیک شبکه (RTL)</span>
+          <div class="instrument-hero">
+            <div class="instrument-hero-val-wrap">
+              <span class="instrument-hero-val">942</span>
+              <span class="instrument-hero-unit">MB/s</span>
+              <span class="instrument-hero-delta is-negative">↓ 3.2%</span>
+            </div>
+            <span class="text-caption">پهنای باند ورودی اینترفیس eth0</span>
+          </div>
+        </div>
+
+        <!-- LCD Style Hero -->
+        <div class="sg-card material-lcd" data-lcd-tone="amber">
+          <span class="mono-micro" style="color:currentColor;">CORE TEMP</span>
+          <div class="instrument-hero">
+            <div class="instrument-hero-val-wrap">
+              <span class="instrument-hero-val" style="color:currentColor;">54.2</span>
+              <span class="instrument-hero-unit" style="color:currentColor;">°C</span>
+            </div>
+            <span class="text-caption" style="color:currentColor; opacity:0.8;">NOMINAL THERMAL ZONE</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Gauges & Heartbeat ECG -->
+    <section class="sg-section">
+      <div class="sg-section-header">
+        <h2 class="heading-display">4. Tactile Instruments & Gauges</h2>
+        <span class="mono-micro">Discrete Segmented & Heartbeat Polyline</span>
+      </div>
+      <div class="sg-grid">
+        <!-- Segmented Bar Gauge -->
+        <div class="sg-card material-matte">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="mono-micro">RAM ALLOCATION</span>
+            <span class="tabular-nums mono-micro">78%</span>
+          </div>
+          <div class="instrument-segmented-gauge">
+            <span class="instrument-segment is-active"></span>
+            <span class="instrument-segment is-active"></span>
+            <span class="instrument-segment is-active"></span>
+            <span class="instrument-segment is-active"></span>
+            <span class="instrument-segment is-active"></span>
+            <span class="instrument-segment is-active"></span>
+            <span class="instrument-segment is-active"></span>
+            <span class="instrument-segment is-active is-warn"></span>
+            <span class="instrument-segment"></span>
+            <span class="instrument-segment"></span>
+          </div>
+        </div>
+
+        <!-- Heartbeat ECG -->
+        <div class="sg-card material-matte">
+          <span class="mono-micro">LATENCY HEARTBEAT</span>
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:var(--space-2);">
+            <div class="instrument-heartbeat">
+              <svg class="heartbeat-sparkline" viewBox="0 0 48 16">
+                <path class="heartbeat-line" d="M0,8 L14,8 L18,2 L22,14 L26,5 L30,8 L44,8" />
+                <circle class="heartbeat-beacon heartbeat-pulse" cx="44" cy="8" r="2.5" />
+              </svg>
+              <span class="heartbeat-latency">14ms</span>
+            </div>
+            <div class="pilot-light is-ok size-sm">
+              <span class="pilot-light-glyph"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Icon Plate Normalizer -->
+    <section class="sg-section">
+      <div class="sg-section-header">
+        <h2 class="heading-display">5. Icon Plate Normalizer</h2>
+        <span class="mono-micro">Brand, Mono, and Duotone Modes</span>
+      </div>
+      <div style="display:flex; gap:var(--space-4); align-items:center; flex-wrap:wrap;">
+        <!-- Brand Mode -->
+        <div class="icon-plate mode-brand size-md" title="Brand Mode">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="2" width="20" height="8" rx="2"></rect>
+            <rect x="2" y="14" width="20" height="8" rx="2"></rect>
+          </svg>
+        </div>
+
+        <!-- Duotone Mode -->
+        <div class="icon-plate mode-duotone size-md" style="--plate-accent: var(--accent);" title="Duotone Mode">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+          </svg>
+        </div>
+
+        <!-- Mono Mode -->
+        <div class="icon-plate mode-mono size-md" title="Mono Mode">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 14 14"></polyline>
+          </svg>
+        </div>
+
+        <!-- Fallback Glyph -->
+        <div class="icon-plate mode-brand size-md" title="Fallback Glyph">
+          <span class="icon-plate-fallback">D</span>
+        </div>
+
+        <!-- Sizes: XS, SM, MD, LG, XL -->
+        <div class="icon-plate mode-brand size-xs"><span class="icon-plate-fallback">XS</span></div>
+        <div class="icon-plate mode-brand size-sm"><span class="icon-plate-fallback">SM</span></div>
+        <div class="icon-plate mode-brand size-md"><span class="icon-plate-fallback">MD</span></div>
+        <div class="icon-plate mode-brand size-lg"><span class="icon-plate-fallback">LG</span></div>
+        <div class="icon-plate mode-brand size-xl"><span class="icon-plate-fallback">XL</span></div>
+      </div>
+    </section>
+
+    <!-- 6. Corner Registration & Tick Rulers -->
+    <section class="sg-section">
+      <div class="sg-section-header">
+        <h2 class="heading-display">6. Blueprint Registration & Tick Rulers</h2>
+        <span class="mono-micro">Hairline Scales & Alignment Crosshairs</span>
+      </div>
+      <div class="sg-grid">
+        <div class="sg-card material-blueprint tick-corner-container">
+          <div class="tick-corner tick-corner-tl"></div>
+          <div class="tick-corner tick-corner-tr"></div>
+          <div class="tick-corner tick-corner-bl"></div>
+          <div class="tick-corner tick-corner-br"></div>
+          <span class="mono-micro">TECHNICAL CONTAINER</span>
+          <div class="tick-ruler-x" style="margin: var(--space-2) 0;"></div>
+          <span class="text-caption">Corner brackets ensure visual grounding without heavy card shadows.</span>
+        </div>
+
+        <div class="sg-card material-matte">
+          <span class="mono-micro">STRUCTURED LOADING SHIMMER</span>
+          <div class="tick-shimmer" style="height: 24px; width: 100%; margin-top: var(--space-2);"></div>
+          <div class="tick-shimmer" style="height: 16px; width: 60%; margin-top: var(--space-2);"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. Complete Assembled Service Tile -->
+    <section class="sg-section">
+      <div class="sg-section-header">
+        <h2 class="heading-display">7. Assembled Service Tiles</h2>
+        <span class="mono-micro">Interactive States (Rest, Hover, Focus)</span>
+      </div>
+      <div class="sg-grid">
+        <div class="instrument-tile" tabindex="0">
+          <div class="instrument-tile-start">
+            <div class="icon-plate mode-brand size-md">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="2" width="20" height="8" rx="2"></rect>
+                <rect x="2" y="14" width="20" height="8" rx="2"></rect>
+              </svg>
+            </div>
+            <div class="instrument-tile-meta">
+              <span class="instrument-tile-title">Proxmox VE Cluster</span>
+              <span class="instrument-tile-sub">192.168.1.10 · 6 Nodes</span>
+            </div>
+          </div>
+          <div class="instrument-tile-end">
+            <div class="instrument-heartbeat">
+              <svg class="heartbeat-sparkline" viewBox="0 0 48 16">
+                <path class="heartbeat-line" d="M0,8 L14,8 L18,2 L22,14 L26,5 L30,8 L44,8" />
+                <circle class="heartbeat-beacon heartbeat-pulse" cx="44" cy="8" r="2.5" />
+              </svg>
+            </div>
+            <div class="pilot-light is-ok size-sm">
+              <span class="pilot-light-glyph"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="instrument-tile" tabindex="0">
+          <div class="instrument-tile-start">
+            <div class="icon-plate mode-duotone size-md" style="--plate-accent: var(--status-warn);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 2 22 22 22"></polygon>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+            </div>
+            <div class="instrument-tile-meta">
+              <span class="instrument-tile-title">AdGuard DNS Relay</span>
+              <span class="instrument-tile-sub">High Query Volume</span>
+            </div>
+          </div>
+          <div class="instrument-tile-end">
+            <div class="pilot-light is-warn size-sm">
+              <span class="pilot-light-glyph"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Interactive Styleguide Script -->
+  <script src="js/ui/motion.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // 1. Theme Selector
+      document.querySelectorAll('#themeSelector .segmented-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('#themeSelector .segmented-btn').forEach(b => b.classList.remove('is-active'));
+          btn.classList.add('is-active');
+          document.documentElement.setAttribute('data-theme', btn.getAttribute('data-theme'));
+        });
+      });
+
+      // 2. Direction Selector
+      document.querySelectorAll('#dirSelector .segmented-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('#dirSelector .segmented-btn').forEach(b => b.classList.remove('is-active'));
+          btn.classList.add('is-active');
+          const dir = btn.getAttribute('data-dir');
+          document.documentElement.setAttribute('dir', dir);
+          document.body.setAttribute('dir', dir);
+        });
+      });
+
+      // 3. Accent Selector
+      document.querySelectorAll('#accentSelector .segmented-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('#accentSelector .segmented-btn').forEach(b => b.classList.remove('is-active'));
+          btn.classList.add('is-active');
+          const accent = btn.getAttribute('data-accent');
+          document.documentElement.style.setProperty('--accent', `var(--accent-${accent})`);
+          document.documentElement.style.setProperty('--accent-glow', `var(--accent-${accent}-glow)`);
+        });
+      });
+    });
+  </script>
+</body>
+</html>

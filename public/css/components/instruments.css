@@ -1,0 +1,344 @@
+/* ==========================================================================
+   DimDash Design System: components/instruments.css
+   Authentic Tactile Instruments — Big Numbers, Gauges, Service Tiles, Inputs
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Big-Number Hero (Data as Hero)
+   -------------------------------------------------------------------------- */
+.instrument-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.instrument-hero-val-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.instrument-hero-val {
+  font-size: var(--text-hero);
+  font-weight: var(--weight-bold);
+  line-height: 1;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.instrument-hero-unit {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.instrument-hero-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-medium);
+  padding: 1px 4px;
+  border-radius: var(--r-control);
+}
+
+.instrument-hero-delta.is-positive {
+  color: var(--status-ok);
+  background-color: var(--status-ok-bg);
+}
+
+.instrument-hero-delta.is-negative {
+  color: var(--status-crit);
+  background-color: var(--status-crit-bg);
+}
+
+/* --------------------------------------------------------------------------
+   2. Service Tile (Icon Plate + Title + Pilot Light + Latency Heartbeat)
+   -------------------------------------------------------------------------- */
+.instrument-tile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background-color: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-tile);
+  box-shadow: var(--edge-highlight-subtle);
+  text-decoration: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+  transition: transform var(--dur-fast) var(--ease-standard),
+              border-color var(--dur-fast) var(--ease-standard),
+              background-color var(--dur-fast) var(--ease-standard);
+}
+
+.instrument-tile:hover {
+  border-color: var(--border-strong);
+  background-color: var(--surface-3);
+  transform: translateY(-1px);
+}
+
+.instrument-tile:active {
+  transform: translateY(0);
+}
+
+.instrument-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.instrument-tile.is-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.instrument-tile-start {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.instrument-tile-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.instrument-tile-title {
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.instrument-tile-sub {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.instrument-tile-end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+   3. Gauge Family: Segmented Bar, Arc, Tape
+   -------------------------------------------------------------------------- */
+
+/* Segmented Bar Gauge (LED VU Style) */
+.instrument-segmented-gauge {
+  display: flex;
+  gap: 3px;
+  width: 100%;
+  height: 10px;
+  padding: 2px;
+  background-color: var(--surface-1);
+  border-radius: var(--r-control);
+  border: 1px solid var(--border-subtle);
+}
+
+.instrument-segment {
+  flex: 1;
+  height: 100%;
+  background-color: var(--surface-3);
+  border-radius: 1px;
+  transition: background-color var(--dur-fast) var(--ease-standard);
+}
+
+.instrument-segment.is-active {
+  background-color: var(--accent);
+  box-shadow: 0 0 4px var(--accent-glow);
+}
+
+.instrument-segment.is-warn {
+  background-color: var(--status-warn);
+}
+
+.instrument-segment.is-crit {
+  background-color: var(--status-crit);
+  box-shadow: 0 0 4px var(--status-crit-border);
+}
+
+/* Arc Gauge Frame */
+.instrument-arc-gauge {
+  width: 96px;
+  height: 64px;
+  position: relative;
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.instrument-arc-gauge svg {
+  width: 100%;
+  height: 100%;
+}
+
+.instrument-arc-bg {
+  fill: none;
+  stroke: var(--surface-3);
+  stroke-width: 8;
+  stroke-linecap: round;
+}
+
+.instrument-arc-val {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset var(--dur-normal) var(--ease-standard);
+}
+
+.instrument-arc-text {
+  position: absolute;
+  bottom: 0;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   4. Tactile Controls & Inputs
+   -------------------------------------------------------------------------- */
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  border-radius: var(--r-input);
+  border: 1px solid var(--border-subtle);
+  background-color: var(--surface-2);
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color var(--dur-fast) var(--ease-standard),
+              border-color var(--dur-fast) var(--ease-standard),
+              transform var(--dur-fast) var(--ease-standard);
+}
+
+.btn:hover {
+  background-color: var(--surface-3);
+  border-color: var(--border-strong);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn.btn-primary {
+  background-color: var(--accent);
+  color: var(--accent-contrast);
+  border-color: var(--accent);
+  font-weight: var(--weight-semibold);
+}
+
+.btn.btn-primary:hover {
+  filter: brightness(1.08);
+}
+
+.btn.btn-ghost {
+  background-color: transparent;
+  border-color: transparent;
+}
+
+.btn.btn-ghost:hover {
+  background-color: var(--surface-3);
+  border-color: var(--border-subtle);
+}
+
+/* Segmented Control */
+.segmented-control {
+  display: inline-flex;
+  background-color: var(--surface-1);
+  padding: 2px;
+  border-radius: var(--r-input);
+  border: 1px solid var(--border-subtle);
+  gap: 2px;
+}
+
+.segmented-btn {
+  border: none;
+  background: transparent;
+  padding: var(--space-1) var(--space-3);
+  border-radius: calc(var(--r-input) - 2px);
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-standard),
+              background-color var(--dur-fast) var(--ease-standard);
+}
+
+.segmented-btn.is-active {
+  background-color: var(--surface-3);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Toggle Switch */
+.toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-track {
+  width: 36px;
+  height: 20px;
+  background-color: var(--surface-3);
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  position: relative;
+  transition: background-color var(--dur-fast) var(--ease-standard);
+}
+
+.toggle-thumb {
+  width: 14px;
+  height: 14px;
+  background-color: var(--text-primary);
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform var(--dur-fast) var(--ease-standard);
+}
+
+.toggle-switch.is-checked .toggle-track {
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+.toggle-switch.is-checked .toggle-thumb {
+  transform: translateX(16px);
+  background-color: var(--accent-contrast);
+}
+
+[dir="rtl"] .toggle-switch.is-checked .toggle-thumb {
+  transform: translateX(-16px);
+}

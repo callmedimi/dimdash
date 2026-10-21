@@ -1,0 +1,166 @@
+/* ==========================================================================
+   DimDash Design System: 11-themes.css
+   5 Distinct Themes — Graphite, Signal, Paper, Blueprint, OLED
+   Controlled via [data-theme="..."] on :root or container
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Theme: Graphite (Default Dark Matte)
+   -------------------------------------------------------------------------- */
+:root,
+:root[data-theme="graphite"] {
+  --theme-id: "graphite";
+  --theme-tone: dark;
+
+  /* Surfaces (Elevation by Lightness) */
+  --surface-0: oklch(0.14 0.01 260); /* Stage canvas backdrop */
+  --surface-1: oklch(0.18 0.012 260); /* Stage grid */
+  --surface-2: oklch(0.22 0.015 260); /* Island base */
+  --surface-3: oklch(0.26 0.018 260); /* Nested card / tile */
+  --surface-4: oklch(0.32 0.02 260); /* Popover / modal */
+
+  /* Text Hierarchy */
+  --text-primary: oklch(0.97 0.005 260);
+  --text-secondary: oklch(0.78 0.01 260);
+  --text-muted: oklch(0.62 0.015 260);
+  --text-inverse: oklch(0.12 0.01 260);
+
+  /* Hairlines & Borders */
+  --border-subtle: oklch(1 0 0 / 0.09);
+  --border-strong: oklch(1 0 0 / 0.18);
+  --border-focus: var(--accent);
+
+  /* Scrim Layer */
+  --scrim-alpha: 0.65;
+  --scrim: oklch(0.12 0.01 260 / var(--scrim-alpha));
+
+  color-scheme: dark;
+}
+
+/* --------------------------------------------------------------------------
+   2. Theme: Signal (High-Contrast Wall & Kiosk Mode)
+   -------------------------------------------------------------------------- */
+:root[data-theme="signal"] {
+  --theme-id: "signal";
+  --theme-tone: dark;
+
+  --surface-0: oklch(0.10 0.01 260);
+  --surface-1: oklch(0.14 0.015 260);
+  --surface-2: oklch(0.19 0.02 260);
+  --surface-3: oklch(0.25 0.025 260);
+  --surface-4: oklch(0.34 0.03 260);
+
+  --text-primary: oklch(1.0 0 0);
+  --text-secondary: oklch(0.88 0 0);
+  --text-muted: oklch(0.72 0 0);
+  --text-inverse: oklch(0.08 0 0);
+
+  --border-subtle: oklch(1 0 0 / 0.18);
+  --border-strong: oklch(1 0 0 / 0.35);
+
+  --accent: oklch(0.85 0.19 75);
+  --accent-glow: oklch(0.85 0.19 75 / 0.28);
+  --accent-contrast: oklch(0.10 0.02 75);
+
+  --scrim-alpha: 0.80;
+  --scrim: oklch(0.08 0.01 260 / var(--scrim-alpha));
+
+  color-scheme: dark;
+}
+
+/* --------------------------------------------------------------------------
+   3. Theme: Paper (Light / E-Ink / Daylight Ambient)
+   -------------------------------------------------------------------------- */
+:root[data-theme="paper"] {
+  --theme-id: "paper";
+  --theme-tone: light;
+
+  /* Warm natural paper surfaces */
+  --surface-0: oklch(0.96 0.01 80); /* Warm desk surface */
+  --surface-1: oklch(0.98 0.008 80);
+  --surface-2: oklch(0.93 0.012 80);
+  --surface-3: oklch(0.89 0.015 80);
+  --surface-4: oklch(1.0 0 0);
+
+  /* Deep ink text */
+  --text-primary: oklch(0.18 0.015 80);
+  --text-secondary: oklch(0.35 0.02 80);
+  --text-muted: oklch(0.52 0.02 80);
+  --text-inverse: oklch(0.98 0.005 80);
+
+  --border-subtle: oklch(0 0 0 / 0.12);
+  --border-strong: oklch(0 0 0 / 0.24);
+
+  /* High-legibility amber ink accent */
+  --accent: oklch(0.55 0.16 65);
+  --accent-glow: oklch(0.55 0.16 65 / 0.15);
+  --accent-contrast: oklch(0.98 0.01 80);
+
+  --edge-highlight: inset 0 1px 0 0 oklch(1 1 1 / 0.8);
+  --shadow-md: 0 2px 8px -2px oklch(0 0 0 / 0.12);
+
+  --scrim-alpha: 0.70;
+  --scrim: oklch(0.95 0.01 80 / var(--scrim-alpha));
+
+  color-scheme: light;
+}
+
+/* --------------------------------------------------------------------------
+   4. Theme: Blueprint (Technical Drafting / Edit Mode)
+   -------------------------------------------------------------------------- */
+:root[data-theme="blueprint"],
+.blueprint-mode {
+  --theme-id: "blueprint";
+  --theme-tone: dark;
+
+  /* Architectural cyan/navy */
+  --surface-0: oklch(0.18 0.05 235);
+  --surface-1: oklch(0.22 0.06 235);
+  --surface-2: oklch(0.26 0.07 235);
+  --surface-3: oklch(0.31 0.08 235);
+  --surface-4: oklch(0.38 0.09 235);
+
+  --text-primary: oklch(0.95 0.04 220);
+  --text-secondary: oklch(0.82 0.06 220);
+  --text-muted: oklch(0.68 0.07 220);
+  --text-inverse: oklch(0.15 0.05 235);
+
+  --border-subtle: oklch(0.82 0.15 210 / 0.25);
+  --border-strong: oklch(0.82 0.15 210 / 0.50);
+
+  --accent: oklch(0.82 0.15 210);
+  --accent-glow: oklch(0.82 0.15 210 / 0.22);
+  --accent-contrast: oklch(0.14 0.05 235);
+
+  --scrim-alpha: 0.75;
+  --scrim: oklch(0.16 0.05 235 / var(--scrim-alpha));
+
+  color-scheme: dark;
+}
+
+/* --------------------------------------------------------------------------
+   5. Theme: OLED (True Pure Black)
+   -------------------------------------------------------------------------- */
+:root[data-theme="oled"] {
+  --theme-id: "oled";
+  --theme-tone: dark;
+
+  --surface-0: #000000;
+  --surface-1: oklch(0.08 0 0);
+  --surface-2: oklch(0.13 0 0);
+  --surface-3: oklch(0.19 0 0);
+  --surface-4: oklch(0.26 0 0);
+
+  --text-primary: oklch(0.98 0 0);
+  --text-secondary: oklch(0.80 0 0);
+  --text-muted: oklch(0.60 0 0);
+  --text-inverse: oklch(0.05 0 0);
+
+  --border-subtle: oklch(1 0 0 / 0.10);
+  --border-strong: oklch(1 0 0 / 0.22);
+
+  --scrim-alpha: 0.85;
+  --scrim: rgba(0, 0, 0, var(--scrim-alpha));
+
+  color-scheme: dark;
+}

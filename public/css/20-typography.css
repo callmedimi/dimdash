@@ -1,0 +1,135 @@
+/* ==========================================================================
+   DimDash Design System: 20-typography.css
+   Typography Architecture — Offline Fonts, Tabular Numerals, Scale, RTL
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Typography Stacks
+   -------------------------------------------------------------------------- */
+:root {
+  --font-ui: 'Inter', 'Vazirmatn', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-persian: 'Vazirmatn', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", Consolas, Menlo, monospace;
+
+  /* Global fluid scale rooted in rem */
+  --text-hero: clamp(2.0rem, 5vw, 3.25rem);
+  --text-display: clamp(1.4rem, 3vw, 2.0rem);
+  --text-title: 1.15rem;
+  --text-body: 0.90rem;
+  --text-caption: 0.78rem;
+  --text-micro: 0.68rem;
+
+  --lh-tight: 1.15;
+  --lh-snug: 1.35;
+  --lh-body: 1.50;
+  --lh-persian: 1.70;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
+  color: var(--text-primary);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --------------------------------------------------------------------------
+   2. Tabular Numerals (Crucial for Jitter-Free Telemetry)
+   -------------------------------------------------------------------------- */
+.tabular-nums,
+.instrument-num,
+.instrument-gauge-val,
+.telemetry-val,
+.stat-value,
+.stage-chip-badge,
+.tick-label,
+.clock-display {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+/* --------------------------------------------------------------------------
+   3. Monospace Micro-Labels (Technical Instrument Aesthetic)
+   -------------------------------------------------------------------------- */
+.mono-micro,
+.instrument-unit,
+.instrument-tag,
+.reg-mark-label,
+.dimension-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   4. RTL & Persian Typography Engine
+   -------------------------------------------------------------------------- */
+[dir="rtl"],
+html[dir="rtl"],
+:lang(fa) {
+  font-family: var(--font-persian);
+  line-height: var(--lh-persian);
+  letter-spacing: 0 !important; /* Never letter-space connected Arabic/Persian scripts */
+}
+
+[dir="rtl"] .mono-micro,
+[dir="rtl"] .instrument-unit {
+  letter-spacing: 0;
+}
+
+/* Bidirectional metric isolation */
+bdi,
+.bdi-isolate {
+  unicode-bidi: isolate;
+  display: inline-block;
+}
+
+/* --------------------------------------------------------------------------
+   5. Headings & Role Hierarchy (Anti-Slop: >= 4 Distinct Roles)
+   -------------------------------------------------------------------------- */
+h1, .heading-hero {
+  font-size: var(--text-hero);
+  font-weight: var(--weight-bold);
+  line-height: var(--lh-tight);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+h2, .heading-display {
+  font-size: var(--text-display);
+  font-weight: var(--weight-semibold);
+  line-height: var(--lh-snug);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+h3, .heading-title {
+  font-size: var(--text-title);
+  font-weight: var(--weight-medium);
+  line-height: var(--lh-snug);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+p, .text-body {
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.text-caption {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  line-height: var(--lh-snug);
+}

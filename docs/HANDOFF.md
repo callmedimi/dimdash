@@ -164,13 +164,38 @@ Implemented in `public/js/stage/shapes.js` and `public/js/stage/autolayout.js`:
 
 ---
 
-## 10. Automated Test Suite Verification
+## 10. Performance Architecture & Zero-Lag Core (P06)
+
+Implemented in `public/js/state/signals.js`, `public/js/stage/materials.js`, `public/js/stage/chartHost.js`, and `server/index.js`:
+- **Fine-Grained Reactive Signals:** `signal`, `computed`, `effect`, `batch` with dependency tracking and `epsilon` threshold suppressing numeric jitter.
+- **Time-Sliced Task Scheduler:** Cooperative slicing within a $\le 4\text{ms}$ animation frame budget.
+- **GPU Quality Tiers & Frame Degradation:** 4 tiers (`high`, `medium`, `low`, `auto`) with automatic runtime step-down when frame times exceed 20ms.
+- **Static Glass Pre-Renderer:** Bypasses live GPU `backdrop-filter: blur(20px)` on mid/low hardware.
+- **ChartHost Canvas Pool & LTTB Downsampling:** Pre-allocated typed `Float64Array` ring buffers (`MetricRingBuffer`), $O(1)$ prefix-sum optimized downsampling (5,000 points downsampled in $< 1\text{ms}$), and cached offscreen grids.
+- **Zero-Allocation SSE Broadcasts:** Single UTF-8 `Buffer` serialization per event, 200-client capacity cap, and Node event loop delay telemetry via `/api/self`.
+
+---
+
+## 11. Design System Anti-Slop ("Instrument ↔ Blueprint") (P07)
+
+Implemented in `public/css/10-tokens.css`, `11-themes.css`, `20-typography.css`, `50-materials.css`, `components/*.css`, `public/js/ui/motion.js`, and `tools/contrast-check.js`:
+- **Dual-State Identity:** Instrument panel in view mode (matte, tactile, data as hero) ↔ Architectural drafting table in blueprint edit mode.
+- **5 Themes & Lightness Elevation:** `graphite`, `signal`, `paper` (e-ink / daylight), `blueprint`, `oled` with surface elevation by perceptual lightness deltas.
+- **6 Engineered Materials:** `matte`, `glass-static`, `paper`, `lcd` (dot-matrix scanline), `blueprint` (corner crosshairs), `signal-plate`.
+- **Signature Components:** Accessible pilot light (● ok, ▲ warn, ■ crit, ◆ info, ○ unknown), architectural tick rulers, heartbeat ECG sparklines, and squircle icon plates (brand, mono, duotone).
+- **Physics-Based Motion Engine:** Spring equations generating modern CSS `linear()` timing with kiosk `cubic-bezier` fallback.
+- **Zero-Asset Wallpapers & APCA Contrast:** Procedural SVG wallpapers (`topographic.svg`, `contour_field.svg`, `grid_blueprint.svg`) verified with 100% pass on APCA $L_c \ge 75$ body / $L_c \ge 60$ header.
+- **Living Styleguide:** Interactive component matrix at `public/__styleguide.html`.
+
+---
+
+## 12. Automated Test Suite Verification
 
 Run all test suites via:
 ```bash
 npm test
 ```
-**Results:** **199 tests passing across 26 suites** in ~2 seconds:
+**Results:** **224 tests passing across 29 suites** in ~2 seconds:
 - `test/boardApi.test.js` (6 tests)
 - `test/compatV1.test.js` (8 tests)
 - `test/fuzz.test.js` (10,000 ops fuzzing)
@@ -186,3 +211,7 @@ npm test
 - `test/interaction.test.js` (14 tests)
 - `test/shapes.test.js` (10 tests)
 - `test/autolayout.test.js` (11 tests)
+- `test/signals.test.js` (6 tests)
+- `test/materials.test.js` (3 tests)
+- `test/chartHost.test.js` (4 tests)
+- `test/designTokens.test.js` (12 tests)

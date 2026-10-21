@@ -88,6 +88,14 @@
         this.overlayRenderer.resize(w, h, window.devicePixelRatio || 1);
       }
 
+      if (window.DimDashMaterials) {
+        this.qualityManager = new window.DimDashMaterials.QualityManager();
+      }
+
+      if (window.DimDashSignals) {
+        this.reactiveStore = new window.DimDashSignals.ReactiveStore();
+      }
+
       if (window.DimDashInteraction) {
         this.interaction = new window.DimDashInteraction.InteractionController(this);
       }

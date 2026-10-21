@@ -64,17 +64,26 @@ app.use(express.static(path.resolve(__dirname, '../public'), staticCacheOptions)
 
 // Server-Sent Events (SSE) clients
 const sseClients = new Set();
+const { monitorEventLoopDelay } = require('perf_hooks');
+
+let elDelayHistogram = null;
+try {
+  elDelayHistogram = monitorEventLoopDelay({ resolution: 20 });
+  elDelayHistogram.enable();
+} catch (e) {}
 
 function broadcastSSE(event, data, id = null) {
   const idLine = id !== null ? `id: ${id}\n` : '';
-  const payload = `${idLine}event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  const payloadStr = `${idLine}event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  const payloadBuf = Buffer.from(payloadStr);
+
   for (const client of sseClients) {
     try {
       // Backpressure check: drop telemetry/probe deltas if client write buffer > 256KB
       if (client.writableLength > 256 * 1024 && (event.includes('delta') || event.includes('telemetry'))) {
         continue;
       }
-      client.write(payload);
+      client.write(payloadBuf);
     } catch (_) {
       sseClients.delete(client);
     }
@@ -184,6 +193,20 @@ app.get('/api/health', (req, res) => {
     air_gapped: true,
     uptime: Math.floor(process.uptime()),
     timestamp: Date.now()
+  });
+});
+
+app.get('/api/self', (req, res) => {
+  const mem = process.memoryUsage();
+  res.json({
+    status: 'ok',
+    uptime: Math.floor(process.uptime()),
+    heap_used_mb: Math.round(mem.heapUsed / 1024 / 1024),
+    heap_total_mb: Math.round(mem.heapTotal / 1024 / 1024),
+    rss_mb: Math.round(mem.rss / 1024 / 1024),
+    event_loop_delay_p50_ms: elDelayHistogram ? (elDelayHistogram.percentile(50) / 1e6).toFixed(2) : null,
+    event_loop_delay_p99_ms: elDelayHistogram ? (elDelayHistogram.percentile(99) / 1e6).toFixed(2) : null,
+    active_sse_clients: sseClients.size
   });
 });
 
@@ -469,8 +492,13 @@ app.get('/api/metrics/history', (req, res) => {
 });
 
 app.get('/api/events', (req, res) => {
+  if (sseClients.size >= 200) {
+    return res.status(503).json({ error: 'Server SSE client capacity reached (max 200)' });
+  }
+
   res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Cache-Control', 'no-store, no-cache');
+  res.setHeader('X-Accel-Buffering', 'no');
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders();
 
