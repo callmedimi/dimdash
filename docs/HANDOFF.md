@@ -189,13 +189,25 @@ Implemented in `public/css/10-tokens.css`, `11-themes.css`, `20-typography.css`,
 
 ---
 
-## 12. Automated Test Suite Verification
+## 12. Widget Framework & Component Catalog (P08)
+
+Implemented in `public/js/widgets/registry.js`, `public/js/widgets/expr.js`, `public/js/widgets/parts/*.js`, `public/js/widgets/catalog/*.js`, and `public/__widgets.html`:
+- **Widget Registry & Manifest Architecture:** Normalized contract (`defineWidget`), lazy loading, and manifest catalog enabling instant "Add Widget" palette queries without loading widget execution code.
+- **Safe Mini-DSL Evaluator:** AST-based expression engine (`expr.js`) with zero `eval()` or `new Function()`, blocked prototype pollution, and built-in math & formatting functions (`min`, `max`, `round`, `clamp`, `avg`, `fmt`, `bytes`, `pct`, `dur`).
+- **Responsive Size-Class Folding:** Content dynamically adapts across 5 standardized size classes (`xs`, `s`, `m`, `l`, `xl`).
+- **Built-In Catalog:** Core widgets (`big_number`, `service_tile`, `gauge`, `clock`, `custom` declarative JSON widget) with zero dependencies.
+- **Robust Error Isolation:** Inline error plates on throwing mounts; graceful missing-widget fallback placeholder preserving data.
+- **Interactive Dev Tool:** Comprehensive test matrix runner at `public/__widgets.html`.
+
+---
+
+## 13. Automated Test Suite Verification
 
 Run all test suites via:
 ```bash
 npm test
 ```
-**Results:** **224 tests passing across 29 suites** in ~2 seconds:
+**Results:** **241 tests passing across 29 suites** in ~2.1 seconds:
 - `test/boardApi.test.js` (6 tests)
 - `test/compatV1.test.js` (8 tests)
 - `test/fuzz.test.js` (10,000 ops fuzzing)
@@ -215,3 +227,4 @@ npm test
 - `test/materials.test.js` (3 tests)
 - `test/chartHost.test.js` (4 tests)
 - `test/designTokens.test.js` (12 tests)
+- `test/widgets.test.js` (17 tests)

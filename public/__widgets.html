@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-theme="graphite">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DimDash — Widget Catalog & Matrix Harness (P08)</title>
+  
+  <!-- Design System CSS -->
+  <link rel="stylesheet" href="css/10-tokens.css">
+  <link rel="stylesheet" href="css/11-themes.css">
+  <link rel="stylesheet" href="css/20-typography.css">
+  <link rel="stylesheet" href="css/50-materials.css">
+  <link rel="stylesheet" href="css/components/pilot-light.css">
+  <link rel="stylesheet" href="css/components/tick-ruler.css">
+  <link rel="stylesheet" href="css/components/heartbeat.css">
+  <link rel="stylesheet" href="css/components/icon-plate.css">
+  <link rel="stylesheet" href="css/components/instruments.css">
+
+  <style>
+    body {
+      background-color: var(--surface-0);
+      margin: 0;
+      padding: var(--space-6);
+      font-family: var(--font-ui);
+      color: var(--text-primary);
+    }
+
+    .matrix-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--space-6);
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: var(--space-4);
+      flex-wrap: wrap;
+      gap: var(--space-4);
+    }
+
+    .matrix-section {
+      margin-bottom: var(--space-8);
+    }
+
+    .matrix-row {
+      display: flex;
+      gap: var(--space-4);
+      align-items: flex-start;
+      flex-wrap: wrap;
+      margin-top: var(--space-3);
+    }
+
+    .matrix-cell {
+      background-color: var(--surface-2);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--r-tile);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .matrix-cell-tag {
+      background-color: var(--surface-1);
+      padding: 2px var(--space-2);
+      border-bottom: 1px solid var(--border-subtle);
+      font-family: var(--font-mono);
+      font-size: var(--text-micro);
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .matrix-cell-body {
+      flex: 1;
+      position: relative;
+    }
+
+    /* Size Class Dimensions */
+    .cell-xs { width: 100px; height: 60px; }
+    .cell-s { width: 180px; height: 80px; }
+    .cell-m { width: 280px; height: 110px; }
+    .cell-l { width: 420px; height: 140px; }
+  </style>
+</head>
+<body>
+
+  <header class="matrix-header">
+    <div>
+      <h1 class="heading-display">Widget Framework Matrix (P08)</h1>
+      <span class="mono-micro">Testing XS–XL Content Folding, Error Isolation, & Localization</span>
+    </div>
+
+    <div style="display:flex; gap:var(--space-3); align-items:center;">
+      <div class="segmented-control" id="themeSelect">
+        <button class="segmented-btn is-active" data-theme="graphite">Graphite</button>
+        <button class="segmented-btn" data-theme="signal">Signal</button>
+        <button class="segmented-btn" data-theme="paper">Paper</button>
+        <button class="segmented-btn" data-theme="blueprint">Blueprint</button>
+      </div>
+
+      <div class="segmented-control" id="dirSelect">
+        <button class="segmented-btn is-active" data-dir="ltr">LTR</button>
+        <button class="segmented-btn" data-dir="rtl">RTL (فارسی)</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="matrixMain">
+    <!-- Populated dynamically by script below -->
+  </main>
+
+  <!-- Load Widget Framework Scripts -->
+  <script src="js/widgets/expr.js"></script>
+  <script src="js/widgets/registry.js"></script>
+  <script src="js/widgets/catalog/bigNumber.js"></script>
+  <script src="js/widgets/catalog/serviceTile.js"></script>
+  <script src="js/widgets/catalog/gauge.js"></script>
+  <script src="js/widgets/catalog/clock.js"></script>
+  <script src="js/widgets/catalog/customDeclarative.js"></script>
+  <script src="js/widgets/index.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const main = document.getElementById('matrixMain');
+
+      const widgetsToTest = [
+        {
+          type: 'big_number',
+          title: 'Big Number Hero',
+          props: { label: 'CPU LOAD', value: '42.8%', unit: 'AVG', delta: '↑ 1.2%' }
+        },
+        {
+          type: 'service_tile',
+          title: 'Service Tile',
+          props: { title: 'Docker Daemon', subtitle: '192.168.1.150:2375', status: 'ok', latency: 12, icon: 'DK' }
+        },
+        {
+          type: 'gauge',
+          title: 'Segmented Gauge',
+          props: { label: 'MEMORY USED', value: 78, max: 100 }
+        },
+        {
+          type: 'clock',
+          title: 'Clock & Calendar',
+          props: { showSeconds: true, showDate: true }
+        },
+        {
+          type: 'custom',
+          title: 'Custom (Declarative JSON)',
+          props: {
+            template: {
+              type: 'stack',
+              children: [
+                { type: 'text', style: 'micro', value: 'TELEMETRY' },
+                { type: 'number', expr: 'round(42.54 * 2, 1)' },
+                { type: 'pilot', expr: "'ok'" }
+              ]
+            }
+          }
+        }
+      ];
+
+      const sizes = [
+        { cls: 'xs', name: 'XS (100x60)' },
+        { cls: 's', name: 'S (180x80)' },
+        { cls: 'm', name: 'M (280x110)' },
+        { cls: 'l', name: 'L (420x140)' }
+      ];
+
+      widgetsToTest.forEach(w => {
+        const section = document.createElement('section');
+        section.className = 'matrix-section';
+        section.innerHTML = `<h3 class="heading-title">${w.title} (<code>${w.type}</code>)</h3>`;
+
+        const row = document.createElement('div');
+        row.className = 'matrix-row';
+
+        sizes.forEach(s => {
+          const cell = document.createElement('div');
+          cell.className = `matrix-cell cell-${s.cls}`;
+          cell.innerHTML = `
+            <div class="matrix-cell-tag">
+              <span>${s.cls.toUpperCase()}</span>
+              <span>${s.name}</span>
+            </div>
+            <div class="matrix-cell-body" id="cell-${w.type}-${s.cls}"></div>
+          `;
+          row.appendChild(cell);
+
+          const bodyEl = cell.querySelector('.matrix-cell-body');
+          WidgetRegistry.mount(w.type, bodyEl, {
+            props: w.props,
+            width: cell.clientWidth,
+            height: cell.clientHeight
+          });
+        });
+
+        section.appendChild(row);
+        main.appendChild(section);
+      });
+
+      // Controls
+      document.querySelectorAll('#themeSelect .segmented-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('#themeSelect .segmented-btn').forEach(b => b.classList.remove('is-active'));
+          btn.classList.add('is-active');
+          document.documentElement.setAttribute('data-theme', btn.getAttribute('data-theme'));
+        });
+      });
+
+      document.querySelectorAll('#dirSelect .segmented-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('#dirSelect .segmented-btn').forEach(b => b.classList.remove('is-active'));
+          btn.classList.add('is-active');
+          const dir = btn.getAttribute('data-dir');
+          document.documentElement.setAttribute('dir', dir);
+          document.body.setAttribute('dir', dir);
+        });
+      });
+    });
+  </script>
+</body>
+</html>
