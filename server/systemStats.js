@@ -54,7 +54,7 @@ class SystemStatsCollector {
     };
 
     this.update();
-    setInterval(() => this.update(), 2000);
+    setInterval(() => this.update(), 2000).unref();
   }
 
   getCpuTimes() {

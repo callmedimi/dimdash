@@ -24,9 +24,9 @@ class Prober {
     if (this.timer) clearInterval(this.timer);
     this.timer = setInterval(() => {
       this.runCycle();
-    }, 10000);
+    }, 10000).unref();
     // Initial run
-    setTimeout(() => this.runCycle(), 1000);
+    setTimeout(() => this.runCycle(), 1000).unref();
   }
 
   getAllResults() {

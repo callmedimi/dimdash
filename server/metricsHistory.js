@@ -17,10 +17,10 @@ class MetricsHistoryCollector {
     this.loadPersistedHistory();
 
     // Start background sampling every 3.5 seconds
-    this.sampleTimer = setInterval(() => this.collectSample(), 3500);
+    this.sampleTimer = setInterval(() => this.collectSample(), 3500).unref();
 
     // Save to disk every 60 seconds
-    this.saveTimer = setInterval(() => this.persistHistory(), 60000);
+    this.saveTimer = setInterval(() => this.persistHistory(), 60000).unref();
   }
 
   loadPersistedHistory() {

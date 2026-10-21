@@ -9,7 +9,7 @@ class ClusterManager extends EventEmitter {
     this.pullTimers = new Map();
 
     // Check offline threshold every 4s
-    this.healthCheckTimer = setInterval(() => this.checkHealth(), 4000);
+    this.healthCheckTimer = setInterval(() => this.checkHealth(), 4000).unref();
 
     // Sync when config changes
     this.configManager.on('change', () => this.syncServers());

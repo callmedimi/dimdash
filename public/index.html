@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DimDash — Air-Gapped Homelab Dashboard</title>
-  <meta name="description" content="Ultra-fast, air-gapped homelab dashboard with live telemetry and YAML configuration">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/stage.css">
 </head>
 <body>
   <!-- Transparent Background Logo / Watermark Overlay -->
@@ -279,7 +279,10 @@
         </button>
       </nav>
 
-      <!-- Main Content Area -->
+      <!-- Spatial Stage Mount -->
+      <div id="stageMount" class="stage-mount-container" style="display:none;"></div>
+
+      <!-- Main Content Area (Legacy Grid Fallback) -->
       <main class="main-content" id="contentArea">
         <!-- Rendered dynamically -->
       </main>
@@ -1273,6 +1276,11 @@
   <script src="js/icons.js"></script>
   <script src="js/persianCalendar.js"></script>
   <script src="js/serverCharts.js"></script>
+  <script src="js/shared/schema.js"></script>
+  <script src="js/state/compat-v1.js"></script>
+  <script src="js/stage/scale.js"></script>
+  <script src="js/stage/solver.js"></script>
+  <script src="js/stage/stageRenderer.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

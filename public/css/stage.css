@@ -1,0 +1,282 @@
+/**
+ * DimDash Stage Engine Styles
+ * Continuous responsive spatial canvas from 10" handheld to 150" video walls.
+ */
+
+:root {
+  --wu: 1.0;
+  --tap-min: 44px;
+  --stage-scale: 1.0;
+  --stage-tx: 0px;
+  --stage-ty: 0px;
+}
+
+/* Base Stage Viewport */
+.stage-viewport {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 70px);
+  min-height: 480px;
+  overflow: hidden;
+  background: transparent;
+  user-select: none;
+  touch-action: pan-x pan-y;
+  outline: none;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.stage-viewport[data-mode="flow"] {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  height: auto;
+  min-height: calc(100vh - 70px);
+}
+
+/* Stage Canvas Layer */
+.stage-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform-origin: 0 0;
+  transform: scale(var(--stage-scale, 1)) translate3d(var(--stage-tx, 0px), var(--stage-ty, 0px), 0);
+  will-change: transform;
+}
+
+.stage-viewport[data-mode="flow"] .stage-canvas {
+  position: relative;
+  transform: none !important;
+  width: 100%;
+  height: auto;
+  min-height: 100%;
+}
+
+/* Individual Stage Item */
+.stage-item {
+  position: absolute;
+  inset: 0 auto auto 0;
+  transform: translate3d(calc(var(--x, 0) * var(--wu) * 1px), calc(var(--y, 0) * var(--wu) * 1px), 0);
+  width: calc(var(--w, 100) * var(--wu) * 1px);
+  height: calc(var(--h, 100) * var(--wu) * 1px);
+  contain: layout paint style;
+  z-index: var(--z, 1);
+  container-type: size;
+  container-name: item;
+  box-sizing: border-box;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), width 0.18s ease, height 0.18s ease;
+}
+
+.stage-viewport[data-mode="flow"] .stage-item {
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+  width: 100% !important;
+  height: auto !important;
+  margin-bottom: calc(20px * var(--wu));
+}
+
+/* Island Container */
+.stage-island {
+  display: flex;
+  flex-direction: column;
+  background: var(--card-bg, rgba(20, 24, 38, 0.72));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  border-radius: calc(16px * var(--wu));
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+}
+
+.stage-island-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(10px * var(--wu)) calc(16px * var(--wu));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.stage-island-title {
+  display: flex;
+  align-items: center;
+  gap: calc(8px * var(--wu));
+  font-size: calc(0.95rem * var(--wu));
+  font-weight: 700;
+  color: var(--text-main, #f8fafc);
+}
+
+.stage-island-body {
+  position: relative;
+  flex: 1;
+  padding: calc(12px * var(--wu));
+  overflow: hidden;
+  content-visibility: auto;
+  contain-intrinsic-size: calc(var(--w, 300) * var(--wu) * 1px) calc(var(--h, 180) * var(--wu) * 1px);
+}
+
+/* Service Tiles inside Island */
+.stage-service-tile {
+  display: flex;
+  align-items: center;
+  gap: calc(12px * var(--wu));
+  padding: calc(10px * var(--wu)) calc(14px * var(--wu));
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: calc(12px * var(--wu));
+  text-decoration: none;
+  color: var(--text-main, #f8fafc);
+  cursor: pointer;
+  min-height: var(--tap-min, 44px);
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.stage-service-tile:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+.stage-service-tile:focus-visible {
+  outline: 3px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+.stage-tile-icon {
+  width: calc(36px * var(--wu));
+  height: calc(36px * var(--wu));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: calc(8px * var(--wu));
+  flex-shrink: 0;
+}
+
+.stage-tile-icon img,
+.stage-tile-icon svg {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.stage-tile-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.stage-tile-title {
+  font-size: calc(0.9rem * var(--wu));
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stage-tile-subtitle {
+  font-size: calc(0.72rem * var(--wu));
+  color: var(--text-muted, #94a3b8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Monitoring Gauge Widget within Stage */
+.stage-widget {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: calc(14px * var(--wu));
+  padding: calc(12px * var(--wu));
+  box-sizing: border-box;
+}
+
+/* Container Queries for Adaptive Item Layout */
+@container item (max-width: 140px) {
+  .stage-tile-subtitle { display: none; }
+  .stage-island-header { padding: 4px 8px; font-size: 0.75rem; }
+}
+
+@container item (min-width: 380px) {
+  .stage-island-body {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(calc(140px * var(--wu)), 1fr));
+    gap: calc(10px * var(--wu));
+  }
+}
+
+@container item (min-width: 640px) {
+  .stage-island-body {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(calc(180px * var(--wu)), 1fr));
+    gap: calc(14px * var(--wu));
+  }
+}
+
+/* HUD Layer (Viewport-Fixed items) */
+.stage-hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 999;
+}
+
+.stage-hud > * {
+  pointer-events: auto;
+}
+
+/* Overlay Layer (Minimap, guides, selection) */
+.stage-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 800;
+}
+
+/* 10-Foot UI (TV, Video Wall, Kiosk) */
+[data-ui="tenfoot"] {
+  --wu: 1.6;
+}
+
+[data-ui="tenfoot"] .stage-service-tile {
+  min-height: calc(56px * var(--wu));
+  font-size: 1.15rem;
+}
+
+[data-ui="tenfoot"] .stage-service-tile:focus {
+  outline: 4px solid #38bdf8;
+  box-shadow: 0 0 24px rgba(56, 189, 248, 0.6);
+  transform: scale(1.04);
+}
+
+/* Auto-hide cursor when idle in 10-foot mode */
+body.tenfoot-idle {
+  cursor: none !important;
+}
+
+body.tenfoot-idle * {
+  cursor: none !important;
+}
+
+/* RTL layout adjustments */
+[dir="rtl"] .stage-service-tile {
+  direction: rtl;
+  text-align: right;
+}
+
+[dir="rtl"] .stage-island-header {
+  flex-direction: row-reverse;
+}

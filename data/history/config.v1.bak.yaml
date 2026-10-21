@@ -1,0 +1,173 @@
+version: "1.0"
+settings:
+  dashboard_title: DimDash Homelab
+  theme:
+    accent_color: "#3f407d"
+    glass_opacity: 0.85
+    glass_blur: 16
+    background_type: image
+    background_value: /wallpapers/twilight_pines.jpg
+    wallpaper_dim: 10
+    card_style: pill
+    tile_density: normal
+    card_radius: 12
+    bg_logo_url: /uploads/1792220583192-Glossy_NOC_Telecom_Logo_with_Persian_Branding.png
+    bg_logo_opacity: 44
+    bg_logo_position: center
+    bg_logo_size: 550px
+    bg_logo_repeat: no-repeat
+  search:
+    enabled: true
+    focus_hotkey: /
+    instant_filter: true
+  show_stats_bar: true
+  admin_pin: "1234"
+  user_pin: "5678"
+categories:
+  - id: cat-1792219126039
+    name: Monitoring
+    color: "#6a6cf6"
+    layout: wide
+    icon: folder
+    is_collapsed: false
+    tiles:
+      - id: tile-1792219233363
+        title: Grafana Tohid
+        subtitle: گرافانا توحید
+        target_url: https://10.15.90.172:3130/
+        open_in_new_tab: true
+        visibility: public
+        icon_type: image
+        icon_value: /icons/heimdall/Grafana/grafana.svg
+        probe:
+          type: none
+          interval: 15
+          ignore_ssl: true
+      - id: tile-1792219472286
+        title: Grafana Esfahan
+        subtitle: گرافانا اصفهان
+        target_url: https://10.167.33.174:3130
+        open_in_new_tab: true
+        visibility: public
+        icon_type: image
+        icon_value: /icons/heimdall/Grafana/grafana.svg
+        probe:
+          type: none
+          interval: 15
+          ignore_ssl: true
+      - id: tile-1792219533446
+        title: Zabbix Esfahan
+        subtitle: زبیکس اصفهان
+        target_url: http://10.167.33.174
+        open_in_new_tab: true
+        visibility: public
+        icon_type: image
+        icon_value: /icons/heimdall/Zabbix/zabbix.svg
+        probe:
+          type: none
+          interval: 15
+          ignore_ssl: false
+      - id: tile-1792219587650
+        title: Zabbix Tohid
+        subtitle: زبیکس توحید
+        target_url: http://10.15.90.223/
+        open_in_new_tab: true
+        visibility: public
+        icon_type: image
+        icon_value: /icons/heimdall/Zabbix/zabbix.svg
+        probe:
+          type: none
+          interval: 15
+          ignore_ssl: false
+    tile_size: large
+    tile_style: grid
+    col_start: "1"
+    bg_style: transparent
+  - id: cat-1792219632141
+    name: Tools
+    color: "#991a1a"
+    layout: wide
+    icon: folder
+    is_collapsed: false
+    tiles:
+      - id: tile-1792219824720
+        title: NetMate
+        subtitle: IPTX tools
+        target_url: http://10.167.33.179:7676/
+        open_in_new_tab: true
+        visibility: public
+        icon_type: uploaded
+        icon_value: /uploads/1792219816572-logo.png
+        probe:
+          type: none
+          interval: 15
+          ignore_ssl: false
+      - id: tile-1792220046896
+        title: IP Topology Map
+        subtitle: نقشه توپولوژی شبکه IP
+        target_url: https://10.167.33.174:3130/d/anfvlpd/province-topology-map?orgId=1&from=now-1h&to=now&timezone=browser&var-province=$__all&var-isis_instance=900&var-isis_instance=912&var-filter_congestions=No&refresh=1m
+        open_in_new_tab: true
+        visibility: public
+        icon_type: uploaded
+        icon_value: /uploads/1792220044875-ip-map.png
+        probe:
+          type: none
+          interval: 15
+          ignore_ssl: false
+    tile_size: medium
+    icon_plate: light
+    col_start: "3"
+servers:
+  - id: local
+    name: Master Node (Local)
+    type: local
+    color: "#6366f1"
+    hasToken: false
+widgets:
+  - id: widget-clock
+    type: clock_widget
+    title: ساعت و تقویم
+    calendar_mode: both
+    time_format: 24h
+    show_seconds: true
+    color: "#38bdf8"
+    size: normal
+    align: center
+  - id: widget-cpu
+    server_id: local
+    type: cpu_gauge
+    title: CPU Core Usage
+    color: "#6366f1"
+    size: normal
+  - id: widget-ram
+    server_id: local
+    type: ram_gauge
+    title: Memory (RAM)
+    color: "#10b981"
+    size: normal
+  - id: widget-disk
+    server_id: local
+    type: disk_gauge
+    title: Storage & Disk
+    color: "#f59e0b"
+    size: normal
+  - id: widget-net
+    server_id: local
+    type: network_traffic
+    title: Network Traffic (I/O)
+    color: "#06b6d4"
+    size: normal
+  - id: widget-docker
+    server_id: local
+    type: docker_stats
+    title: Docker Containers
+    color: "#38bdf8"
+    size: normal
+  - id: widget-host
+    server_id: local
+    type: host_info
+    title: Host Telemetry & Uptime
+    color: "#ec4899"
+    size: normal
+is_pin_protected: true
+is_user_pin_protected: true

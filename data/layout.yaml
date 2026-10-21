@@ -1,0 +1,293 @@
+version: 2
+rev: 1
+profiles:
+  - id: xs
+    match:
+      max_w: 480
+    mode: flow
+    design:
+      - 390
+      - 844
+  - id: sm
+    match:
+      min_w: 481
+      max_w: 900
+    mode: flow
+    design:
+      - 768
+      - 1024
+  - id: md
+    match:
+      min_w: 901
+      max_w: 1500
+    mode: fit
+    design:
+      - 1280
+      - 800
+  - id: lg
+    match:
+      min_w: 1501
+      max_w: 2400
+    mode: fit
+    design:
+      - 1920
+      - 1080
+  - id: xl
+    match:
+      min_w: 2401
+    mode: fit
+    design:
+      - 3440
+      - 1440
+  - id: wall
+    match:
+      display_class: wall
+    mode: fit
+    design:
+      - 1920
+      - 1080
+    ui: tenfoot
+placement:
+  it_island_widgets:
+    lg:
+      x: 40
+      y: 40
+      w: 1720
+      h: 220
+      z: 1
+      parent: null
+      hc: stretch
+      vc: top
+      shape: rounded
+    md:
+      inherit: lg
+      scale: auto
+    xs:
+      order: 0
+  it_w_widget-clock:
+    lg:
+      x: 20
+      y: 20
+      w: 220
+      h: 180
+      z: 2
+      parent: it_island_widgets
+      hc: left
+      vc: top
+      shape: rounded
+    md:
+      inherit: lg
+    xs:
+      order: 0
+  it_w_widget-cpu:
+    lg:
+      x: 260
+      y: 20
+      w: 220
+      h: 180
+      z: 2
+      parent: it_island_widgets
+      hc: left
+      vc: top
+      shape: rounded
+    md:
+      inherit: lg
+    xs:
+      order: 1
+  it_w_widget-ram:
+    lg:
+      x: 500
+      y: 20
+      w: 220
+      h: 180
+      z: 2
+      parent: it_island_widgets
+      hc: left
+      vc: top
+      shape: rounded
+    md:
+      inherit: lg
+    xs:
+      order: 2
+  it_w_widget-disk:
+    lg:
+      x: 740
+      y: 20
+      w: 220
+      h: 180
+      z: 2
+      parent: it_island_widgets
+      hc: left
+      vc: top
+      shape: rounded
+    md:
+      inherit: lg
+    xs:
+      order: 3
+  it_w_widget-net:
+    lg:
+      x: 980
+      y: 20
+      w: 220
+      h: 180
+      z: 2
+      parent: it_island_widgets
+      hc: left
+      vc: top
+      shape: rounded
+    md:
+      inherit: lg
+    xs:
+      order: 4
+  it_w_widget-docker:
+    lg:
+      x: 1220
+      y: 20
+      w: 220
+      h: 180
+      z: 2
+      parent: it_island_widgets
+      hc: left
+      vc: top
+      shape: rounded
+    md:
+      inherit: lg
+    xs:
+      order: 5
+  it_w_widget-host:
+    lg:
+      x: 1460
+      y: 20
+      w: 220
+      h: 180
+      z: 2
+      parent: it_island_widgets
+      hc: left
+      vc: top
+      shape: rounded
+    md:
+      inherit: lg
+    xs:
+      order: 6
+  it_isl_cat-1792219126039:
+    lg:
+      x: 40
+      y: 280
+      w: 540
+      h: 310
+      z: 1
+      parent: null
+      hc: left
+      vc: top
+      shape: rounded
+    md:
+      inherit: lg
+      scale: auto
+    xs:
+      order: 8
+  it_srv_tile-1792219233363:
+    lg:
+      x: 20
+      y: 60
+      w: 230
+      h: 85
+      z: 2
+      parent: it_isl_cat-1792219126039
+      hc: left
+      vc: top
+      shape: rounded
+    md:
+      inherit: lg
+    xs:
+      order: 0
+  it_srv_tile-1792219472286:
+    lg:
+      x: 270
+      y: 60
+      w: 230
+      h: 85
+      z: 2
+      parent: it_isl_cat-1792219126039
+      hc: left
+      vc: top
+      shape: rounded
+    md:
+      inherit: lg
+    xs:
+      order: 1
+  it_srv_tile-1792219533446:
+    lg:
+      x: 20
+      y: 160
+      w: 230
+      h: 85
+      z: 2
+      parent: it_isl_cat-1792219126039
+      hc: left
+      vc: top
+      shape: rounded
+    md:
+      inherit: lg
+    xs:
+      order: 2
+  it_srv_tile-1792219587650:
+    lg:
+      x: 270
+      y: 160
+      w: 230
+      h: 85
+      z: 2
+      parent: it_isl_cat-1792219126039
+      hc: left
+      vc: top
+      shape: rounded
+    md:
+      inherit: lg
+    xs:
+      order: 3
+  it_isl_cat-1792219632141:
+    lg:
+      x: 610
+      y: 280
+      w: 540
+      h: 200
+      z: 1
+      parent: null
+      hc: left
+      vc: top
+      shape: rounded
+    md:
+      inherit: lg
+      scale: auto
+    xs:
+      order: 9
+  it_srv_tile-1792219824720:
+    lg:
+      x: 20
+      y: 60
+      w: 230
+      h: 85
+      z: 2
+      parent: it_isl_cat-1792219632141
+      hc: left
+      vc: top
+      shape: rounded
+    md:
+      inherit: lg
+    xs:
+      order: 0
+  it_srv_tile-1792220046896:
+    lg:
+      x: 270
+      y: 60
+      w: 230
+      h: 85
+      z: 2
+      parent: it_isl_cat-1792219632141
+      hc: left
+      vc: top
+      shape: rounded
+    md:
+      inherit: lg
+    xs:
+      order: 1

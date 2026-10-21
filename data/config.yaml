@@ -1,6 +1,9 @@
-version: "1.0"
+version: 2
 settings:
-  dashboard_title: DimDash Homelab
+  title: DimDash Homelab
+  locale: fa
+  calendar: both
+  quality: auto
   theme:
     accent_color: "#3f407d"
     glass_opacity: 0.85
@@ -20,154 +23,265 @@ settings:
     enabled: true
     focus_hotkey: /
     instant_filter: true
-  show_stats_bar: true
-  admin_pin: "1234"
-  user_pin: "5678"
-categories:
-  - id: cat-1792219126039
-    name: Monitoring
-    color: "#6a6cf6"
-    layout: wide
-    icon: folder
-    is_collapsed: false
-    tiles:
-      - id: tile-1792219233363
-        title: Grafana Tohid
-        subtitle: گرافانا توحید
-        target_url: https://10.15.90.172:3130/
-        open_in_new_tab: true
-        visibility: public
-        icon_type: image
-        icon_value: /icons/heimdall/Grafana/grafana.svg
-        probe:
-          type: none
-          interval: 15
-          ignore_ssl: true
-      - id: tile-1792219472286
-        title: Grafana Esfahan
-        subtitle: گرافانا اصفهان
-        target_url: https://10.167.33.174:3130
-        open_in_new_tab: true
-        visibility: public
-        icon_type: image
-        icon_value: /icons/heimdall/Grafana/grafana.svg
-        probe:
-          type: none
-          interval: 15
-          ignore_ssl: true
-      - id: tile-1792219533446
-        title: Zabbix Esfahan
-        subtitle: زبیکس اصفهان
-        target_url: http://10.167.33.174
-        open_in_new_tab: true
-        visibility: public
-        icon_type: image
-        icon_value: /icons/heimdall/Zabbix/zabbix.svg
-        probe:
-          type: none
-          interval: 15
-          ignore_ssl: false
-      - id: tile-1792219587650
-        title: Zabbix Tohid
-        subtitle: زبیکس توحید
-        target_url: http://10.15.90.223/
-        open_in_new_tab: true
-        visibility: public
-        icon_type: image
-        icon_value: /icons/heimdall/Zabbix/zabbix.svg
-        probe:
-          type: none
-          interval: 15
-          ignore_ssl: false
-    tile_size: large
-    tile_style: grid
-    col_start: "1"
-    bg_style: transparent
-  - id: cat-1792219632141
-    name: Tools
-    color: "#991a1a"
-    layout: wide
-    icon: folder
-    is_collapsed: false
-    tiles:
-      - id: tile-1792219824720
-        title: NetMate
-        subtitle: IPTX tools
-        target_url: http://10.167.33.179:7676/
-        open_in_new_tab: true
-        visibility: public
-        icon_type: uploaded
-        icon_value: /uploads/1792219816572-logo.png
-        probe:
-          type: none
-          interval: 15
-          ignore_ssl: false
-      - id: tile-1792220046896
-        title: IP Topology Map
-        subtitle: نقشه توپولوژی شبکه IP
-        target_url: https://10.167.33.174:3130/d/anfvlpd/province-topology-map?orgId=1&from=now-1h&to=now&timezone=browser&var-province=$__all&var-isis_instance=900&var-isis_instance=912&var-filter_congestions=No&refresh=1m
-        open_in_new_tab: true
-        visibility: public
-        icon_type: uploaded
-        icon_value: /uploads/1792220044875-ip-map.png
-        probe:
-          type: none
-          interval: 15
-          ignore_ssl: false
-    tile_size: medium
-    icon_plate: light
-    col_start: "3"
+  displays: []
 servers:
   - id: local
     name: Master Node (Local)
     type: local
     color: "#6366f1"
-    hasToken: false
-widgets:
-  - id: widget-clock
+items:
+  - id: it_island_widgets
+    kind: island
+    title: Widgets
+    props:
+      color: "#38bdf8"
+      icon: gauge
+      layoutMode: flow
+      isCollapsed: false
+      density: normal
+    acl:
+      visibility: public
+    rev: 1
+  - id: it_w_widget-clock
+    kind: widget
     type: clock_widget
     title: ساعت و تقویم
-    calendar_mode: both
-    time_format: 24h
-    show_seconds: true
-    color: "#38bdf8"
-    size: normal
-    align: center
-  - id: widget-cpu
-    server_id: local
+    props:
+      color: "#38bdf8"
+      size: normal
+      align: center
+      calendar_mode: both
+      time_format: 24h
+      show_seconds: true
+      server_id: local
+    bind:
+      server_id: local
+    acl:
+      visibility: public
+    rev: 1
+  - id: it_w_widget-cpu
+    kind: widget
     type: cpu_gauge
     title: CPU Core Usage
-    color: "#6366f1"
-    size: normal
-  - id: widget-ram
-    server_id: local
+    props:
+      color: "#6366f1"
+      size: normal
+      align: center
+      server_id: local
+    bind:
+      server_id: local
+    acl:
+      visibility: public
+    rev: 1
+  - id: it_w_widget-ram
+    kind: widget
     type: ram_gauge
     title: Memory (RAM)
-    color: "#10b981"
-    size: normal
-  - id: widget-disk
-    server_id: local
+    props:
+      color: "#10b981"
+      size: normal
+      align: center
+      server_id: local
+    bind:
+      server_id: local
+    acl:
+      visibility: public
+    rev: 1
+  - id: it_w_widget-disk
+    kind: widget
     type: disk_gauge
     title: Storage & Disk
-    color: "#f59e0b"
-    size: normal
-  - id: widget-net
-    server_id: local
+    props:
+      color: "#f59e0b"
+      size: normal
+      align: center
+      server_id: local
+    bind:
+      server_id: local
+    acl:
+      visibility: public
+    rev: 1
+  - id: it_w_widget-net
+    kind: widget
     type: network_traffic
     title: Network Traffic (I/O)
-    color: "#06b6d4"
-    size: normal
-  - id: widget-docker
-    server_id: local
+    props:
+      color: "#06b6d4"
+      size: normal
+      align: center
+      server_id: local
+    bind:
+      server_id: local
+    acl:
+      visibility: public
+    rev: 1
+  - id: it_w_widget-docker
+    kind: widget
     type: docker_stats
     title: Docker Containers
-    color: "#38bdf8"
-    size: normal
-  - id: widget-host
-    server_id: local
+    props:
+      color: "#38bdf8"
+      size: normal
+      align: center
+      server_id: local
+    bind:
+      server_id: local
+    acl:
+      visibility: public
+    rev: 1
+  - id: it_w_widget-host
+    kind: widget
     type: host_info
     title: Host Telemetry & Uptime
-    color: "#ec4899"
-    size: normal
-is_pin_protected: true
-is_user_pin_protected: true
+    props:
+      color: "#ec4899"
+      size: normal
+      align: center
+      server_id: local
+    bind:
+      server_id: local
+    acl:
+      visibility: public
+    rev: 1
+  - id: it_isl_cat-1792219126039
+    kind: island
+    title: Monitoring
+    subtitle: ""
+    props:
+      color: "#6a6cf6"
+      icon: folder
+      layoutMode: flow
+      isCollapsed: false
+      density: normal
+      tileSize: large
+      tileStyle: grid
+      bgStyle: transparent
+      colStart: "1"
+    acl:
+      visibility: public
+    rev: 1
+  - id: it_srv_tile-1792219233363
+    kind: service
+    title: Grafana Tohid
+    subtitle: گرافانا توحید
+    props:
+      target_url: https://10.15.90.172:3130/
+      open_in_new_tab: true
+      icon_type: image
+      icon_value: /icons/heimdall/Grafana/grafana.svg
+    bind:
+      status: probe:it_srv_tile-1792219233363
+    probe:
+      type: none
+      interval: 15
+      ignore_ssl: true
+    acl:
+      visibility: public
+    rev: 1
+  - id: it_srv_tile-1792219472286
+    kind: service
+    title: Grafana Esfahan
+    subtitle: گرافانا اصفهان
+    props:
+      target_url: https://10.167.33.174:3130
+      open_in_new_tab: true
+      icon_type: image
+      icon_value: /icons/heimdall/Grafana/grafana.svg
+    bind:
+      status: probe:it_srv_tile-1792219472286
+    probe:
+      type: none
+      interval: 15
+      ignore_ssl: true
+    acl:
+      visibility: public
+    rev: 1
+  - id: it_srv_tile-1792219533446
+    kind: service
+    title: Zabbix Esfahan
+    subtitle: زبیکس اصفهان
+    props:
+      target_url: http://10.167.33.174
+      open_in_new_tab: true
+      icon_type: image
+      icon_value: /icons/heimdall/Zabbix/zabbix.svg
+    bind:
+      status: probe:it_srv_tile-1792219533446
+    probe:
+      type: none
+      interval: 15
+      ignore_ssl: false
+    acl:
+      visibility: public
+    rev: 1
+  - id: it_srv_tile-1792219587650
+    kind: service
+    title: Zabbix Tohid
+    subtitle: زبیکس توحید
+    props:
+      target_url: http://10.15.90.223/
+      open_in_new_tab: true
+      icon_type: image
+      icon_value: /icons/heimdall/Zabbix/zabbix.svg
+    bind:
+      status: probe:it_srv_tile-1792219587650
+    probe:
+      type: none
+      interval: 15
+      ignore_ssl: false
+    acl:
+      visibility: public
+    rev: 1
+  - id: it_isl_cat-1792219632141
+    kind: island
+    title: Tools
+    subtitle: ""
+    props:
+      color: "#991a1a"
+      icon: folder
+      layoutMode: flow
+      isCollapsed: false
+      density: normal
+      tileSize: medium
+      tileStyle: grid
+      bgStyle: transparent
+      colStart: "3"
+    acl:
+      visibility: public
+    rev: 1
+  - id: it_srv_tile-1792219824720
+    kind: service
+    title: NetMate
+    subtitle: IPTX tools
+    props:
+      target_url: http://10.167.33.179:7676/
+      open_in_new_tab: true
+      icon_type: uploaded
+      icon_value: /uploads/1792219816572-logo.png
+    bind:
+      status: probe:it_srv_tile-1792219824720
+    probe:
+      type: none
+      interval: 15
+      ignore_ssl: false
+    acl:
+      visibility: public
+    rev: 1
+  - id: it_srv_tile-1792220046896
+    kind: service
+    title: IP Topology Map
+    subtitle: نقشه توپولوژی شبکه IP
+    props:
+      target_url: https://10.167.33.174:3130/d/anfvlpd/province-topology-map?orgId=1&from=now-1h&to=now&timezone=browser&var-province=$__all&var-isis_instance=900&var-isis_instance=912&var-filter_congestions=No&refresh=1m
+      open_in_new_tab: true
+      icon_type: uploaded
+      icon_value: /uploads/1792220044875-ip-map.png
+    bind:
+      status: probe:it_srv_tile-1792220046896
+    probe:
+      type: none
+      interval: 15
+      ignore_ssl: false
+    acl:
+      visibility: public
+    rev: 1

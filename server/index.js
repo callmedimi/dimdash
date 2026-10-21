@@ -2,12 +2,13 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const ConfigManager = require('./configManager');
+const BoardManager = require('./boardManager');
 const Prober = require('./prober');
 const DEFAULT_ICONS = require('./defaultIcons');
 const systemStats = require('./systemStats');
 const zlib = require('zlib');
 const ClusterManager = require('./clusterManager');
+const { validate, PatchRequestSchema } = require('./schema');
 
 const app = express();
 const PORT = process.env.PORT || 3080;
@@ -23,10 +24,10 @@ try {
   console.warn(`[Server] Notice: Unable to create uploads directory: ${err.message}`);
 }
 
-// Initialize Config & Prober & ClusterManager & MetricsHistory
-const configManager = new ConfigManager(path.join(dataDir, 'config.yaml'));
-const prober = new Prober(configManager);
-const clusterManager = new ClusterManager(configManager, systemStats);
+// Initialize BoardManager (v2 Spatial Board + Persistence)
+const boardManager = new BoardManager(dataDir);
+const prober = new Prober(boardManager);
+const clusterManager = new ClusterManager(boardManager, systemStats);
 const MetricsHistoryCollector = require('./metricsHistory');
 const metricsHistory = new MetricsHistoryCollector(dataDir);
 
@@ -64,10 +65,15 @@ app.use(express.static(path.resolve(__dirname, '../public'), staticCacheOptions)
 // Server-Sent Events (SSE) clients
 const sseClients = new Set();
 
-function broadcastSSE(event, data) {
-  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+function broadcastSSE(event, data, id = null) {
+  const idLine = id !== null ? `id: ${id}\n` : '';
+  const payload = `${idLine}event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
   for (const client of sseClients) {
     try {
+      // Backpressure check: drop telemetry/probe deltas if client write buffer > 256KB
+      if (client.writableLength > 256 * 1024 && (event.includes('delta') || event.includes('telemetry'))) {
+        continue;
+      }
       client.write(payload);
     } catch (_) {
       sseClients.delete(client);
@@ -75,26 +81,71 @@ function broadcastSSE(event, data) {
   }
 }
 
-// Notify SSE on config change
-configManager.on('change', (cfg) => {
+// BoardManager Event Listeners
+boardManager.on('patch', (data) => {
+  broadcastSSE('patch', data, data.rev);
+});
+
+boardManager.on('config_error', (data) => {
+  broadcastSSE('config_error', data);
+});
+
+boardManager.on('reload', (data) => {
+  broadcastSSE('reload', data);
+  broadcastSSE('config', sanitizeConfig(boardManager.getConfig()));
+});
+
+boardManager.on('change', (cfg) => {
   broadcastSSE('config', sanitizeConfig(cfg));
 });
 
+// 15s Heartbeat comment to keep connections alive through proxies and firewalls
+setInterval(() => {
+  for (const client of sseClients) {
+    try {
+      client.write(': heartbeat\n\n');
+    } catch (_) {
+      sseClients.delete(client);
+    }
+  }
+}, 15000).unref();
+
+// Telemetry & Probe Delta Tracking
+let prevTelemetryJson = '';
+let prevProbesJson = '';
+let lastFullPushTime = Date.now();
+
+// Periodic SSE system telemetry push (every 2s delta, every 30s full)
+setInterval(() => {
+  if (sseClients.size === 0) return;
+  const currentTelemetry = clusterManager.getAllTelemetry();
+  const currentJson = JSON.stringify(currentTelemetry);
+  const now = Date.now();
+
+  if (now - lastFullPushTime > 30000 || !prevTelemetryJson) {
+    broadcastSSE('system_telemetry', currentTelemetry);
+    prevTelemetryJson = currentJson;
+    lastFullPushTime = now;
+  } else if (currentJson !== prevTelemetryJson) {
+    // Send delta
+    broadcastSSE('telemetry_delta', currentTelemetry);
+    prevTelemetryJson = currentJson;
+  }
+}, 2000).unref();
+
 // Periodic SSE probe status push (every 5s)
 setInterval(() => {
-  if (sseClients.size > 0) {
-    broadcastSSE('probes', prober.getAllResults());
-  }
-}, 5000);
+  if (sseClients.size === 0) return;
+  const currentProbes = prober.getAllResults();
+  const currentJson = JSON.stringify(currentProbes);
 
-// Periodic SSE system telemetry push (every 2s)
-setInterval(() => {
-  if (sseClients.size > 0) {
-    broadcastSSE('system_telemetry', clusterManager.getAllTelemetry());
+  if (currentJson !== prevProbesJson) {
+    broadcastSSE('probes', currentProbes);
+    prevProbesJson = currentJson;
   }
-}, 2000);
+}, 5000).unref();
 
-// Instant push on agent telemetry updates
+// Instant push on remote agent telemetry updates
 clusterManager.on('telemetry_updated', () => {
   if (sseClients.size > 0) {
     broadcastSSE('system_telemetry', clusterManager.getAllTelemetry());
@@ -102,7 +153,7 @@ clusterManager.on('telemetry_updated', () => {
 });
 
 function sanitizeConfig(cfg) {
-  const clone = JSON.parse(JSON.stringify(cfg));
+  const clone = JSON.parse(JSON.stringify(cfg || {}));
   clone.settings = clone.settings || {};
   clone.categories = Array.isArray(clone.categories) ? clone.categories : [];
   clone.widgets = Array.isArray(clone.widgets) ? clone.widgets : [];
@@ -112,8 +163,8 @@ function sanitizeConfig(cfg) {
         return { ...safe, hasToken: !!token };
       })
     : [{ id: 'local', name: 'Master Node (Local)', type: 'local', color: '#6366f1' }];
-  const effectiveAdminPin = process.env.ADMIN_PIN || clone.settings.admin_pin;
-  const effectiveUserPin = process.env.USER_PIN || clone.settings.user_pin;
+  const effectiveAdminPin = boardManager.getEffectiveAdminPin();
+  const effectiveUserPin = boardManager.getEffectiveUserPin();
   clone.is_pin_protected = !!effectiveAdminPin;
   clone.is_user_pin_protected = !!effectiveUserPin;
   // Mask admin and user PINs from client
@@ -122,36 +173,104 @@ function sanitizeConfig(cfg) {
   return clone;
 }
 
-function getEffectiveAdminPin() {
-  const cfg = configManager.getConfig();
-  return process.env.ADMIN_PIN || cfg.settings?.admin_pin || '';
-}
+// --- API Routes ---
 
-function getEffectiveUserPin() {
-  const cfg = configManager.getConfig();
-  return process.env.USER_PIN || cfg.settings?.user_pin || '';
-}
-
-// API Routes
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     app: 'DimDash',
-    version: '1.0.0',
+    version: '2.0.0',
+    data_model: 'v2',
     air_gapped: true,
     uptime: Math.floor(process.uptime()),
     timestamp: Date.now()
   });
 });
 
+// v2 Board APIs
+app.get('/api/board', (req, res) => {
+  const auth = boardManager.authorize(req, 'read');
+  const board = boardManager.getSanitizedBoard(auth.role);
+  const etag = `"${board.rev}"`;
+
+  res.setHeader('ETag', etag);
+  if (req.headers['if-none-match'] === etag) {
+    return res.status(304).end();
+  }
+
+  res.json(board);
+});
+
+app.post('/api/board/patch', (req, res) => {
+  const auth = boardManager.authorize(req, 'patch');
+  if (!auth.authorized) {
+    return res.status(401).json({ error: 'Unauthorized: Admin privileges required to patch board' });
+  }
+
+  const valid = validate(PatchRequestSchema, req.body);
+  if (!valid.ok) {
+    return res.status(400).json({ error: 'Invalid patch payload', details: valid.errors });
+  }
+
+  try {
+    const result = boardManager.applyPatch(req.body, auth.role);
+    res.json(result);
+  } catch (err) {
+    const status = err.status || 500;
+    res.status(status).json({ error: err.message || 'Failed to apply patch' });
+  }
+});
+
+app.get('/api/board/since/:rev', (req, res) => {
+  const fromRev = parseInt(req.params.rev, 10);
+  if (isNaN(fromRev)) {
+    return res.status(400).json({ error: 'Invalid rev parameter' });
+  }
+
+  if (boardManager.patchEngine.isPurged(fromRev)) {
+    return res.status(410).json({ error: 'Requested rev has been purged from journal. Please fetch full /api/board snapshot.' });
+  }
+
+  const ops = boardManager.patchEngine.getOpsSince(fromRev);
+  res.json({ headRev: boardManager.state.rev, ops });
+});
+
+app.get('/api/board/health', (req, res) => {
+  res.json(boardManager.getHealth());
+});
+
+// Legacy /api/config Compatibility Routes
 app.get('/api/config', (req, res) => {
-  const cfg = configManager.getConfig();
-  res.json(sanitizeConfig(cfg));
+  res.setHeader('Deprecation', '@deprecated Use /api/board');
+  const v1Config = boardManager.getConfig();
+  res.json(sanitizeConfig(v1Config));
+});
+
+app.post('/api/config', (req, res) => {
+  res.setHeader('Deprecation', '@deprecated Use /api/board/patch');
+  const { config, pin } = req.body;
+  const currentPin = boardManager.getEffectiveAdminPin();
+
+  if (currentPin && String(pin) !== String(currentPin)) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid Admin PIN' });
+  }
+
+  if (!config || typeof config !== 'object') {
+    return res.status(400).json({ error: 'Invalid configuration payload' });
+  }
+
+  const result = boardManager.saveConfig(config);
+  if (result.success) {
+    prober.runCycle();
+    res.json({ success: true });
+  } else {
+    res.status(500).json({ error: result.error });
+  }
 });
 
 app.post('/api/verify-pin', (req, res) => {
   const { pin } = req.body;
-  const currentPin = getEffectiveAdminPin();
+  const currentPin = boardManager.getEffectiveAdminPin();
 
   if (!currentPin) {
     return res.json({ valid: true, role: 'admin' });
@@ -166,10 +285,9 @@ app.post('/api/verify-pin', (req, res) => {
 
 app.post('/api/verify-user-pin', (req, res) => {
   const { pin } = req.body;
-  const userPin = getEffectiveUserPin();
-  const adminPin = getEffectiveAdminPin();
+  const userPin = boardManager.getEffectiveUserPin();
+  const adminPin = boardManager.getEffectiveAdminPin();
 
-  // If Admin PIN is supplied, treat as admin
   if (adminPin && String(pin) === String(adminPin)) {
     return res.json({ valid: true, role: 'admin' });
   }
@@ -185,57 +303,13 @@ app.post('/api/verify-user-pin', (req, res) => {
   return res.status(401).json({ valid: false, error: 'Incorrect PIN' });
 });
 
-app.post('/api/config', (req, res) => {
-  const { config, pin } = req.body;
-  const currentConfig = configManager.getConfig();
-  const currentPin = getEffectiveAdminPin();
-
-  // Validate PIN if configured
-  if (currentPin && String(pin) !== String(currentPin)) {
-    return res.status(401).json({ error: 'Unauthorized: Invalid Admin PIN' });
-  }
-
-  if (!config || typeof config !== 'object') {
-    return res.status(400).json({ error: 'Invalid configuration payload' });
-  }
-
-  // Preserve admin PIN if client didn't supply a new one
-  if (!config.settings) config.settings = {};
-  if (!config.settings.admin_pin && currentPin) {
-    config.settings.admin_pin = currentPin;
-  }
-  const currentUserPin = currentConfig.settings?.user_pin;
-  if (!config.settings.user_pin && currentUserPin) {
-    config.settings.user_pin = currentUserPin;
-  }
-
-  // Preserve server tokens if client didn't supply them
-  if (Array.isArray(config.servers) && Array.isArray(currentConfig.servers)) {
-    config.servers.forEach(srv => {
-      if (!srv.token) {
-        const existing = currentConfig.servers.find(s => s.id === srv.id);
-        if (existing?.token) srv.token = existing.token;
-      }
-    });
-  }
-
-  const result = configManager.saveConfig(config);
-  if (result.success) {
-    // Run probe cycle right away for new/modified tiles
-    prober.runCycle();
-    res.json({ success: true });
-  } else {
-    res.status(500).json({ error: result.error });
-  }
-});
-
 app.get('/api/probes', (req, res) => {
   res.json(prober.getAllResults());
 });
 
 app.get('/api/probes/:id', async (req, res) => {
   const tileId = req.params.id;
-  const cfg = configManager.getConfig();
+  const cfg = boardManager.getConfig();
   let targetTile = null;
 
   for (const cat of cfg.categories || []) {
@@ -266,13 +340,13 @@ app.post('/api/probes/test-all', async (req, res) => {
 
 app.post('/api/admin/bulk-delete', (req, res) => {
   const { tileIds = [], categoryIds = [], pin } = req.body;
-  const currentConfig = configManager.getConfig();
-  const currentPin = currentConfig.settings?.admin_pin;
+  const currentPin = boardManager.getEffectiveAdminPin();
 
   if (currentPin && String(pin) !== String(currentPin)) {
     return res.status(401).json({ error: 'Unauthorized: Invalid Admin PIN' });
   }
 
+  const currentConfig = boardManager.getConfig();
   const updatedCategories = (currentConfig.categories || [])
     .filter(cat => !categoryIds.includes(cat.id))
     .map(cat => ({
@@ -281,7 +355,7 @@ app.post('/api/admin/bulk-delete', (req, res) => {
     }));
 
   currentConfig.categories = updatedCategories;
-  const result = configManager.saveConfig(currentConfig);
+  const result = boardManager.saveConfig(currentConfig);
 
   if (result.success) {
     prober.runCycle();
@@ -292,7 +366,7 @@ app.post('/api/admin/bulk-delete', (req, res) => {
 });
 
 app.get('/api/system-stats', (req, res) => {
-  const cfg = configManager.getConfig();
+  const cfg = boardManager.getConfig();
   let totalTiles = 0;
   for (const cat of cfg.categories || []) {
     totalTiles += (cat.tiles || []).length;
@@ -356,7 +430,6 @@ app.post('/api/upload', (req, res) => {
     const safeName = Date.now() + '-' + filename.replace(/[^a-zA-Z0-9.-]/g, '_');
     const targetPath = path.join(uploadsDir, safeName);
 
-    // Strip data:image/...;base64, prefix if present
     const cleanBase64 = base64Data.replace(/^data:([A-Za-z-+/]+);base64,/, '');
     fs.writeFileSync(targetPath, Buffer.from(cleanBase64, 'base64'));
 
@@ -401,14 +474,54 @@ app.get('/api/events', (req, res) => {
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders();
 
-  // Send initial state
-  res.write(`event: config\ndata: ${JSON.stringify(sanitizeConfig(configManager.getConfig()))}\n\n`);
+  const auth = boardManager.authorize(req, 'read');
+  const board = boardManager.getSanitizedBoard(auth.role);
+
+  // Check Last-Event-ID for missed patch replay
+  const lastEventId = req.headers['last-event-id'];
+  let replayed = false;
+  if (lastEventId) {
+    const lastRev = parseInt(lastEventId, 10);
+    const earliest = boardManager.patchEngine.getEarliestRev();
+    if (!isNaN(lastRev) && lastRev >= earliest && lastRev < boardManager.state.rev) {
+      const missed = boardManager.patchEngine.getOpsSince(lastRev);
+      for (const entry of missed) {
+        res.write(`id: ${entry.rev}\nevent: patch\ndata: ${JSON.stringify(entry)}\n\n`);
+      }
+      replayed = true;
+    }
+  }
+
+  // Send initial snapshot if not replayed
+  if (!replayed) {
+    res.write(`id: ${board.rev}\nevent: snapshot\ndata: ${JSON.stringify(board)}\n\n`);
+  }
+
+  // Send legacy config event for backwards compatibility
+  res.write(`event: config\ndata: ${JSON.stringify(sanitizeConfig(boardManager.getConfig()))}\n\n`);
   res.write(`event: probes\ndata: ${JSON.stringify(prober.getAllResults())}\n\n`);
   res.write(`event: system_telemetry\ndata: ${JSON.stringify(clusterManager.getAllTelemetry())}\n\n`);
 
   sseClients.add(res);
 
+  // Per-client backpressure monitor
+  let backpressureCount = 0;
+  const backpressureInterval = setInterval(() => {
+    if (res.writableLength > 256 * 1024) {
+      backpressureCount++;
+      if (backpressureCount >= 5) {
+        // Slow client persistent for 5s: terminate
+        clearInterval(backpressureInterval);
+        sseClients.delete(res);
+        try { res.end(); } catch (_) {}
+      }
+    } else {
+      backpressureCount = 0;
+    }
+  }, 1000);
+
   req.on('close', () => {
+    clearInterval(backpressureInterval);
     sseClients.delete(res);
   });
 });
@@ -423,7 +536,7 @@ app.get(['/admin', '/admin/*'], (req, res) => {
   }
 });
 
-// Fast 404 for missing assets or API calls (do not return index.html for assets!)
+// Fast 404 for missing assets or API calls
 app.all(['/api/*', '/uploads/*', '/icons/*', '/fonts/*', '/wallpapers/*', '/css/*', '/js/*'], (req, res) => {
   res.status(404).end();
 });
@@ -433,10 +546,14 @@ app.get('*', (req, res) => {
   res.sendFile(path.resolve(__dirname, '../public/index.html'));
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`=================================================`);
-  console.log(`🚀 DimDash Air-Gapped Dashboard running on port ${PORT}`);
-  console.log(`🌐 Local Web UI: http://localhost:${PORT}`);
-  console.log(`📁 Config File: ${configManager.configPath}`);
-  console.log(`=================================================`);
-});
+if (require.main === module) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`=================================================`);
+    console.log(`🚀 DimDash v2 Air-Gapped Dashboard running on port ${PORT}`);
+    console.log(`🌐 Local Web UI: http://localhost:${PORT}`);
+    console.log(`📁 Config: ${boardManager.configPath} (Rev: ${boardManager.state.rev})`);
+    console.log(`=================================================`);
+  });
+}
+
+module.exports = { app, boardManager, prober, clusterManager };

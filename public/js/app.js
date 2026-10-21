@@ -210,9 +210,23 @@ function showToast(message, type = 'info') {
 // Config & Theme Management
 async function loadConfig() {
   try {
-    const res = await fetch('/api/config');
-    if (!res.ok) throw new Error('Failed to fetch config');
-    AppState.config = await res.json();
+    // Attempt v2 board load first
+    let board = null;
+    try {
+      const boardRes = await fetch('/api/board');
+      if (boardRes.ok) {
+        board = await boardRes.json();
+        AppState.board = board;
+      }
+    } catch (e) {}
+
+    if (board && window.DimDashCompat) {
+      AppState.config = window.DimDashCompat.deriveV1FromV2(board);
+    } else {
+      const res = await fetch('/api/config');
+      if (!res.ok) throw new Error('Failed to fetch config');
+      AppState.config = await res.json();
+    }
 
     // Check saved session
     const savedRole = sessionStorage.getItem('dimdash_role');
@@ -387,9 +401,32 @@ function renderStatsBarVisibility() {
 
 // Render Dashboard
 function renderDashboard() {
+  const isStageEnabled = AppState.config?.settings?.experimental?.stage !== false && window.DimDashStage;
+  const stageMount = document.getElementById('stageMount');
+  const contentArea = document.getElementById('contentArea');
+
+  if (isStageEnabled && stageMount) {
+    stageMount.style.display = 'block';
+    if (contentArea) contentArea.style.display = 'none';
+
+    if (!AppState.stageRenderer) {
+      AppState.stageRenderer = new window.DimDashStage.StageRenderer(stageMount);
+    }
+    if (AppState.board) {
+      AppState.stageRenderer.setBoard(AppState.board);
+    }
+  } else {
+    if (stageMount) stageMount.style.display = 'none';
+    if (contentArea) contentArea.style.display = '';
+    if (AppState.stageRenderer) {
+      AppState.stageRenderer.destroy();
+      AppState.stageRenderer = null;
+    }
+    renderGrid();
+  }
+
   renderCategoryTabs();
   renderWidgets();
-  renderGrid();
   renderStatsBarVisibility();
   switchDashboardView(AppState.currentView || 'apps');
 }
