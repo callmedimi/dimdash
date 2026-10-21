@@ -32,8 +32,14 @@
       this.lastVhWu = 0;
       this.isRendering = false;
 
+      this.camera = null;
+      this.spatialIndex = null;
+      this.overlayRenderer = null;
+      this.interaction = null;
+
       this.initDom();
       this.initDisplayScale();
+      this.initStageEngines();
       this.initObservers();
       this.initIdleHandler();
     }
@@ -46,6 +52,10 @@
           <div id="stageCanvas" class="stage-canvas"></div>
           <canvas id="stageOverlay" class="stage-overlay"></canvas>
           <div id="stageHud" class="stage-hud"></div>
+          <div id="stageBlueprintPill" class="stage-blueprint-pill admin-only-ui" title="Toggle In-Place Blueprint Edit Mode (Key: E)">
+            <span class="pill-dot"></span>
+            <span>Blueprint Mode [E]</span>
+          </div>
         </div>
       `;
 
@@ -53,6 +63,44 @@
       this.canvasEl = this.container.querySelector('#stageCanvas');
       this.overlayEl = this.container.querySelector('#stageOverlay');
       this.hudEl = this.container.querySelector('#stageHud');
+    }
+
+    initStageEngines() {
+      if (typeof window === 'undefined') return;
+
+      if (window.DimDashCamera) {
+        this.camera = new window.DimDashCamera.Camera({
+          viewportW: this.viewportEl?.clientWidth || window.innerWidth,
+          viewportH: this.viewportEl?.clientHeight || window.innerHeight
+        });
+      }
+
+      if (window.DimDashSpatial) {
+        this.spatialIndex = new window.DimDashSpatial.SpatialIndex(128);
+      }
+
+      if (window.DimDashOverlay && this.overlayEl) {
+        this.overlayRenderer = new window.DimDashOverlay.StageOverlay(this.overlayEl, {
+          dpr: window.devicePixelRatio || 1
+        });
+        const w = this.viewportEl?.clientWidth || window.innerWidth;
+        const h = this.viewportEl?.clientHeight || window.innerHeight;
+        this.overlayRenderer.resize(w, h, window.devicePixelRatio || 1);
+      }
+
+      if (window.DimDashInteraction) {
+        this.interaction = new window.DimDashInteraction.InteractionController(this);
+      }
+
+      const pill = this.container?.querySelector('#stageBlueprintPill');
+      if (pill) {
+        pill.addEventListener('click', () => {
+          if (this.interaction) {
+            this.interaction.toggleEditing();
+            pill.classList.toggle('active', this.interaction.isEditing);
+          }
+        });
+      }
     }
 
     initDisplayScale() {
@@ -137,6 +185,12 @@
     }
 
     onViewportResize(widthPx, heightPx) {
+      if (this.camera) this.camera.setViewportSize(widthPx, heightPx);
+      if (this.overlayRenderer) {
+        this.overlayRenderer.resize(widthPx, heightPx, window.devicePixelRatio || 1);
+        if (this.interaction) this.interaction.requestOverlayRedraw();
+      }
+
       if (!this.board || this.isRendering) return;
 
       const wu = this.metrics ? this.metrics.wu : 1.0;
@@ -264,7 +318,7 @@
 
         let el = this.itemElements.get(rect.id);
         if (!el) {
-          el = this.createItemElement(item);
+          el = this.createItemElement(item, rect);
           this.itemElements.set(rect.id, el);
           if (rect.pinned) {
             this.hudEl.appendChild(el);
@@ -272,6 +326,11 @@
             this.canvasEl.appendChild(el);
           }
           if (this.sizeObserver) this.sizeObserver.observe(el);
+        } else {
+          // Re-render shaped islands or chips if dimensions changed
+          if (item.kind === 'island') {
+            this.renderItemContent(el, item, rect);
+          }
         }
 
         // Write coordinates via CSS custom properties
@@ -298,31 +357,113 @@
           }
         }
       }
+
+      // Rebuild spatial index and redraw overlay
+      if (this.spatialIndex) {
+        this.spatialIndex.rebuild(rects);
+      }
+      if (this.interaction) {
+        this.interaction.requestOverlayRedraw();
+      }
     }
 
-    createItemElement(item) {
+    createItemElement(item, rect = null) {
       const el = document.createElement('section');
       el.className = `stage-item stage-${item.kind || 'widget'}`;
       el.setAttribute('data-id', item.id);
       el.setAttribute('data-kind', item.kind || 'widget');
 
-      this.renderItemContent(el, item);
+      this.renderItemContent(el, item, rect);
       return el;
     }
 
-    renderItemContent(el, item) {
+    renderItemContent(el, item, rect = null) {
       if (item.kind === 'island') {
+        const itemW = rect ? rect.w : 280;
+        const itemH = rect ? rect.h : 200;
+        const autoBelow = item.props?.collapse?.auto_below || [120, 80];
+        const isChip = item.props?.collapse?.state === 'chip' || (rect && (itemW < autoBelow[0] || itemH < autoBelow[1]));
+
+        if (isChip) {
+          el.classList.add('is-chip');
+          el.innerHTML = `
+            <div class="stage-island-chip" id="chip_${item.id}" title="Click to expand">
+              <span class="chip-icon">${item.props?.icon ? `<i data-icon="${item.props.icon}"></i>` : '📁'}</span>
+              <span class="chip-title">${item.title || 'Island'}</span>
+              <span class="chip-badge">⤢</span>
+            </div>
+          `;
+          const chipEl = el.querySelector(`#chip_${item.id}`);
+          if (chipEl) {
+            chipEl.addEventListener('click', (e) => {
+              e.stopPropagation();
+              item.props = item.props || {};
+              item.props.collapse = item.props.collapse || {};
+              item.props.collapse.state = 'expanded';
+              this.render();
+            });
+          }
+          return;
+        }
+
+        el.classList.remove('is-chip');
+
+        const shape = item.props?.shape || 'rounded';
+        const shapeParams = item.props?.shape_params || {};
+        let clipStyle = '';
+        let svgBorderHtml = '';
+        let padStyle = '';
+
+        if (window.DimDashShapes && shape !== 'rect') {
+          const clipStr = window.DimDashShapes.getClipPath(shape, itemW, itemH, shapeParams);
+          if (clipStr) {
+            clipStyle = `clip-path: ${clipStr}; -webkit-clip-path: ${clipStr};`;
+          }
+          const svgPath = window.DimDashShapes.getSvgBorderPath(shape, itemW, itemH, shapeParams);
+          if (svgPath) {
+            svgBorderHtml = `
+              <svg class="stage-island-svg-border" viewBox="0 0 ${itemW} ${itemH}">
+                <path d="${svgPath}" />
+              </svg>
+            `;
+          }
+          const insets = window.DimDashShapes.getContentSafeArea(shape, itemW, itemH, shapeParams);
+          if (insets) {
+            padStyle = `padding: ${insets[0]}px ${insets[1]}px ${insets[2]}px ${insets[3]}px;`;
+          }
+        }
+
+        const headerStyle = item.props?.header?.style || 'bar';
+        const layoutMode = item.props?.layout || 'free';
+        const overflowMode = item.props?.overflow || 'clip';
+        const tint = item.props?.tint ? `style="--card-bg: ${item.props.tint};"` : '';
+
         el.innerHTML = `
-          <div class="stage-island">
+          <div class="stage-island" ${tint} data-shape="${shape}" data-header="${headerStyle}" data-layout="${layoutMode}" data-overflow="${overflowMode}" style="${clipStyle}">
+            ${svgBorderHtml}
             <header class="stage-island-header">
               <span class="stage-island-title">
                 <span class="island-icon">${item.props?.icon ? `<i data-icon="${item.props.icon}"></i>` : ''}</span>
                 <span>${item.title || 'Island'}</span>
               </span>
+              <div class="stage-island-actions">
+                <button class="stage-island-btn" id="btnCollapse_${item.id}" title="Collapse to Chip">−</button>
+              </div>
             </header>
-            <div class="stage-island-body" id="body_${item.id}"></div>
+            <div class="stage-island-body" id="body_${item.id}" style="${padStyle}"></div>
           </div>
         `;
+
+        const collapseBtn = el.querySelector(`#btnCollapse_${item.id}`);
+        if (collapseBtn) {
+          collapseBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            item.props = item.props || {};
+            item.props.collapse = item.props.collapse || {};
+            item.props.collapse.state = 'chip';
+            this.render();
+          });
+        }
         return;
       }
 
@@ -360,6 +501,7 @@
     }
 
     destroy() {
+      if (this.interaction) this.interaction.destroy();
       if (this.resizeObserver) this.resizeObserver.disconnect();
       if (this.sizeObserver) this.sizeObserver.disconnect();
       clearTimeout(this.idleTimer);

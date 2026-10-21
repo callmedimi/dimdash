@@ -132,13 +132,45 @@ Implemented in `public/css/stage.css` and `public/js/stage/stageRenderer.js`:
 
 ---
 
-## 8. Automated Test Suite Verification
+## 8. Interaction Engine & In-Place Edit Mode (P04)
+
+Implemented in `public/js/stage/interaction.js`, `overlay.js`, `snap.js`, `spatial.js`, and `camera.js`:
+- **Interaction State Machine:** Deterministic transitions (`idle` ➔ `hover` ➔ `armed` ➔ `move` | `resize` | `pan` | `lasso` ➔ `committing` ➔ `idle`).
+- **Zero-Layout-Read Move Loop:** Measures bounding boxes and camera space once on `pointerdown` into typed objects. The `pointermove` loop runs pure numeric coordinate math and enqueues a single `requestAnimationFrame` write directly to `style.transform`. Zero `getBoundingClientRect` calls during move frames.
+- **Geometric 8-Handle Hit-Testing:** Handles are not DOM elements. They are hit-tested geometrically on the `#stageOverlay` canvas with automatic touch-target inflation (9px fine, 22px coarse).
+- **Magnetic Snapping & Smart Guides:** Candidate evaluation (neighbor edges, center lines, equal gaps, 4 wu grid), 6px threshold, 10px release hysteresis, and 40% magnetic interpolation ease.
+- **2D Uniform Hash Spatial Index:** 128 wu cell grid with $O(1)$ query time and sub-1.5ms rebuilds for 500 items.
+- **Camera Transform Model:** `{ x, y, z }` viewport camera with smooth pan and cursor-centered zoom (0.1×–4.0×).
+- **Optimistic Patch Commits & History Stack:** Instant local UI mutation with background async RFC 6902 JSON patch dispatch (`/api/board/patch`) and 200-deep undo/redo stack with rapid nudge coalescing (500ms window).
+- **Full Keyboard Parity:** Accessible `Tab` selection cycling, `Enter`/`Space` carry mode, Arrow nudging (1 wu normal, 10 wu Shift, 0.25 wu Alt), and `Ctrl+Z` / `Ctrl+D` shortcuts.
+
+---
+
+## 9. Islands, Groups, Shapes & Auto-Layout (P05)
+
+Implemented in `public/js/stage/shapes.js` and `public/js/stage/autolayout.js`:
+- **15 Arbitrary Shapes:** Mathematical definitions for `rect`, `rounded`, `pill`, `circle`, `ellipse`, `squircle`, `hexagon`, `octagon`, `chamfer`, `notch`, `ticket`, `tab`, `parallelogram`, `arrow`, `blob`.
+- **Safe-Area Insets:** Content-safe calculation (`[top, right, bottom, left]`) ensuring nested children and headers are never clipped by cut corners.
+- **Non-Destructive Vector SVG Borders:** Clipped elements render an internal SVG stroke path (`vector-effect: non-scaling-stroke`) for crisp vector boundaries.
+- **6 Auto-Layout Modes:**
+  - `flow`: Flexbox-style wrapping rows with `align`, `justify`, and `order`.
+  - `grid`: Dynamic auto-fill columns (`minCell`) with child `span: [cols, rows]`.
+  - `justify`: Google Photos DP linear partition minimizing row height variance ($< 1.5\text{ms}$ for 200 items).
+  - `masonry`: Shortest-column-first distribution.
+  - `stack`: Directional vertical/horizontal sequences.
+  - `carousel`: Horizontal snap strip.
+- **RTL Mirroring:** Automatic horizontal coordinate flipping for RTL reading order.
+- **Collapse to Chip:** Compact status chip representation with interactive toggle and `auto_below` semantic zoom trigger.
+
+---
+
+## 10. Automated Test Suite Verification
 
 Run all test suites via:
 ```bash
 npm test
 ```
-**Results:** **148 tests passing across 17 suites** in ~2 seconds:
+**Results:** **199 tests passing across 26 suites** in ~2 seconds:
 - `test/boardApi.test.js` (6 tests)
 - `test/compatV1.test.js` (8 tests)
 - `test/fuzz.test.js` (10,000 ops fuzzing)
@@ -149,3 +181,8 @@ npm test
 - `test/displayScale.test.js` (14 tests)
 - `test/solver.test.js` (32 tests)
 - `test/collision.test.js` (30 tests)
+- `test/spatial.test.js` (7 tests)
+- `test/snap.test.js` (9 tests)
+- `test/interaction.test.js` (14 tests)
+- `test/shapes.test.js` (10 tests)
+- `test/autolayout.test.js` (11 tests)

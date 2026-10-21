@@ -280,3 +280,249 @@ body.tenfoot-idle * {
 [dir="rtl"] .stage-island-header {
   flex-direction: row-reverse;
 }
+
+/* ==========================================================================
+   Phase P04: Blueprint / In-Place Edit Mode
+   ========================================================================== */
+
+/* Edit mode root state */
+.stage-viewport.editing {
+  touch-action: none !important;
+}
+
+.stage-viewport.editing .stage-item {
+  cursor: grab;
+}
+
+.stage-viewport.editing .stage-item:active {
+  cursor: grabbing;
+}
+
+/* Fast interaction mode (disables expensive CSS transitions and filters during drag) */
+.stage-viewport.is-interacting .stage-item {
+  transition: none !important;
+}
+
+.stage-viewport.is-interacting .stage-item.is-selected .stage-island {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: rgba(20, 24, 38, 0.94) !important;
+}
+
+/* Selected item styling */
+.stage-item.is-selected {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.35);
+  z-index: 50 !important;
+}
+
+/* Blueprint mode subtle canvas dim */
+.stage-viewport.editing .stage-canvas {
+  filter: brightness(0.94);
+}
+
+/* Floating Blueprint Mode Badge */
+.stage-blueprint-pill {
+  position: absolute;
+  bottom: 24px;
+  right: 28px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  border-radius: 9999px;
+  color: #38bdf8;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 12px rgba(56, 189, 248, 0.2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 900;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.stage-blueprint-pill:hover {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: #38bdf8;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5), 0 0 16px rgba(56, 189, 248, 0.35);
+}
+
+.stage-blueprint-pill .pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 8px #38bdf8;
+  animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+.stage-blueprint-pill.active {
+  background: rgba(14, 116, 144, 0.9);
+  color: #ffffff;
+  border-color: #22d3ee;
+}
+
+.stage-blueprint-pill.active .pill-dot {
+  background: #22d3ee;
+  box-shadow: 0 0 10px #22d3ee;
+}
+
+/* ==========================================================================
+   Phase P05: Islands, Groups, Shapes & Auto-Layout
+   ========================================================================== */
+
+/* Island Chip (Collapsed State) */
+.stage-item.is-chip {
+  width: auto !important;
+  height: auto !important;
+  min-width: 110px;
+  min-height: 38px;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.stage-island-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  color: #f1f5f9;
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.stage-island-chip:hover {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: #38bdf8;
+  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.25);
+  transform: scale(1.02);
+}
+
+.stage-island-chip .chip-badge {
+  font-size: 0.7rem;
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  font-weight: 600;
+}
+
+/* SVG Stroke Border for Clipped Shapes */
+.stage-island-svg-border {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.stage-island-svg-border path {
+  fill: none;
+  stroke: var(--island-border-color, rgba(255, 255, 255, 0.12));
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Header Variations (tab, bar, float, none) */
+.stage-island[data-header="none"] .stage-island-header {
+  display: none !important;
+}
+
+.stage-island[data-header="float"] .stage-island-header {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(8px);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 4px 10px;
+  z-index: 5;
+}
+
+.stage-island-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stage-island-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  transition: color 0.15s ease;
+}
+
+.stage-island-btn:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Auto-Layout Containers */
+.stage-island[data-layout="stack"] .stage-island-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.stage-island[data-layout="carousel"] .stage-island-body {
+  display: flex;
+  flex-direction: row;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.stage-island[data-layout="carousel"] .stage-island-body > * {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+}
+
+/* Overflow modes */
+.stage-island[data-overflow="scroll"] .stage-island-body {
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+}
+
+.stage-island[data-overflow="clip"] .stage-island-body {
+  overflow: hidden !important;
+}
+
+/* Status Reactive Alerts */
+.stage-island.status-alert {
+  outline: 2px solid #ef4444 !important;
+  box-shadow: 0 0 24px rgba(239, 68, 68, 0.45) !important;
+  animation: island-pulse 2s infinite ease-in-out;
+}
+
+@keyframes island-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
