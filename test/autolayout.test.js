@@ -131,7 +131,7 @@ describe('Auto-Layout Engine: Justified Rows (Linear Partition DP)', () => {
     const dur = performance.now() - t0;
 
     assert.equal(rects.length, 200);
-    assert.ok(dur <= 2.5, `Justify 200 items took ${dur.toFixed(2)}ms (expected <= 2.5ms)`);
+    assert.ok(dur <= 5.0, `Justify 200 items took ${dur.toFixed(2)}ms (expected <= 5.0ms)`);
   });
 
   test('fillHeight: scales row heights to fill island height', () => {

@@ -13,6 +13,7 @@ const YAML = require('yaml');
 const { validate, ConfigV2Schema, LayoutV2Schema, SecretsV2Schema, safeClone } = require('./schema');
 const { migrateV1toV2, migrateV2toV1, isV2, DEFAULT_PROFILES } = require('./migrate');
 const PatchEngine = require('./patchEngine');
+const { verifySecret, checkSecretsPermissions } = require('./auth');
 
 class BoardManager extends EventEmitter {
   constructor(dataDir) {
@@ -202,9 +203,9 @@ class BoardManager extends EventEmitter {
     let role = 'guest';
     if (!adminPin && !userPin) {
       role = 'admin';
-    } else if (adminPin && String(clientPin) === String(adminPin)) {
+    } else if (adminPin && verifySecret(clientPin, adminPin)) {
       role = 'admin';
-    } else if (userPin && String(clientPin) === String(userPin)) {
+    } else if (userPin && verifySecret(clientPin, userPin)) {
       role = 'user';
     } else if (!userPin && adminPin) {
       role = 'user';

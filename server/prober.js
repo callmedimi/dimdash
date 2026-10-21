@@ -1,6 +1,7 @@
 const net = require('net');
 const http = require('http');
 const https = require('https');
+const { validateUrl, isIpAllowed } = require('./ssrfGuard');
 
 class Prober {
   constructor(configManager) {
@@ -159,6 +160,13 @@ class Prober {
   }
 
   probeTcp(host, port, timeoutMs = 2000) {
+    if (!isIpAllowed(host, { allowLoopback: true })) {
+      return Promise.resolve({
+        status: 'offline',
+        latency: null,
+        error: 'Restricted destination address'
+      });
+    }
     return new Promise((resolve) => {
       const startTime = Date.now();
       const socket = new net.Socket();
@@ -190,6 +198,17 @@ class Prober {
   }
 
   probeHttpStatus(host, port, reqPath = '/', ignoreSsl = false, timeoutMs = 2500) {
+    const isHttps = port === 443 || String(port).endsWith('443') || String(host).startsWith('https');
+    const cleanHost = host.replace(/^https?:\/\//, '');
+
+    if (!isIpAllowed(cleanHost, { allowLoopback: true })) {
+      return Promise.resolve({
+        status: 'offline',
+        latency: null,
+        error: 'Restricted destination address'
+      });
+    }
+
     return new Promise((resolve) => {
       const startTime = Date.now();
       const isHttps = port === 443 || String(port).endsWith('443') || String(host).startsWith('https');

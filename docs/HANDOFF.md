@@ -1,7 +1,7 @@
-# DimDash Architecture & Implementation Handoff (Phase P02 & P03)
+# DimDash Architecture & Implementation Handoff (Phase P09)
 
-**Current Phase:** P03 — Stage Engine & Responsive Constraint System (10" to 150")  
-**Status:** Completed & Validated (148 Automated Tests Passing)  
+**Current Phase:** P09 — Security & Air-Gap Hardening  
+**Status:** Completed & Validated (368 Automated Tests Passing across 42 Suites)  
 **Date:** 2026-10-21  
 
 ---
@@ -201,13 +201,30 @@ Implemented in `public/js/widgets/registry.js`, `public/js/widgets/expr.js`, `pu
 
 ---
 
-## 13. Automated Test Suite Verification
+## 13. Security Airgap Hardening & Zero-Trust (P09)
+
+Implemented in `server/auth.js`, `server/ssrfGuard.js`, `server/uploads.js`, `server/headers.js`, `server/audit.js`, `tools/upgrade-secrets.js`, `docs/TLS_AIRGAPPED.md`, `docs/BUILD_OFFLINE.md`, and `docs/PHASE_P09_SECURITY_HARDENING_DOCUMENTATION.md`:
+- **Scrypt Password & PIN Hashing:** `crypto.scrypt` (N=32768, r=8, p=1, 16-byte salt, 32-byte key) with timing-safe comparison (`crypto.timingSafeEqual`) and constant-time legacy plaintext fallback.
+- **Session Management:** 256-bit cryptographically secure session IDs, idle timeout (12 hours), absolute timeout (7 days), privilege rotation, and `SameSite=Strict; HttpOnly` cookies.
+- **Kiosk Display Tokens:** Scoped `viewer` tokens (`kiosk_...`) for unattended wall displays.
+- **Brute-Force Rate Limiting:** Exponential backoff ($1\text{s}, 2\text{s}, 4\text{s}, \dots \le 300\text{s}$) triggered after 5 consecutive failures.
+- **Role-Based Access Control (RBAC):** `viewer`, `user`, `editor`, and `admin` roles validated via a 60-case table-driven test matrix.
+- **SSRF Defense & IP Obfuscation Decoding:** Decodes decimal integers, hex notation, octal notation, and IPv6. Filters cloud metadata (`169.254.169.254`, `169.254.0.0/16`), loopback, multicast, and broadcast. Includes DNS rebinding resolution check.
+- **Streaming Uploads & Magic Byte Validation:** `PUT /api/upload/:kind` streaming endpoint with magic byte detection for PNG, JPEG, GIF, WebP, SVG, and WOFF2.
+- **Zero-Dependency SVG Sanitizer:** Strips `<script>`, `<foreignObject>`, `<iframe>`, `on*` event handlers, XXE entity declarations, and external URLs. Content-addressed SHA-256 filenames with path traversal immunity.
+- **Transport Hardening:** Strict Content Security Policy (CSP), `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Cross-Origin-Opener-Policy: same-origin`, and SVG sandbox headers.
+- **Audit Logging:** Append-only rotated NDJSON audit logger (`data/audit.ndjson`) with automatic credential masking.
+- **Air-Gap Operational Guides:** Comprehensive guides for internal CA certificate generation (`docs/TLS_AIRGAPPED.md`) and offline release engineering (`docs/BUILD_OFFLINE.md`).
+
+---
+
+## 14. Automated Test Suite Verification
 
 Run all test suites via:
 ```bash
 npm test
 ```
-**Results:** **241 tests passing across 29 suites** in ~2.1 seconds:
+**Results:** **368 tests passing across 42 suites** in ~2.5 seconds:
 - `test/boardApi.test.js` (6 tests)
 - `test/compatV1.test.js` (8 tests)
 - `test/fuzz.test.js` (10,000 ops fuzzing)
@@ -228,3 +245,7 @@ npm test
 - `test/chartHost.test.js` (4 tests)
 - `test/designTokens.test.js` (12 tests)
 - `test/widgets.test.js` (17 tests)
+- `test/auth.test.js` (79 tests)
+- `test/ssrf.test.js` (21 tests)
+- `test/uploads.test.js` (22 tests)
+- `test/headers.test.js` (5 tests)

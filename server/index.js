@@ -50,8 +50,51 @@ function sendGzipJson(req, res, data) {
   }
 }
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Security & Authentication Modules (P09)
+const crypto = require('crypto');
+const { securityHeadersMiddleware } = require('./headers');
+const AuditLogger = require('./audit');
+const { SessionStore, BruteForceLimiter, verifySecret, hashSecret } = require('./auth');
+const { saveUpload } = require('./uploads');
+
+const auditLogger = new AuditLogger(dataDir);
+const sessionStore = new SessionStore();
+const bruteForceLimiter = new BruteForceLimiter();
+
+// First-run setup check: if no admin credential is set, generate one-time setup token
+let setupToken = null;
+if (!boardManager.getEffectiveAdminPin()) {
+  setupToken = crypto.randomBytes(16).toString('hex');
+  console.log('\n======================================================');
+  console.log(' [DimDash Security] NO ADMIN CREDENTIAL CONFIGURED!');
+  console.log(` [DimDash Security] One-time setup token: ${setupToken}`);
+  console.log(' [DimDash Security] Use POST /api/auth/setup to set admin secret.');
+  console.log('======================================================\n');
+}
+
+// Apply Security Headers (CSP, nosniff, Referrer-Policy, etc.)
+app.use(securityHeadersMiddleware);
+
+// Zero-dependency Cookie & Session Parser
+app.use((req, res, next) => {
+  const list = {};
+  const rc = req.headers.cookie;
+  if (rc) {
+    rc.split(';').forEach((cookie) => {
+      const parts = cookie.split('=');
+      list[parts.shift().trim()] = decodeURI(parts.join('='));
+    });
+  }
+  req.cookies = list;
+  const sid = req.headers['x-session-id'] || list['dd_sid'];
+  if (sid) {
+    req.session = sessionStore.getSession(sid);
+  }
+  next();
+});
+
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 // Static file serving with browser caching headers
 const staticCacheOptions = {
@@ -291,38 +334,175 @@ app.post('/api/config', (req, res) => {
   }
 });
 
+// --------------------------------------------------------------------------
+// Security Endpoints (P09): Time, Auth, Setup, Sessions, Audit, Upload
+// --------------------------------------------------------------------------
+
+// Server authoritative time for NTP-less air-gapped displays
+app.get('/api/time', (req, res) => {
+  res.json({ time: Date.now(), iso: new Date().toISOString() });
+});
+
+// One-time Setup Token Endpoint
+app.post('/api/auth/setup', (req, res) => {
+  const { setup_token, admin_secret } = req.body || {};
+  if (!setupToken || String(setup_token) !== String(setupToken)) {
+    auditLogger.log({ ip: req.ip, action: 'setup', status: 'failure', details: { reason: 'Invalid setup token' } });
+    return res.status(401).json({ error: 'Invalid setup token' });
+  }
+  if (!admin_secret || typeof admin_secret !== 'string' || admin_secret.length < 6) {
+    return res.status(400).json({ error: 'Admin secret must be at least 6 characters' });
+  }
+  const hashed = hashSecret(admin_secret);
+  if (!boardManager.state.secrets) {
+    boardManager.state.secrets = { version: 2, admin_pin: null, user_pin: null, server_tokens: {}, session_secret: '' };
+  }
+  boardManager.state.secrets.admin_pin = { value: hashed, hashed: true };
+  boardManager.flushImmediate();
+  setupToken = null; // consume token
+  auditLogger.log({ ip: req.ip, action: 'setup', resource: 'admin_pin', status: 'success' });
+  res.json({ success: true, message: 'Admin credential configured successfully' });
+});
+
+// Login & Session Creation
+app.post('/api/auth/login', (req, res) => {
+  const clientIp = req.ip || req.socket.remoteAddress || '127.0.0.1';
+  const check = bruteForceLimiter.check(clientIp);
+  if (!check.allowed) {
+    auditLogger.log({ ip: clientIp, action: 'login', status: 'rate_limited' });
+    return res.status(429).json({ error: 'Too many failed login attempts', retryAfter: check.retryAfterSec });
+  }
+
+  const { secret, role = 'admin' } = req.body || {};
+  const adminPin = boardManager.getEffectiveAdminPin();
+  const userPin = boardManager.getEffectiveUserPin();
+
+  let targetHash = role === 'admin' ? adminPin : userPin;
+  if (!targetHash && role === 'user') targetHash = adminPin;
+
+  const isValid = !targetHash || verifySecret(secret, targetHash);
+  if (isValid) {
+    bruteForceLimiter.recordSuccess(clientIp);
+    const session = sessionStore.createSession(role, { ip: clientIp, userAgent: req.headers['user-agent'] });
+    res.setHeader('Set-Cookie', `dd_sid=${session.id}; HttpOnly; SameSite=Strict; Path=/`);
+    auditLogger.log({ ip: clientIp, action: 'login', role, status: 'success' });
+    return res.json({ success: true, role, token: session.id, csrfToken: session.csrfToken });
+  }
+
+  bruteForceLimiter.recordFailure(clientIp);
+  auditLogger.log({ ip: clientIp, action: 'login', role, status: 'failure' });
+  return res.status(401).json({ error: 'Invalid credentials' });
+});
+
+// Session Validation Endpoint
+app.get('/api/auth/session', (req, res) => {
+  if (req.session) {
+    return res.json({ authenticated: true, role: req.session.role, csrfToken: req.session.csrfToken });
+  }
+  res.json({ authenticated: false, role: 'viewer' });
+});
+
+// Logout Endpoint
+app.post('/api/auth/logout', (req, res) => {
+  if (req.session) {
+    sessionStore.revokeSession(req.session.id);
+  }
+  res.setHeader('Set-Cookie', 'dd_sid=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
+  res.json({ success: true });
+});
+
+// Display / Kiosk Token Generation (Read-Only)
+app.post('/api/auth/kiosk-token', (req, res) => {
+  const auth = boardManager.authorize(req, 'admin');
+  if (!auth.authorized) {
+    return res.status(403).json({ error: 'Admin role required' });
+  }
+  const { profile = 'default' } = req.body || {};
+  const token = sessionStore.createDisplayToken(profile);
+  auditLogger.log({ ip: req.ip, action: 'kiosk_token_create', details: { profile } });
+  res.json({ success: true, token });
+});
+
+// Audit Logs Endpoint
+app.get('/api/audit', (req, res) => {
+  const auth = boardManager.authorize(req, 'admin');
+  if (!auth.authorized) {
+    return res.status(403).json({ error: 'Admin role required' });
+  }
+  res.json({ logs: auditLogger.getRecentLogs(100) });
+});
+
+// Raw Streaming File Upload Endpoint
+app.put('/api/upload/:kind', express.raw({ type: '*/*', limit: '15mb' }), (req, res) => {
+  try {
+    const auth = boardManager.authorize(req, 'upload');
+    if (!auth.authorized) {
+      return res.status(403).json({ error: 'Forbidden: Editor or Admin role required' });
+    }
+    const kind = req.params.kind;
+    const result = saveUpload(uploadsDir, req.body, kind);
+    auditLogger.log({ ip: req.ip, role: auth.role, action: 'upload', resource: result.fileName, status: 'success' });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Backward-compatible verify-pin with scrypt & rate limiting
 app.post('/api/verify-pin', (req, res) => {
-  const { pin } = req.body;
+  const clientIp = req.ip || req.socket.remoteAddress || '127.0.0.1';
+  const check = bruteForceLimiter.check(clientIp);
+  if (!check.allowed) {
+    return res.status(429).json({ valid: false, error: 'Too many attempts', retryAfter: check.retryAfterSec });
+  }
+
+  const { pin } = req.body || {};
   const currentPin = boardManager.getEffectiveAdminPin();
 
-  if (!currentPin) {
-    return res.json({ valid: true, role: 'admin' });
+  if (!currentPin || verifySecret(pin, currentPin)) {
+    bruteForceLimiter.recordSuccess(clientIp);
+    const session = sessionStore.createSession('admin', { ip: clientIp });
+    res.setHeader('Set-Cookie', `dd_sid=${session.id}; HttpOnly; SameSite=Strict; Path=/`);
+    return res.json({ valid: true, role: 'admin', token: session.id, csrfToken: session.csrfToken });
   }
 
-  if (String(pin) === String(currentPin)) {
-    return res.json({ valid: true, role: 'admin' });
-  }
-
+  bruteForceLimiter.recordFailure(clientIp);
   return res.status(401).json({ valid: false, error: 'Incorrect Admin PIN' });
 });
 
+// Backward-compatible verify-user-pin with scrypt & rate limiting
 app.post('/api/verify-user-pin', (req, res) => {
-  const { pin } = req.body;
+  const clientIp = req.ip || req.socket.remoteAddress || '127.0.0.1';
+  const check = bruteForceLimiter.check(clientIp);
+  if (!check.allowed) {
+    return res.status(429).json({ valid: false, error: 'Too many attempts', retryAfter: check.retryAfterSec });
+  }
+
+  const { pin } = req.body || {};
   const userPin = boardManager.getEffectiveUserPin();
   const adminPin = boardManager.getEffectiveAdminPin();
 
-  if (adminPin && String(pin) === String(adminPin)) {
-    return res.json({ valid: true, role: 'admin' });
+  if (adminPin && verifySecret(pin, adminPin)) {
+    bruteForceLimiter.recordSuccess(clientIp);
+    const session = sessionStore.createSession('admin', { ip: clientIp });
+    res.setHeader('Set-Cookie', `dd_sid=${session.id}; HttpOnly; SameSite=Strict; Path=/`);
+    return res.json({ valid: true, role: 'admin', token: session.id, csrfToken: session.csrfToken });
   }
 
-  if (userPin && String(pin) === String(userPin)) {
-    return res.json({ valid: true, role: 'user' });
+  if (userPin && verifySecret(pin, userPin)) {
+    bruteForceLimiter.recordSuccess(clientIp);
+    const session = sessionStore.createSession('user', { ip: clientIp });
+    res.setHeader('Set-Cookie', `dd_sid=${session.id}; HttpOnly; SameSite=Strict; Path=/`);
+    return res.json({ valid: true, role: 'user', token: session.id, csrfToken: session.csrfToken });
   }
 
   if (!userPin && !adminPin) {
-    return res.json({ valid: true, role: 'user' });
+    const session = sessionStore.createSession('user', { ip: clientIp });
+    res.setHeader('Set-Cookie', `dd_sid=${session.id}; HttpOnly; SameSite=Strict; Path=/`);
+    return res.json({ valid: true, role: 'user', token: session.id, csrfToken: session.csrfToken });
   }
 
+  bruteForceLimiter.recordFailure(clientIp);
   return res.status(401).json({ valid: false, error: 'Incorrect PIN' });
 });
 
@@ -584,4 +764,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app, boardManager, prober, clusterManager };
+module.exports = { app, boardManager, prober, clusterManager, sessionStore, auditLogger, bruteForceLimiter };
