@@ -206,6 +206,7 @@ function showToast(message, type = 'info') {
     setTimeout(() => toast.remove(), 300);
   }, 3000);
 }
+window.showToast = showToast;
 
 // Config & Theme Management
 async function loadConfig() {

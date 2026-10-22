@@ -127,14 +127,31 @@
     }
 
     setEditing(isEditing) {
+      const wasEditing = this.isEditing;
       this.isEditing = !!isEditing;
       if (this.stage?.viewportEl) {
         this.stage.viewportEl.classList.toggle('editing', this.isEditing);
         document.body.classList.toggle('stage-editing', this.isEditing);
+        document.body.classList.toggle('blueprint-mode', this.isEditing);
+      }
+      const pill = this.stage?.container?.querySelector('#stageBlueprintPill') || document.getElementById('stageBlueprintPill');
+      if (pill) {
+        pill.classList.toggle('active', this.isEditing);
+        const pillText = pill.querySelector('.pill-text') || pill.querySelector('span:last-child');
+        if (pillText) {
+          pillText.textContent = this.isEditing ? 'Blueprint Mode [E] — Active' : 'Blueprint Mode [E]';
+        }
       }
       if (!this.isEditing) {
         this.clearSelection();
         this.state = STATES.IDLE;
+        if (wasEditing && typeof window !== 'undefined' && window.showToast) {
+          window.showToast('💾 Exited Blueprint Edit Mode. Layout saved.', 'info');
+        }
+      } else {
+        if (!wasEditing && typeof window !== 'undefined' && window.showToast) {
+          window.showToast('📐 Blueprint Mode Active: Click to select, drag to move, drag corners to resize.', 'info');
+        }
       }
       this.requestOverlayRedraw();
     }
@@ -1054,8 +1071,8 @@
         return;
       }
 
-      // E key: toggle edit mode
-      if (e.key === 'e' || e.key === 'E') {
+      // E key (or Persian layout 'ث'): toggle edit mode
+      if (e.code === 'KeyE' || e.key === 'e' || e.key === 'E' || e.key === 'ث') {
         if (!e.ctrlKey && !e.metaKey && !e.altKey) {
           e.preventDefault();
           this.toggleEditing();
@@ -1065,11 +1082,15 @@
 
       if (!this.isEditing) return;
 
-      // Esc: clear selection or cancel carry mode
+      // Esc: clear selection, cancel carry mode, or exit edit mode
       if (e.key === 'Escape') {
         e.preventDefault();
-        this.clearSelection();
-        this.carryActive = false;
+        if (this.selectedIds.size > 0 || this.carryActive) {
+          this.clearSelection();
+          this.carryActive = false;
+        } else {
+          this.setEditing(false);
+        }
         return;
       }
 

@@ -60,9 +60,9 @@
           <div id="stageCanvas" class="stage-canvas"></div>
           <canvas id="stageOverlay" class="stage-overlay"></canvas>
           <div id="stageHud" class="stage-hud"></div>
-          <div id="stageBlueprintPill" class="stage-blueprint-pill admin-only-ui" title="Toggle In-Place Blueprint Edit Mode (Key: E)" role="button" tabindex="0" aria-label="Toggle Blueprint Edit Mode">
+          <div id="stageBlueprintPill" class="stage-blueprint-pill" title="Toggle In-Place Blueprint Edit Mode (Key: E)" role="button" tabindex="0" aria-label="Toggle Blueprint Edit Mode">
             <span class="pill-dot"></span>
-            <span>Blueprint Mode [E]</span>
+            <span class="pill-text">Blueprint Mode [E]</span>
           </div>
         </div>
       `;
