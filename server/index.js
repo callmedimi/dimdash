@@ -671,6 +671,43 @@ app.get('/api/metrics/history', (req, res) => {
   res.json(metricsHistory.getHistory(server, range));
 });
 
+// P11-F6 Time-Travel Replay Snapshot Endpoint
+app.get('/api/replay', (req, res) => {
+  const t = parseInt(req.query.t, 10) || Date.now();
+  const server = req.query.server || 'local';
+  const history = metricsHistory.historyByServer[server] || [];
+  let sample = null;
+
+  if (history.length > 0) {
+    for (let i = history.length - 1; i >= 0; i--) {
+      if (history[i].t <= t) {
+        sample = history[i];
+        break;
+      }
+    }
+    if (!sample) sample = history[0];
+  }
+
+  const probes = prober ? prober.getAllResults() : {};
+  res.json({
+    replay: true,
+    timestamp: t,
+    sample: sample,
+    probes: probes
+  });
+});
+
+// P11-F4 Display Scenes Endpoint
+app.get('/api/scenes', (req, res) => {
+  const scenes = [
+    { id: 'day', name: 'Day Operations', theme: 'default', schedule: '07:00-19:00' },
+    { id: 'night', name: 'Night Watch (OLED)', theme: 'oled', schedule: '19:00-07:00' },
+    { id: 'incident', name: 'Incident Commander', theme: 'signal', rule: 'has_critical' },
+    { id: 'wall', name: 'NOC Video Wall', theme: 'glass', profile: 'wall' }
+  ];
+  res.json({ scenes });
+});
+
 app.get('/api/events', (req, res) => {
   if (sseClients.size >= 200) {
     return res.status(503).json({ error: 'Server SSE client capacity reached (max 200)' });

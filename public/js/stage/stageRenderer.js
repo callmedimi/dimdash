@@ -42,17 +42,20 @@
       this.initStageEngines();
       this.initObservers();
       this.initIdleHandler();
+      this.initSpatialKeyboardNavigation();
     }
 
     initDom() {
       if (!this.container) return;
+      this.container.setAttribute('role', 'region');
+      this.container.setAttribute('aria-label', 'Dashboard Stage Viewport');
 
       this.container.innerHTML = `
         <div id="stageViewport" class="stage-viewport" data-mode="fit">
           <div id="stageCanvas" class="stage-canvas"></div>
           <canvas id="stageOverlay" class="stage-overlay"></canvas>
           <div id="stageHud" class="stage-hud"></div>
-          <div id="stageBlueprintPill" class="stage-blueprint-pill admin-only-ui" title="Toggle In-Place Blueprint Edit Mode (Key: E)">
+          <div id="stageBlueprintPill" class="stage-blueprint-pill admin-only-ui" title="Toggle In-Place Blueprint Edit Mode (Key: E)" role="button" tabindex="0" aria-label="Toggle Blueprint Edit Mode">
             <span class="pill-dot"></span>
             <span>Blueprint Mode [E]</span>
           </div>
@@ -288,6 +291,10 @@
       // 3. Render or Update DOM Nodes (Node Re-use)
       this.mountItems(modeResult.rects, items);
 
+      if (typeof window.updateWidgetValues === 'function') {
+        window.updateWidgetValues();
+      }
+
       this.isRendering = false;
     }
 
@@ -373,13 +380,31 @@
       if (this.interaction) {
         this.interaction.requestOverlayRedraw();
       }
+
+      // Ensure at least one element has tabindex="0" for roving tabindex
+      const allElements = Array.from(this.itemElements.values());
+      const hasFocusable = allElements.some(el => el.getAttribute('tabindex') === '0');
+      if (!hasFocusable && allElements.length > 0) {
+        allElements[0].setAttribute('tabindex', '0');
+      }
     }
 
     createItemElement(item, rect = null) {
       const el = document.createElement('section');
-      el.className = `stage-item stage-${item.kind || 'widget'}`;
+      el.className = `stage-item stage-kind-${item.kind || 'widget'}`;
       el.setAttribute('data-id', item.id);
       el.setAttribute('data-kind', item.kind || 'widget');
+      el.setAttribute('tabindex', '-1');
+
+      if (item.kind === 'island') {
+        el.setAttribute('role', 'group');
+        el.setAttribute('aria-label', `${item.title || 'Island'} Island`);
+      } else if (item.kind === 'widget') {
+        el.setAttribute('role', 'region');
+        el.setAttribute('aria-label', `${item.title || 'Widget'} Widget`);
+      } else if (item.kind === 'service') {
+        el.setAttribute('role', 'article');
+      }
 
       this.renderItemContent(el, item, rect);
       return el;
@@ -479,16 +504,36 @@
         const targetUrl = item.props?.target_url || '#';
         const openInNew = item.props?.open_in_new_tab !== false ? '_blank' : '_self';
         const iconVal = item.props?.icon_value || '';
-        const isSvgOrImg = iconVal.startsWith('/') || iconVal.startsWith('http');
+        const iconType = item.props?.icon_type || (iconVal.startsWith('/') || iconVal.startsWith('http') ? 'image' : 'builtin');
+
+        let iconMarkup = '';
+        if (window.IconCatalog && typeof window.IconCatalog.render === 'function') {
+          iconMarkup = window.IconCatalog.render(iconType, iconVal);
+        } else if (iconVal.startsWith('/') || iconVal.startsWith('http')) {
+          iconMarkup = `<img src="${iconVal}" alt="${item.title || 'Service'}" loading="lazy" style="max-width:100%; max-height:100%; object-fit:contain;">`;
+        } else {
+          iconMarkup = `<span class="icon-text" style="font-size:calc(1.3rem * var(--wu));">🔗</span>`;
+        }
+
+        const probeId = item.bind?.status ? item.bind.status.replace('probe:', '') : item.id;
+        const probeResult = (window.AppState && window.AppState.probes) ? window.AppState.probes[probeId] : null;
+        const isOnline = probeResult ? probeResult.status === 'online' : true;
+        const statusColor = isOnline ? '#10b981' : '#ef4444';
+
+        const statusText = isOnline ? 'Online' : 'Offline';
+        const ariaLabel = `${item.title || 'Service'} — ${statusText}${item.subtitle ? ', ' + item.subtitle : ''}`;
 
         el.innerHTML = `
-          <a class="stage-service-tile" href="${targetUrl}" target="${openInNew}" rel="noreferrer" title="${item.subtitle || item.title}">
-            <div class="stage-tile-icon">
-              ${isSvgOrImg ? `<img src="${iconVal}" alt="${item.title}" loading="lazy">` : `<span class="icon-text">🔗</span>`}
+          <a class="stage-service-tile tile-main-link" href="${targetUrl}" target="${openInNew}" rel="noreferrer" title="${item.subtitle || item.title}" aria-label="${ariaLabel}" style="width:100%; height:100%; box-sizing:border-box;">
+            <div class="stage-tile-icon tile-icon-box" style="width:calc(40px * var(--wu)); height:calc(40px * var(--wu)); display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.06); border-radius:calc(10px * var(--wu)); flex-shrink:0;">
+              ${iconMarkup}
             </div>
-            <div class="stage-tile-info">
-              <span class="stage-tile-title">${item.title || 'Service'}</span>
-              ${item.subtitle ? `<span class="stage-tile-subtitle">${item.subtitle}</span>` : ''}
+            <div class="stage-tile-info" style="display:flex; flex-direction:column; overflow:hidden; flex:1;">
+              <span class="stage-tile-title" style="font-size:calc(0.92rem * var(--wu)); font-weight:600; color:#f8fafc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.title || 'Service'}</span>
+              ${item.subtitle ? `<span class="stage-tile-subtitle" style="font-size:calc(0.72rem * var(--wu)); color:#94a3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.subtitle}</span>` : ''}
+            </div>
+            <div class="tile-status-indicator" style="display:flex; align-items:center; margin-left:auto;">
+              <span class="pilot-light ${isOnline ? 'pilot-active' : ''}" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${statusColor}; box-shadow:0 0 8px ${statusColor};"></span>
             </div>
           </a>
         `;
@@ -496,11 +541,7 @@
       }
 
       if (item.kind === 'widget') {
-        el.innerHTML = `
-          <div class="stage-widget" id="widget_${item.id}">
-            <span class="stage-tile-title">${item.title || item.type || 'Widget'}</span>
-          </div>
-        `;
+        this.renderWidgetContent(el, item);
         return;
       }
 
@@ -508,7 +549,316 @@
       el.innerHTML = `<div class="stage-generic">${item.title || ''}</div>`;
     }
 
+    renderWidgetContent(el, item) {
+      const wId = item.id;
+      const type = item.type || item.props?.type || 'clock_widget';
+      const props = item.props || {};
+      const title = item.title || props.title || 'Widget';
+      const color = props.color || '#38bdf8';
+      const C = 213.6;
+
+      if (type === 'clock_widget') {
+        const nowInfo = (window.DimDashCalendar ? window.DimDashCalendar.getNowInfo() : null);
+        let timeStr = '--:--:--';
+        let shamsiHtml = '';
+        let gregorianHtml = '';
+        if (nowInfo) {
+          timeStr = `${nowInfo.time.hours24}<span class="clock-colon">:</span>${nowInfo.time.minutes}<span class="clock-colon">:</span>${nowInfo.time.seconds}`;
+          shamsiHtml = `<span class="clock-date-chip chip-shamsi" title="تقویم خورشیدی / شمسی">☀️ ${nowInfo.shamsi.fullFa}</span>`;
+          gregorianHtml = `<span class="clock-date-chip chip-gregorian" title="Gregorian Calendar">📅 ${nowInfo.gregorian.full}</span>`;
+        }
+        el.innerHTML = `
+          <div class="widget-card clock-widget-card" id="widget-card-${wId}" data-widget-id="${wId}" style="--widget-accent: ${color}; width:100%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; box-sizing:border-box; padding:12px; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
+            <div class="clock-time-display" id="clock-display-${wId}" data-time-format="24h" style="font-size:calc(1.8rem * var(--wu)); font-weight:700; letter-spacing:1px; color:#f8fafc; font-variant-numeric:tabular-nums;">
+              ${timeStr}
+            </div>
+            <div class="clock-dates-container" id="clock-dates-${wId}" data-calendar-mode="both" style="display:flex; flex-direction:column; align-items:center; gap:4px; margin-top:8px; font-size:calc(0.72rem * var(--wu));">
+              ${shamsiHtml}
+              ${gregorianHtml}
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if (type === 'cpu_gauge') {
+        el.innerHTML = `
+          <div class="widget-card stage-widget" id="widget-card-${wId}" style="--widget-accent: ${color}; width:100%; height:100%; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; padding:12px; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <span style="font-size:calc(0.85rem * var(--wu)); font-weight:600; color:#f8fafc;">⚡ ${title}</span>
+              <span id="metric-cores-${wId}" style="font-size:calc(0.7rem * var(--wu)); color:#94a3b8;">- Cores</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; margin:auto 0;">
+              <div class="radial-gauge-box" style="position:relative; width:calc(64px * var(--wu)); height:calc(64px * var(--wu)); flex-shrink:0;">
+                <svg class="radial-gauge-svg" viewBox="0 0 80 80" style="width:100%; height:100%; transform:rotate(-90deg);">
+                  <circle class="radial-gauge-bg" cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8" />
+                  <circle class="radial-gauge-progress" id="gauge-arc-${wId}" cx="40" cy="40" r="34" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}" style="transition:stroke-dashoffset 0.5s ease;" />
+                </svg>
+                <div class="radial-gauge-val" id="gauge-val-${wId}" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:calc(0.95rem * var(--wu)); font-weight:700; color:#f8fafc;">0<span class="radial-gauge-unit">%</span></div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:4px; font-size:calc(0.72rem * var(--wu)); color:#94a3b8; overflow:hidden;">
+                <div>Load: <span id="metric-load-${wId}" style="color:#f8fafc; font-weight:600;">-</span></div>
+                <div id="metric-model-${wId}" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:110px;">CPU</div>
+              </div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if (type === 'ram_gauge') {
+        el.innerHTML = `
+          <div class="widget-card stage-widget" id="widget-card-${wId}" style="--widget-accent: ${color}; width:100%; height:100%; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; padding:12px; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <span style="font-size:calc(0.85rem * var(--wu)); font-weight:600; color:#f8fafc;">🧠 ${title}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; margin:auto 0;">
+              <div class="radial-gauge-box" style="position:relative; width:calc(64px * var(--wu)); height:calc(64px * var(--wu)); flex-shrink:0;">
+                <svg class="radial-gauge-svg" viewBox="0 0 80 80" style="width:100%; height:100%; transform:rotate(-90deg);">
+                  <circle class="radial-gauge-bg" cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8" />
+                  <circle class="radial-gauge-progress" id="gauge-arc-${wId}" cx="40" cy="40" r="34" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}" style="transition:stroke-dashoffset 0.5s ease;" />
+                </svg>
+                <div class="radial-gauge-val" id="gauge-val-${wId}" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:calc(0.95rem * var(--wu)); font-weight:700; color:#f8fafc;">0<span class="radial-gauge-unit">%</span></div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:4px; font-size:calc(0.72rem * var(--wu)); color:#94a3b8;">
+                <div>Used: <span id="metric-ram-used-${wId}" style="color:#f8fafc; font-weight:600;">0 GB</span></div>
+                <div>Total: <span id="metric-ram-total-${wId}" style="color:#f8fafc; font-weight:600;">0 GB</span></div>
+              </div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if (type === 'disk_gauge') {
+        el.innerHTML = `
+          <div class="widget-card stage-widget" id="widget-card-${wId}" style="--widget-accent: ${color}; width:100%; height:100%; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; padding:12px; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <span style="font-size:calc(0.85rem * var(--wu)); font-weight:600; color:#f8fafc;">💾 ${title}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; margin:auto 0;">
+              <div class="radial-gauge-box" style="position:relative; width:calc(64px * var(--wu)); height:calc(64px * var(--wu)); flex-shrink:0;">
+                <svg class="radial-gauge-svg" viewBox="0 0 80 80" style="width:100%; height:100%; transform:rotate(-90deg);">
+                  <circle class="radial-gauge-bg" cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8" />
+                  <circle class="radial-gauge-progress" id="gauge-arc-${wId}" cx="40" cy="40" r="34" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}" style="transition:stroke-dashoffset 0.5s ease;" />
+                </svg>
+                <div class="radial-gauge-val" id="gauge-val-${wId}" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:calc(0.95rem * var(--wu)); font-weight:700; color:#f8fafc;">0<span class="radial-gauge-unit">%</span></div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:4px; font-size:calc(0.72rem * var(--wu)); color:#94a3b8;">
+                <div>Used: <span id="metric-disk-used-${wId}" style="color:#f8fafc; font-weight:600;">0 GB</span></div>
+                <div>Free: <span id="metric-disk-free-${wId}" style="color:#f8fafc; font-weight:600;">0 GB</span></div>
+              </div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if (type === 'network_traffic') {
+        el.innerHTML = `
+          <div class="widget-card stage-widget" id="widget-card-${wId}" style="--widget-accent: ${color}; width:100%; height:100%; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; padding:12px; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <span style="font-size:calc(0.85rem * var(--wu)); font-weight:600; color:#f8fafc;">🌐 ${title}</span>
+            </div>
+            <div style="display:flex; flex-direction:column; justify-content:center; gap:6px; margin:auto 0; font-size:calc(0.75rem * var(--wu));">
+              <div style="display:flex; justify-content:space-between; color:#94a3b8;">
+                <span>⬇️ RX Rate:</span>
+                <span id="net-rx-speed-${wId}" style="color:#38bdf8; font-weight:700;">0 KB/s</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; color:#94a3b8;">
+                <span>⬆️ TX Rate:</span>
+                <span id="net-tx-speed-${wId}" style="color:#10b981; font-weight:700;">0 KB/s</span>
+              </div>
+              <div id="net-total-io-${wId}" style="font-size:calc(0.68rem * var(--wu)); color:#64748b; text-align:center; margin-top:4px;">
+                ⬇️ 0 MB | ⬆️ 0 MB
+              </div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if (type === 'docker_stats') {
+        el.innerHTML = `
+          <div class="widget-card stage-widget" id="widget-card-${wId}" style="--widget-accent: ${color}; width:100%; height:100%; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; padding:12px; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <span style="font-size:calc(0.85rem * var(--wu)); font-weight:600; color:#f8fafc;">🐳 ${title}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; margin:auto 0;">
+              <div class="radial-gauge-box" style="position:relative; width:calc(64px * var(--wu)); height:calc(64px * var(--wu)); flex-shrink:0;">
+                <svg class="radial-gauge-svg" viewBox="0 0 80 80" style="width:100%; height:100%; transform:rotate(-90deg);">
+                  <circle class="radial-gauge-bg" cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8" />
+                  <circle class="radial-gauge-progress" id="gauge-arc-${wId}" cx="40" cy="40" r="34" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}" style="transition:stroke-dashoffset 0.5s ease;" />
+                </svg>
+                <div class="radial-gauge-val" id="gauge-val-${wId}" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:calc(0.95rem * var(--wu)); font-weight:700; color:#f8fafc;">0<span class="radial-gauge-unit">Up</span></div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:4px; font-size:calc(0.72rem * var(--wu)); color:#94a3b8;">
+                <div id="docker-running-${wId}" style="color:#10b981; font-weight:600;">0 Containers</div>
+                <div id="docker-total-${wId}">0 Total</div>
+              </div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if (type === 'host_info') {
+        el.innerHTML = `
+          <div class="widget-card stage-widget" id="widget-card-${wId}" style="--widget-accent: ${color}; width:100%; height:100%; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; padding:12px; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <span style="font-size:calc(0.85rem * var(--wu)); font-weight:600; color:#f8fafc;">🖥️ ${title}</span>
+            </div>
+            <div style="display:flex; flex-direction:column; justify-content:center; gap:5px; margin:auto 0; font-size:calc(0.72rem * var(--wu));">
+              <div>Host: <span id="host-hostname-${wId}" style="color:#f8fafc; font-weight:600;">-</span></div>
+              <div>OS: <span id="host-os-${wId}" style="color:#94a3b8;">-</span></div>
+              <div>Uptime: <span id="host-uptime-${wId}" style="color:#f8fafc; font-weight:600;">-</span></div>
+              <div id="host-status-${wId}" style="color:#10b981; font-weight:600; margin-top:2px;">🛡️ Online</div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      // Default generic widget
+      el.innerHTML = `
+        <div class="widget-card stage-widget" id="widget-card-${wId}" style="width:100%; height:100%; padding:12px; box-sizing:border-box; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
+          <span class="stage-tile-title">${title}</span>
+        </div>
+      `;
+    }
+
+    announce(message) {
+      if (!message) return;
+      const liveRegion = document.getElementById('a11yLiveRegion');
+      if (!liveRegion) return;
+
+      if (!this.announcementQueue) this.announcementQueue = [];
+      this.announcementQueue.push(message);
+
+      if (this.announcementTimer) clearTimeout(this.announcementTimer);
+      this.announcementTimer = setTimeout(() => {
+        if (this.announcementQueue.length === 0) return;
+        const msg = this.announcementQueue.length === 1
+          ? this.announcementQueue[0]
+          : `${this.announcementQueue.length} system updates: ${this.announcementQueue[this.announcementQueue.length - 1]}`;
+        liveRegion.textContent = msg;
+        this.announcementQueue = [];
+      }, 300);
+    }
+
+    initSpatialKeyboardNavigation() {
+      const handleKeyDown = (e) => {
+        // 1. Keyboard shortcuts help dialog '?'
+        if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+          const modal = document.getElementById('keyboardModal');
+          if (modal) {
+            e.preventDefault();
+            modal.style.display = modal.style.display === 'none' ? 'flex' : 'none';
+          }
+          return;
+        }
+
+        // Close modal on Escape
+        if (e.key === 'Escape') {
+          const modal = document.getElementById('keyboardModal');
+          if (modal && modal.style.display !== 'none') {
+            e.preventDefault();
+            modal.style.display = 'none';
+            return;
+          }
+        }
+
+        // 2. Spatial Arrow Navigation
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+          const items = Array.from(this.itemElements.values());
+          if (items.length === 0) return;
+
+          const activeEl = document.activeElement && this.itemElements.has(document.activeElement.getAttribute('data-id'))
+            ? document.activeElement
+            : (items.find(el => el.getAttribute('tabindex') === '0') || items[0]);
+
+          const activeRect = activeEl.getBoundingClientRect();
+          const activeCenterX = activeRect.left + activeRect.width / 2;
+          const activeCenterY = activeRect.top + activeRect.height / 2;
+
+          let dir = e.key;
+          let bestEl = null;
+          let bestDist = Infinity;
+
+          for (const itemEl of items) {
+            if (itemEl === activeEl) continue;
+            const r = itemEl.getBoundingClientRect();
+            const cx = r.left + r.width / 2;
+            const cy = r.top + r.height / 2;
+            const dx = cx - activeCenterX;
+            const dy = cy - activeCenterY;
+
+            let isCandidate = false;
+            if (dir === 'ArrowUp' && dy < -5) isCandidate = true;
+            if (dir === 'ArrowDown' && dy > 5) isCandidate = true;
+            if (dir === 'ArrowLeft' && dx < -5) isCandidate = true;
+            if (dir === 'ArrowRight' && dx > 5) isCandidate = true;
+
+            if (isCandidate) {
+              const dist = (dir === 'ArrowUp' || dir === 'ArrowDown')
+                ? Math.abs(dy) + 2 * Math.abs(dx)
+                : Math.abs(dx) + 2 * Math.abs(dy);
+
+              if (dist < bestDist) {
+                bestDist = dist;
+                bestEl = itemEl;
+              }
+            }
+          }
+
+          if (bestEl) {
+            e.preventDefault();
+            items.forEach(el => el.setAttribute('tabindex', '-1'));
+            bestEl.setAttribute('tabindex', '0');
+            bestEl.focus();
+            const title = bestEl.getAttribute('aria-label') || bestEl.querySelector('.stage-tile-title')?.textContent || 'Item';
+            this.announce(title);
+          }
+        }
+
+        // 3. Enter key
+        if (e.key === 'Enter') {
+          const activeEl = document.activeElement;
+          if (activeEl && this.itemElements.has(activeEl.getAttribute('data-id'))) {
+            const link = activeEl.querySelector('.stage-service-tile');
+            if (link) {
+              e.preventDefault();
+              link.click();
+            } else {
+              const chip = activeEl.querySelector('.stage-island-chip');
+              if (chip) {
+                e.preventDefault();
+                chip.click();
+              }
+            }
+          }
+        }
+      };
+
+      window.addEventListener('keydown', handleKeyDown);
+      this._keyboardHandler = handleKeyDown;
+
+      // Close modal button listeners
+      const closeBtn = document.getElementById('btnCloseKeyboardModal');
+      const overlay = document.getElementById('kbOverlay');
+      if (closeBtn) closeBtn.addEventListener('click', () => {
+        const modal = document.getElementById('keyboardModal');
+        if (modal) modal.style.display = 'none';
+      });
+      if (overlay) overlay.addEventListener('click', () => {
+        const modal = document.getElementById('keyboardModal');
+        if (modal) modal.style.display = 'none';
+      });
+    }
+
     destroy() {
+      if (this._keyboardHandler) window.removeEventListener('keydown', this._keyboardHandler);
+      if (this.announcementTimer) clearTimeout(this.announcementTimer);
       if (this.interaction) this.interaction.destroy();
       if (this.resizeObserver) this.resizeObserver.disconnect();
       if (this.sizeObserver) this.sizeObserver.disconnect();

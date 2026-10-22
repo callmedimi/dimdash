@@ -1036,6 +1036,9 @@ function handleWidgetReorder(sourceWidgetId, targetWidgetId) {
 }
 
 function updateWidgetValues() {
+  if (typeof updateClockWidgets === 'function') {
+    updateClockWidgets();
+  }
   if (!AppState.systemTelemetry) return;
 
   const widgets = AppState.config?.widgets || [];
@@ -1147,6 +1150,7 @@ function updateWidgetValues() {
     }
   });
 }
+window.updateWidgetValues = updateWidgetValues;
 
 function openWidgetModal() {
   const modal = document.getElementById('widgetModal');
@@ -2287,10 +2291,21 @@ function setupEventListeners() {
     document.body.classList.toggle('page-view-monitoring', isMonitoring);
     document.body.classList.toggle('page-view-apps', !isMonitoring);
 
-    // 1. Gauges & Widgets Section (Clock, Gauges, Charts) - visible on dashboard
+    const isStageEnabled = AppState.config?.settings?.experimental?.stage !== false && window.DimDashStage;
+    const stageMount = document.getElementById('stageMount');
+
+    if (stageMount) {
+      stageMount.style.setProperty('display', (isStageEnabled && !isMonitoring) ? 'block' : 'none', 'important');
+    }
+
+    // 1. Gauges & Widgets Section (Clock, Gauges, Charts) - hidden in Stage mode or Monitoring
     const widgetsSection = document.getElementById('widgetsSection');
     if (widgetsSection) {
-      widgetsSection.style.removeProperty('display');
+      if (isStageEnabled || isMonitoring) {
+        widgetsSection.style.setProperty('display', 'none', 'important');
+      } else {
+        widgetsSection.style.removeProperty('display');
+      }
     }
 
     // 2. Server Monitor Time-Series Charts
@@ -2298,15 +2313,15 @@ function setupEventListeners() {
       elements.serverMonitorView.style.setProperty('display', isMonitoring ? 'block' : 'none', 'important');
     }
 
-    // 3. Apps / Tiles Section
+    // 3. Apps / Tiles Section (Legacy Grid)
     if (elements.contentArea) {
-      elements.contentArea.style.setProperty('display', isMonitoring ? 'none' : 'grid', 'important');
+      elements.contentArea.style.setProperty('display', (!isStageEnabled && !isMonitoring) ? 'grid' : 'none', 'important');
     }
     
-    // 4. Sub Navigation Category Tabs
+    // 4. Sub Navigation Category Tabs (Legacy Grid)
     const subNav = document.querySelector('.sub-nav');
     if (subNav) {
-      subNav.style.setProperty('display', isMonitoring ? 'none' : 'flex', 'important');
+      subNav.style.setProperty('display', (!isStageEnabled && !isMonitoring) ? 'flex' : 'none', 'important');
     }
     
     // 5. Telemetry Stats Bar
@@ -2315,7 +2330,6 @@ function setupEventListeners() {
     if (elements.sideNavAll) elements.sideNavAll.classList.toggle('active', !isMonitoring);
     if (elements.sideNavCharts) elements.sideNavCharts.classList.toggle('active', isMonitoring);
 
-    renderWidgets();
     if (isMonitoring) {
       if (window.initServerCharts) {
         window.initServerCharts();
@@ -2329,7 +2343,15 @@ function setupEventListeners() {
         }
       });
     } else {
-      renderGrid();
+      if (isStageEnabled) {
+        if (AppState.stageRenderer && AppState.board) {
+          AppState.stageRenderer.setBoard(AppState.board);
+        }
+        updateWidgetValues();
+      } else {
+        renderWidgets();
+        renderGrid();
+      }
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }

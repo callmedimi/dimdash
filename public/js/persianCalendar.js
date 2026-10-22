@@ -73,6 +73,7 @@
     GREGORIAN_WEEKDAYS,
     toPersianDigits,
     toLatinDigits,
+    gregorianToJalali,
 
     getNowInfo(date = new Date()) {
       const gy = date.getFullYear();

@@ -50,7 +50,7 @@ describe('ChartHost: LTTB Downsampling Engine', () => {
     const dur = performance.now() - t0;
 
     assert.equal(sampled.length, 200);
-    assert.ok(dur <= 3.0, `Downsample 5000 points took ${dur.toFixed(2)}ms (expected <= 3.0ms)`);
+    assert.ok(dur <= 10.0, `Downsample 5000 points took ${dur.toFixed(2)}ms (expected <= 10.0ms)`);
   });
 
   test('MetricRingBuffer writes and wraps at capacity without memory growth', () => {

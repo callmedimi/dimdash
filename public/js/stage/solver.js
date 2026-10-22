@@ -418,6 +418,7 @@
 
             const b = working[j];
             if (b.overlap === 'allow') continue;
+            if (a.id === b.parent || b.id === a.parent) continue;
             if (a.parent && a.parent === b.parent) continue;
 
             if (checkOverlap(a, b)) {

@@ -99,6 +99,7 @@ function migrateV1toV2(v1Data) {
       props: {
         color: '#38bdf8',
         icon: 'gauge',
+        headerStyle: 'none',
         layoutMode: 'flow',
         isCollapsed: false,
         density: 'normal'

@@ -17,6 +17,12 @@
   <link rel="stylesheet" href="css/stage.css">
 </head>
 <body>
+  <!-- Skip Link for Keyboard Navigation (WCAG 2.1 AA) -->
+  <a href="#stageMount" class="skip-link" id="skipLink">Skip to dashboard content</a>
+
+  <!-- Polite Screen Reader Live Region for Telemetry & State Announcements -->
+  <div id="a11yLiveRegion" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
   <!-- Transparent Background Logo / Watermark Overlay -->
   <div id="bgLogoOverlay" class="bg-logo-overlay" style="display:none;"></div>
 
@@ -39,7 +45,7 @@
       <!-- Main Navigation Menu -->
       <nav class="sidebar-menu">
         <!-- 1. Apps / Tiles Page -->
-        <button class="sidebar-btn active" id="sideNavAll" data-tooltip="Apps & Tiles">
+        <button class="sidebar-btn active" id="sideNavAll" data-tooltip="Apps & Tiles" aria-label="Apps & Tiles" title="Apps & Tiles">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="7" height="7"></rect>
             <rect x="14" y="3" width="7" height="7"></rect>
@@ -49,14 +55,14 @@
         </button>
 
         <!-- 2. Gauges & Charts Page -->
-        <button class="sidebar-btn" id="sideNavCharts" data-tooltip="Gauges & Monitoring">
+        <button class="sidebar-btn" id="sideNavCharts" data-tooltip="Gauges & Monitoring" aria-label="Gauges & Monitoring" title="Gauges & Monitoring">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
           </svg>
         </button>
 
         <!-- 3. Spotlight Search Trigger -->
-        <button class="sidebar-btn" id="sideNavSearch" data-tooltip="Quick Search (/)">
+        <button class="sidebar-btn" id="sideNavSearch" data-tooltip="Quick Search (/)" aria-label="Quick Search" title="Quick Search (/)">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -65,7 +71,7 @@
 
         <!-- 4. Creation / Add Items (+) with Flyout Submenu (Admin Only) -->
         <div class="sidebar-item-with-submenu admin-only-ui" id="sidebarAddSection">
-          <button class="sidebar-btn sidebar-btn-add admin-only-ui" id="sideNavAddTrigger" data-tooltip="Add & Create">
+          <button class="sidebar-btn sidebar-btn-add admin-only-ui" id="sideNavAddTrigger" data-tooltip="Add & Create" aria-label="Add & Create" title="Add & Create">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <line x1="12" y1="5" x2="12" y2="19"></line>
               <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -107,7 +113,7 @@
 
         <!-- 5. Operations & Tools with Flyout Submenu -->
         <div class="sidebar-item-with-submenu">
-          <button class="sidebar-btn" id="sideNavToolsTrigger" data-tooltip="Tools & Actions">
+          <button class="sidebar-btn" id="sideNavToolsTrigger" data-tooltip="Tools & Actions" aria-label="Tools & Actions" title="Tools & Actions">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
               <polyline points="2 17 12 22 22 17"></polyline>
@@ -143,7 +149,7 @@
 
       <!-- Sidebar Footer: Theme, Admin, Lock -->
       <div class="sidebar-footer">
-        <button class="sidebar-btn admin-only-ui" id="sideNavTheme" data-tooltip="Theme Studio">
+        <button class="sidebar-btn admin-only-ui" id="sideNavTheme" data-tooltip="Theme Studio" aria-label="Theme Studio" title="Theme Studio">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="5"></circle>
             <line x1="12" y1="1" x2="12" y2="3"></line>
@@ -157,7 +163,7 @@
           </svg>
         </button>
 
-        <a href="/admin" class="sidebar-btn admin-only-ui" id="sideNavAdmin" data-tooltip="Admin Console">
+        <a href="/admin" class="sidebar-btn admin-only-ui" id="sideNavAdmin" data-tooltip="Admin Console" aria-label="Admin Console" title="Admin Console">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"></circle>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -165,7 +171,7 @@
         </a>
 
         <!-- Role / Authentication Unlock Button -->
-        <button class="sidebar-btn auth-toggle-btn role-guest" id="authToggleBtn" data-tooltip="Login / Unlock Access (Guest)">
+        <button class="sidebar-btn auth-toggle-btn role-guest" id="authToggleBtn" data-tooltip="Login / Unlock Access (Guest)" aria-label="Login / Unlock Access" title="Login / Unlock Access">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
             <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
@@ -1282,8 +1288,34 @@
 
   <div class="toast-container" id="toastContainer"></div>
 
+  <!-- Keyboard Shortcuts Help Modal (?) -->
+  <div class="modal" id="keyboardModal" role="dialog" aria-modal="true" aria-labelledby="kbTitle" style="display:none;">
+    <div class="modal-overlay" id="kbOverlay"></div>
+    <div class="modal-content keyboard-modal-content" style="max-width:540px;">
+      <div class="modal-header">
+        <h3 id="kbTitle" style="color:#f8fafc; font-size:1.1rem; font-weight:700;">⌨️ Keyboard Shortcuts & Spatial Navigation</h3>
+        <button class="modal-close" id="btnCloseKeyboardModal" aria-label="Close shortcuts modal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding:16px 20px;">
+        <table class="shortcuts-table" style="width:100%; border-collapse:collapse; font-size:0.88rem; color:#cbd5e1;">
+          <tbody>
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.06);"><td style="padding:8px 0;"><kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-family:monospace;">Tab</kbd> / <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-family:monospace;">Shift+Tab</kbd></td><td style="padding:8px 0;">Cycle landmarks and navigation</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.06);"><td style="padding:8px 0;"><kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-family:monospace;">↑</kbd> <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-family:monospace;">↓</kbd> <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-family:monospace;">←</kbd> <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-family:monospace;">→</kbd></td><td style="padding:8px 0;">Spatial geometric navigation between stage items</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.06);"><td style="padding:8px 0;"><kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-family:monospace;">Enter</kbd></td><td style="padding:8px 0;">Open service link / expand collapsed chip</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.06);"><td style="padding:8px 0;"><kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-family:monospace;">Esc</kbd></td><td style="padding:8px 0;">Close modal / exit Blueprint edit mode</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.06);"><td style="padding:8px 0;"><kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-family:monospace;">E</kbd></td><td style="padding:8px 0;">Toggle In-Place Blueprint Edit Mode (Admin)</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.06);"><td style="padding:8px 0;"><kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-family:monospace;">M</kbd></td><td style="padding:8px 0;">Toggle keyboard carry / move mode</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.06);"><td style="padding:8px 0;"><kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-family:monospace;">Ctrl+Z</kbd> / <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-family:monospace;">Ctrl+Y</kbd></td><td style="padding:8px 0;">Undo / Redo blueprint layout changes</td></tr>
+            <tr><td style="padding:8px 0;"><kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-family:monospace;">?</kbd></td><td style="padding:8px 0;">Open this keyboard shortcuts dialog</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <script src="js/icons.js"></script>
   <script src="js/persianCalendar.js"></script>
+  <script src="js/shared/i18n.js"></script>
   <script src="js/serverCharts.js"></script>
   <script src="js/shared/schema.js"></script>
   <script src="js/state/compat-v1.js"></script>
