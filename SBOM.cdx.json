@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.4",
-  "serialNumber": "urn:uuid:f8a73d56-4440-4236-aaca-36553db3afcf",
+  "serialNumber": "urn:uuid:28cae84b-55e8-41e1-a4aa-b7609459ac23",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-22T10:47:47.391Z",
+    "timestamp": "2026-10-22T19:30:55.421Z",
     "tools": [
       {
         "vendor": "DimDash",

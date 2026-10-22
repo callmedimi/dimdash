@@ -2387,8 +2387,34 @@ function setupEventListeners() {
 // --------------------------------------------------------------------------
 
 function closeAllModals() {
-  document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.remove('open'));
+  document.querySelectorAll('.modal-backdrop').forEach(m => {
+    m.classList.remove('open');
+    m.style.display = '';
+  });
 }
+window.closeAllModals = closeAllModals;
+
+// Delegated click listener for bulletproof modal closing (backdrop, close buttons, cancel)
+document.addEventListener('click', (e) => {
+  // Backdrop click (click outside modal-window)
+  if (e.target.classList && e.target.classList.contains('modal-backdrop')) {
+    closeAllModals();
+    return;
+  }
+  // Modal header close button (×) or footer cancel/close buttons
+  const closeBtn = e.target.closest('.modal-header .btn-icon, .modal-footer [onclick*="closeAllModals"], [data-modal-close]');
+  if (closeBtn && closeBtn.closest('.modal-backdrop')) {
+    e.preventDefault();
+    closeAllModals();
+  }
+});
+
+// Escape key closes open modals
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeAllModals();
+  }
+});
 
 // Auth UI & Role State Synchronizer
 function updateAuthUI() {

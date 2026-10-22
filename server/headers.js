@@ -11,7 +11,7 @@ function securityHeadersMiddleware(req, res, next) {
   // Air-gapped self-hosted policy with zero remote font/script dependencies
   const cspPolicy = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-eval'",
+    "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self'",
