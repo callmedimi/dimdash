@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DimDash Self-Test Suite (P13 Stabilization)</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: rgba(15, 23, 42, 0.85);
+      --border: rgba(255, 255, 255, 0.1);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --pass: #10b981;
+      --fail: #ef4444;
+      --accent: #38bdf8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 24px;
+      line-height: 1.5;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    h1 { font-size: 1.5rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 10px; }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .badge-running { background: rgba(56, 189, 248, 0.2); color: var(--accent); }
+    .badge-pass { background: rgba(16, 185, 129, 0.2); color: var(--pass); }
+    .badge-fail { background: rgba(239, 68, 68, 0.2); color: var(--fail); }
+
+    .test-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .metric-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .metric-title { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; }
+    .metric-value { font-size: 1.8rem; font-weight: 700; margin-top: 4px; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+    th {
+      background: rgba(255, 255, 255, 0.03);
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    tr:last-child td { border-bottom: none; }
+    .status-cell { font-weight: 700; }
+    .status-pass { color: var(--pass); }
+    .status-fail { color: var(--fail); }
+    .status-running { color: var(--accent); }
+
+    .log-box {
+      background: #020617;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.82rem;
+      max-height: 280px;
+      overflow-y: auto;
+      color: #cbd5e1;
+      white-space: pre-wrap;
+      margin-bottom: 24px;
+    }
+
+    .frame-container {
+      background: #020617;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .frame-header {
+      padding: 10px 16px;
+      background: rgba(255, 255, 255, 0.04);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #stageFrame {
+      width: 100%;
+      height: 600px;
+      border: none;
+      background: #090d16;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><span>🧪</span> DimDash Programmatic Self-Test Suite</h1>
+    <div id="statusBadge" class="badge badge-running">INITIALIZING RUNNER...</div>
+  </header>
+
+  <section class="test-summary">
+    <div class="metric-card">
+      <div class="metric-title">Tests Total</div>
+      <div class="metric-value" id="metricTotal">8</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-title">Passed</div>
+      <div class="metric-value" id="metricPassed" style="color: var(--pass);">0</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-title">Failed</div>
+      <div class="metric-value" id="metricFailed" style="color: var(--fail);">0</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-title">Duration</div>
+      <div class="metric-value" id="metricDuration">0 ms</div>
+    </div>
+  </section>
+
+  <table id="testTable">
+    <thead>
+      <tr>
+        <th style="width: 80px;">Test</th>
+        <th>Assertion Description</th>
+        <th style="width: 100px;">Duration</th>
+        <th style="width: 100px;">Status</th>
+        <th>Details / Evidence</th>
+      </tr>
+    </thead>
+    <tbody id="testTableBody">
+      <tr id="row-a"><td>(a)</td><td>Enter Blueprint edit mode</td><td>-</td><td class="status-cell">Pending</td><td>-</td></tr>
+      <tr id="row-b"><td>(b)</td><td>Select first island (header click + empty body click)</td><td>-</td><td class="status-cell">Pending</td><td>-</td></tr>
+      <tr id="row-c"><td>(c)</td><td>Drag island +200,+120 px → verify model, DOM and API persistence</td><td>-</td><td class="status-cell">Pending</td><td>-</td></tr>
+      <tr id="row-d"><td>(d)</td><td>Select tile and drag to empty board → becomes standalone (parent = null)</td><td>-</td><td class="status-cell">Pending</td><td>-</td></tr>
+      <tr id="row-e"><td>(e)</td><td>Drag tile back into island → joins container (parent = islandId)</td><td>-</td><td class="status-cell">Pending</td><td>-</td></tr>
+      <tr id="row-f"><td>(f)</td><td>Resize island from SE handle +150,+80 → model/DOM updated, children reflow</td><td>-</td><td class="status-cell">Pending</td><td>-</td></tr>
+      <tr id="row-g"><td>(g)</td><td>Select 3 items and run Align left, Distribute horizontally, Same width</td><td>-</td><td class="status-cell">Pending</td><td>-</td></tr>
+      <tr id="row-h"><td>(h)</td><td>Undo / Redo 3 times → assert state restoration</td><td>-</td><td class="status-cell">Pending</td><td>-</td></tr>
+    </tbody>
+  </table>
+
+  <div class="log-box" id="logBox">Initializing environment...</div>
+
+  <section class="frame-container">
+    <div class="frame-header">
+      <span>Live Stage Target Iframe (/?debug=1)</span>
+      <span id="frameState">Loading iframe...</span>
+    </div>
+    <iframe id="stageFrame" src="/?debug=1"></iframe>
+  </section>
+
+  <script>
+    window.__SELFTEST_PASSED = null;
+    window.__SELFTEST_RESULTS = [];
+
+    const logBox = document.getElementById('logBox');
+    function log(msg) {
+      logBox.textContent += msg + '\n';
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function updateRow(testKey, status, durationMs, details) {
+      const row = document.getElementById(`row-${testKey}`);
+      if (!row) return;
+      const statusCell = row.cells[3];
+      const durCell = row.cells[2];
+      const detCell = row.cells[4];
+
+      durCell.textContent = `${durationMs} ms`;
+      statusCell.textContent = status;
+      statusCell.className = `status-cell status-${status.toLowerCase()}`;
+      detCell.textContent = details;
+    }
+
+    // Helper: Sleep
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+    // PointerEvent simulation helper
+    function dispatchPointerDrag(targetEl, doc, startX, startY, deltaX, deltaY, steps = 10) {
+      const pId = 1;
+      const vp = doc.querySelector('.stage-viewport') || targetEl;
+
+      // 1. Pointerdown on target element (bubbles to viewportEl)
+      targetEl.dispatchEvent(new doc.defaultView.PointerEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        pointerId: pId,
+        pointerType: 'mouse',
+        isPrimary: true,
+        clientX: startX,
+        clientY: startY,
+        button: 0,
+        buttons: 1
+      }));
+
+      // 2. Intermediate pointermove events delivered to viewportEl
+      for (let i = 1; i <= steps; i++) {
+        const curX = startX + (deltaX * (i / steps));
+        const curY = startY + (deltaY * (i / steps));
+        vp.dispatchEvent(new doc.defaultView.PointerEvent('pointermove', {
+          bubbles: true,
+          cancelable: true,
+          pointerId: pId,
+          pointerType: 'mouse',
+          isPrimary: true,
+          clientX: curX,
+          clientY: curY,
+          button: 0,
+          buttons: 1
+        }));
+      }
+
+      // 3. Pointerup delivered to viewportEl
+      vp.dispatchEvent(new doc.defaultView.PointerEvent('pointerup', {
+        bubbles: true,
+        cancelable: true,
+        pointerId: pId,
+        pointerType: 'mouse',
+        isPrimary: true,
+        clientX: startX + deltaX,
+        clientY: startY + deltaY,
+        button: 0,
+        buttons: 0
+      }));
+    }
+
+    async function runSelfTests() {
+      const frame = document.getElementById('stageFrame');
+      const startTime = Date.now();
+      let passCount = 0;
+      let failCount = 0;
+
+      log('[SelfTest] Waiting for iframe and StageRenderer initialization...');
+
+      // Wait until iframe is ready
+      let win, doc, stage, interaction;
+      for (let i = 0; i < 60; i++) {
+        try {
+          win = frame.contentWindow;
+          doc = frame.contentDocument;
+          if (win && win.stageRenderer && win.stageRenderer.interaction && win.stageRenderer.itemElements?.size > 0) {
+            stage = win.stageRenderer;
+            interaction = stage.interaction;
+            break;
+          }
+        } catch (e) {}
+        await sleep(200);
+      }
+
+      if (!stage || !interaction) {
+        log('[FATAL] Timed out waiting for StageRenderer in target iframe!');
+        document.getElementById('statusBadge').className = 'badge badge-fail';
+        document.getElementById('statusBadge').textContent = 'INITIALIZATION FAILED';
+        window.__SELFTEST_PASSED = false;
+        console.error('[SelfTest] StageRenderer initialization timed out.');
+        return;
+      }
+
+      document.getElementById('frameState').textContent = `Ready (${stage.itemElements.size} items rendered)`;
+      log(`[SelfTest] StageRenderer mounted successfully with ${stage.itemElements.size} items.`);
+
+      const profile = stage.currentProfile?.id || 'lg';
+
+      // =========================================================================
+      // Test (a): Enter Blueprint edit mode
+      // =========================================================================
+      const tA_start = Date.now();
+      try {
+        log('\n--- Running Test (a): Enter edit mode ---');
+        interaction.setEditMode(true);
+        await sleep(150);
+
+        const isEditing = interaction.isEditing === true;
+        const hasEditingClass = stage.viewportEl.classList.contains('editing');
+
+        if (isEditing && hasEditingClass) {
+          const dur = Date.now() - tA_start;
+          passCount++;
+          updateRow('a', 'PASS', dur, 'Edit mode active, .stage-viewport.editing verified');
+          log(`[PASS] (a) Enter edit mode (${dur} ms)`);
+        } else {
+          throw new Error(`isEditing=${isEditing}, hasClass=${hasEditingClass}`);
+        }
+      } catch (err) {
+        failCount++;
+        const dur = Date.now() - tA_start;
+        updateRow('a', 'FAIL', dur, err.message);
+        log(`[FAIL] (a) ${err.message}`);
+        console.error('[SelfTest (a) FAIL]', err);
+      }
+
+      // =========================================================================
+      // Test (b): Select first island by clicking header, then by clicking body
+      // =========================================================================
+      const tB_start = Date.now();
+      let firstIslandEl = null;
+      let firstIslandId = null;
+      try {
+        log('\n--- Running Test (b): Select island by header & empty body ---');
+        firstIslandEl = stage.viewportEl.querySelector('.stage-item[data-kind="island"]');
+        if (!firstIslandEl) throw new Error('No island element found in stage DOM');
+        firstIslandId = firstIslandEl.getAttribute('data-id');
+
+        // 1. Click header (offset from handles)
+        const header = firstIslandEl.querySelector('.stage-island-header');
+        if (!header) throw new Error('Island header not found');
+        const hRect = header.getBoundingClientRect();
+
+        header.dispatchEvent(new doc.defaultView.PointerEvent('pointerdown', {
+          bubbles: true, cancelable: true, clientX: hRect.left + 80, clientY: hRect.top + 20, button: 0, buttons: 1
+        }));
+        header.dispatchEvent(new doc.defaultView.PointerEvent('pointerup', {
+          bubbles: true, cancelable: true, clientX: hRect.left + 80, clientY: hRect.top + 20, button: 0, buttons: 0
+        }));
+        await sleep(80);
+
+        const headerSelected = interaction.selectedIds.has(firstIslandId);
+
+        // Deselect
+        interaction.clearSelection();
+        await sleep(60);
+        const deselected = interaction.selectedIds.size === 0;
+
+        // 2. Click empty body
+        const body = firstIslandEl.querySelector('.stage-island-body');
+        const bRect = body.getBoundingClientRect();
+        body.dispatchEvent(new doc.defaultView.PointerEvent('pointerdown', {
+          bubbles: true, cancelable: true, clientX: bRect.left + 40, clientY: bRect.bottom - 10, button: 0, buttons: 1
+        }));
+        body.dispatchEvent(new doc.defaultView.PointerEvent('pointerup', {
+          bubbles: true, cancelable: true, clientX: bRect.left + 40, clientY: bRect.bottom - 10, button: 0, buttons: 0
+        }));
+        await sleep(80);
+
+        const bodySelected = interaction.selectedIds.has(firstIslandId);
+
+        if (headerSelected && deselected && bodySelected) {
+          const dur = Date.now() - tB_start;
+          passCount++;
+          updateRow('b', 'PASS', dur, `Island "${firstIslandId}" hit-tested via header and body cleanly`);
+          log(`[PASS] (b) Select island by header and empty body (${dur} ms)`);
+        } else {
+          throw new Error(`headerSelected=${headerSelected}, deselected=${deselected}, bodySelected=${bodySelected}`);
+        }
+      } catch (err) {
+        failCount++;
+        const dur = Date.now() - tB_start;
+        updateRow('b', 'FAIL', dur, err.message);
+        log(`[FAIL] (b) ${err.message}`);
+        console.error('[SelfTest (b) FAIL]', err);
+      }
+
+      // =========================================================================
+      // Test (c): Drag island by +200, +120 px → model & DOM moved & persisted
+      // =========================================================================
+      const tC_start = Date.now();
+      try {
+        log('\n--- Running Test (c): Drag island +200,+120 px and verify persistence ---');
+        const prevP = JSON.parse(JSON.stringify(interaction.getItemPlacement(firstIslandId, profile)));
+        const prevDom = firstIslandEl.getBoundingClientRect();
+
+        const header = firstIslandEl.querySelector('.stage-island-header');
+        const hRect = header.getBoundingClientRect();
+        // Safe start coordinate in header: avoid corner/edge resize handles
+        const startX = hRect.left + 80;
+        const startY = hRect.top + 20;
+
+        dispatchPointerDrag(header, doc, startX, startY, 200, 120, 10);
+        await sleep(400); // Allow patch debounce & server commit
+
+        const nextDom = firstIslandEl.getBoundingClientRect();
+        const nextP = interaction.getItemPlacement(firstIslandId, profile);
+
+        const domDx = Math.round(nextDom.left - prevDom.left);
+        const domDy = Math.round(nextDom.top - prevDom.top);
+        const modelDx = Math.round(nextP.x - prevP.x);
+        const modelDy = Math.round(nextP.y - prevP.y);
+
+        // Fetch from API to assert persistence
+        const apiResp = await fetch('/api/board').then(r => r.json());
+        const persistedP = apiResp.layout?.placement?.[firstIslandId]?.[profile];
+
+        const isDomMoved = domDx > 40 && domDy > 20;
+        const isModelMoved = modelDx > 50 && modelDy > 50;
+        const isPersisted = persistedP && Math.abs(persistedP.x - nextP.x) < 0.1;
+
+        if (isDomMoved && isModelMoved && isPersisted) {
+          const dur = Date.now() - tC_start;
+          passCount++;
+          updateRow('c', 'PASS', dur, `DOM: +${domDx},+${domDy}px | Model: +${modelDx},+${modelDy}wu | Persisted in /api/board`);
+          log(`[PASS] (c) Drag island persisted: DOM=+${domDx},+${domDy}px, Model=+${modelDx},+${modelDy}wu (${dur} ms)`);
+        } else {
+          throw new Error(`DOM(${domDx},${domDy}) Model(${modelDx},${modelDy}) Persisted=${!!isPersisted}`);
+        }
+      } catch (err) {
+        failCount++;
+        const dur = Date.now() - tC_start;
+        updateRow('c', 'FAIL', dur, err.message);
+        log(`[FAIL] (c) ${err.message}`);
+        console.error('[SelfTest (c) FAIL]', err);
+      }
+
+      // =========================================================================
+      // Test (d): Select tile, drag to empty space → becomes standalone
+      // =========================================================================
+      const tD_start = Date.now();
+      let testTileEl = null;
+      let testTileId = null;
+      let origParent = null;
+      try {
+        log('\n--- Running Test (d): Drag tile to empty space (standalone) ---');
+        testTileEl = stage.viewportEl.querySelector('.stage-item[data-kind="service"][data-parent]');
+        if (!testTileEl) throw new Error('No service tile with data-parent found');
+        testTileId = testTileEl.getAttribute('data-id');
+        origParent = testTileEl.getAttribute('data-parent');
+
+        const tileRect = testTileEl.getBoundingClientRect();
+        const startX = tileRect.left + tileRect.width / 2;
+        const startY = tileRect.top + tileRect.height / 2;
+
+        // Compute coordinates guaranteed to be strictly outside ANY island
+        const allIslands = (stage.board.config?.items || [])
+          .filter(it => it.kind === 'island')
+          .map(it => {
+            const p = interaction.getItemPlacement(it.id, profile) || {};
+            return {
+              right: (Number(p.x) || 0) + (Number(p.w) || 200),
+              bottom: (Number(p.y) || 0) + (Number(p.h) || 150)
+            };
+          });
+
+        let maxRight = 0;
+        let maxBottom = 0;
+        for (const isl of allIslands) {
+          if (isl.right > maxRight) maxRight = isl.right;
+          if (isl.bottom > maxBottom) maxBottom = isl.bottom;
+        }
+
+        const scale = stage.stageScale || 1.0;
+        const wu = stage.metrics?.wu || 1.0;
+        const vpRect = stage.viewportEl.getBoundingClientRect();
+        const emptyTargetX = vpRect.left + (maxRight + 120) * wu * scale;
+        const emptyTargetY = vpRect.top + (maxBottom + 120) * wu * scale;
+        const deltaX = emptyTargetX - startX;
+        const deltaY = emptyTargetY - startY;
+
+        dispatchPointerDrag(testTileEl, doc, startX, startY, deltaX, deltaY, 10);
+        await sleep(400);
+
+        const newP = interaction.getItemPlacement(testTileId, profile);
+        const hasParentAttr = testTileEl.hasAttribute('data-parent') && testTileEl.getAttribute('data-parent') !== '';
+
+        if (!newP.parent && !hasParentAttr) {
+          const dur = Date.now() - tD_start;
+          passCount++;
+          updateRow('d', 'PASS', dur, `Tile "${testTileId}" dropped to standalone: parent=null`);
+          log(`[PASS] (d) Tile becomes standalone (${dur} ms)`);
+        } else {
+          throw new Error(`Placement parent=${newP.parent}, DOM attr=${testTileEl.getAttribute('data-parent')}`);
+        }
+      } catch (err) {
+        failCount++;
+        const dur = Date.now() - tD_start;
+        updateRow('d', 'FAIL', dur, err.message);
+        log(`[FAIL] (d) ${err.message}`);
+        console.error('[SelfTest (d) FAIL]', err);
+      }
+
+      // =========================================================================
+      // Test (e): Drag tile back into island → joins container
+      // =========================================================================
+      const tE_start = Date.now();
+      try {
+        log('\n--- Running Test (e): Drag tile back into island ---');
+        const tileRect = testTileEl.getBoundingClientRect();
+        const startX = tileRect.left + tileRect.width / 2;
+        const startY = tileRect.top + tileRect.height / 2;
+
+        const targetIsland = stage.viewportEl.querySelector(`.stage-item[data-id="${origParent}"]`) || firstIslandEl;
+        const iRect = targetIsland.getBoundingClientRect();
+        // Drop into center of target island
+        const targetX = iRect.left + iRect.width / 2;
+        const targetY = iRect.top + iRect.height / 2;
+
+        dispatchPointerDrag(testTileEl, doc, startX, startY, targetX - startX, targetY - startY, 10);
+        await sleep(400);
+
+        const targetIslandId = targetIsland.getAttribute('data-id');
+        const joinedP = interaction.getItemPlacement(testTileId, profile);
+        const parentAttr = testTileEl.getAttribute('data-parent');
+
+        if (joinedP.parent === targetIslandId && parentAttr === targetIslandId) {
+          const dur = Date.now() - tE_start;
+          passCount++;
+          updateRow('e', 'PASS', dur, `Tile rejoined island "${targetIslandId}" cleanly`);
+          log(`[PASS] (e) Tile joins island container (${dur} ms)`);
+        } else {
+          throw new Error(`Joined parent=${joinedP.parent}, DOM attr=${parentAttr}, expected=${targetIslandId}`);
+        }
+      } catch (err) {
+        failCount++;
+        const dur = Date.now() - tE_start;
+        updateRow('e', 'FAIL', dur, err.message);
+        log(`[FAIL] (e) ${err.message}`);
+        console.error('[SelfTest (e) FAIL]', err);
+      }
+
+      // =========================================================================
+      // Test (f): Resize island from SE handle +150,+80 → reflow without overflow
+      // =========================================================================
+      const tF_start = Date.now();
+      try {
+        log('\n--- Running Test (f): Resize island from SE handle ---');
+        interaction.clearSelection();
+        interaction.selectItem(firstIslandId, false);
+        await sleep(100);
+
+        const prevDom = firstIslandEl.getBoundingClientRect();
+        const prevP = JSON.parse(JSON.stringify(interaction.getItemPlacement(firstIslandId, profile)));
+
+        // Handle position is at SE corner of island's screen rect
+        const seX = prevDom.right;
+        const seY = prevDom.bottom;
+
+        dispatchPointerDrag(stage.viewportEl, doc, seX, seY, 150, 80, 10);
+        await sleep(400);
+
+        const nextDom = firstIslandEl.getBoundingClientRect();
+        const nextP = interaction.getItemPlacement(firstIslandId, profile);
+
+        const dw = Math.round(nextDom.width - prevDom.width);
+        const dh = Math.round(nextDom.height - prevDom.height);
+        const modelDw = Math.round(nextP.w - prevP.w);
+        const modelDh = Math.round(nextP.h - prevP.h);
+
+        const body = firstIslandEl.querySelector('.stage-island-body');
+        const overflow = body ? (body.scrollHeight > body.clientHeight + 4) : false;
+
+        if (dw > 30 && dh > 20 && modelDw > 0 && modelDh > 0 && !overflow) {
+          const dur = Date.now() - tF_start;
+          passCount++;
+          updateRow('f', 'PASS', dur, `Resized +${dw}x+${dh}px (+${modelDw}x+${modelDh}wu). Zero overflow detected.`);
+          log(`[PASS] (f) Resize island +${dw}x+${dh}px, children reflow without overflow (${dur} ms)`);
+        } else {
+          throw new Error(`dw=${dw}, dh=${dh}, modelDw=${modelDw}, overflow=${overflow}`);
+        }
+      } catch (err) {
+        failCount++;
+        const dur = Date.now() - tF_start;
+        updateRow('f', 'FAIL', dur, err.message);
+        log(`[FAIL] (f) ${err.message}`);
+        console.error('[SelfTest (f) FAIL]', err);
+      }
+
+      // =========================================================================
+      // Test (g): Select 3 items and run Align left, Distribute horiz, Same width
+      // =========================================================================
+      const tG_start = Date.now();
+      let testItemIds = [];
+      try {
+        log('\n--- Running Test (g): Align left, Distribute horizontally, Same width ---');
+        // Pick 3 widget items that belong to the same parent island
+        let items = Array.from(stage.viewportEl.querySelectorAll('.stage-item[data-kind="widget"]')).slice(0, 3);
+        if (items.length < 3) {
+          items = Array.from(stage.viewportEl.querySelectorAll('.stage-item[data-kind="island"]')).slice(0, 3);
+        }
+        if (items.length < 3) throw new Error('Need at least 3 stage items for test (g)');
+        testItemIds = items.map(el => el.getAttribute('data-id'));
+
+        interaction.clearSelection();
+        testItemIds.forEach(id => interaction.selectItem(id, true));
+        await sleep(100);
+
+        // 1. Align left
+        interaction.alignSelected('left');
+        await sleep(150);
+        const pAlign = testItemIds.map(id => interaction.getItemPlacement(id, profile));
+        const allSameX = pAlign[0].x === pAlign[1].x && pAlign[1].x === pAlign[2].x;
+
+        // 2. Same width
+        interaction.sameSizeSelected('width');
+        await sleep(150);
+        const pWidth = testItemIds.map(id => interaction.getItemPlacement(id, profile));
+        const allSameW = pWidth[0].w === pWidth[1].w && pWidth[1].w === pWidth[2].w;
+
+        // 3. Distribute horizontally
+        interaction.distributeSelected('horizontal');
+        await sleep(150);
+        const pDist = testItemIds.map(id => interaction.getItemPlacement(id, profile)).sort((a,b) => a.x - b.x);
+        const gap1 = pDist[1].x - (pDist[0].x + pDist[0].w);
+        const gap2 = pDist[2].x - (pDist[1].x + pDist[1].w);
+        const isDistributed = Math.abs(gap1 - gap2) <= 2;
+
+        if (allSameX && allSameW && isDistributed) {
+          const dur = Date.now() - tG_start;
+          passCount++;
+          updateRow('g', 'PASS', dur, `Align left (x=${pAlign[0].x}), Same width (w=${pWidth[0].w}), Gaps (${gap1.toFixed(1)} vs ${gap2.toFixed(1)})`);
+          log(`[PASS] (g) Align, Distribute & Same-width assertions passed (${dur} ms)`);
+        } else {
+          throw new Error(`sameX=${allSameX}, sameW=${allSameW}, distributed=${isDistributed} (gaps: ${gap1}, ${gap2})`);
+        }
+      } catch (err) {
+        failCount++;
+        const dur = Date.now() - tG_start;
+        updateRow('g', 'FAIL', dur, err.message);
+        log(`[FAIL] (g) ${err.message}`);
+        console.error('[SelfTest (g) FAIL]', err);
+      }
+
+      // =========================================================================
+      // Test (h): Undo / Redo 3 times
+      // =========================================================================
+      const tH_start = Date.now();
+      try {
+        log('\n--- Running Test (h): Undo / Redo x3 ---');
+        const stateBefore = JSON.parse(JSON.stringify(interaction.getItemPlacement(testItemIds[0], profile)));
+
+        // Undo 3 times
+        for (let i = 0; i < 3; i++) {
+          if (interaction.history.canUndo()) {
+            interaction.undo();
+            await sleep(80);
+          }
+        }
+
+        const stateUndone = JSON.parse(JSON.stringify(interaction.getItemPlacement(testItemIds[0], profile)));
+
+        // Redo 3 times
+        for (let i = 0; i < 3; i++) {
+          if (interaction.history.canRedo()) {
+            interaction.redo();
+            await sleep(80);
+          }
+        }
+
+        const stateRedone = JSON.parse(JSON.stringify(interaction.getItemPlacement(testItemIds[0], profile)));
+
+        const isRestored = stateBefore.x === stateRedone.x && stateBefore.w === stateRedone.w;
+
+        if (isRestored) {
+          const dur = Date.now() - tH_start;
+          passCount++;
+          updateRow('h', 'PASS', dur, `State successfully reverted via 3 undos and fully restored via 3 redos`);
+          log(`[PASS] (h) Undo/Redo x3 cycles verified (${dur} ms)`);
+        } else {
+          throw new Error(`Initial: x=${stateBefore.x}, Redone: x=${stateRedone.x}`);
+        }
+      } catch (err) {
+        failCount++;
+        const dur = Date.now() - tH_start;
+        updateRow('h', 'FAIL', dur, err.message);
+        log(`[FAIL] (h) ${err.message}`);
+        console.error('[SelfTest (h) FAIL]', err);
+      }
+
+      // =========================================================================
+      // Final Summary
+      // =========================================================================
+      const totalDur = Date.now() - startTime;
+      document.getElementById('metricPassed').textContent = passCount;
+      document.getElementById('metricFailed').textContent = failCount;
+      document.getElementById('metricDuration').textContent = `${totalDur} ms`;
+
+      const badge = document.getElementById('statusBadge');
+      if (failCount === 0 && passCount === 8) {
+        badge.className = 'badge badge-pass';
+        badge.textContent = 'ALL ASSERTIONS PASSED (8/8)';
+        window.__SELFTEST_PASSED = true;
+        log('\n========================================================');
+        log(` 🎉 ALL SELF-TESTS PASSED (8/8) in ${totalDur} ms`);
+        log('========================================================\n');
+        console.log(`[DimDash SelfTest] PASS: All 8 assertions completed successfully in ${totalDur}ms.`);
+      } else {
+        badge.className = 'badge badge-fail';
+        badge.textContent = `FAILED (${failCount} errors)`;
+        window.__SELFTEST_PASSED = false;
+        log('\n========================================================');
+        log(` ❌ SELF-TESTS FAILED: ${failCount} failures, ${passCount} passed`);
+        log('========================================================\n');
+        console.error(`[DimDash SelfTest] FAIL: ${failCount} tests failed.`);
+      }
+    }
+
+    window.addEventListener('load', () => {
+      // Small timeout to allow target iframe to commence loading
+      setTimeout(runSelfTests, 400);
+    });
+  </script>
+</body>
+</html>

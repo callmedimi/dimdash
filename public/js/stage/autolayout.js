@@ -500,6 +500,108 @@
     }));
   }
 
+  /* -------------------------------------------------------------------------
+   * 8. ALIGNMENT, DISTRIBUTION & SIZING PURE FUNCTIONS (STEP 3)
+   * ------------------------------------------------------------------------- */
+  function alignRects(rects, alignment) {
+    if (!rects || rects.length <= 1) return rects ? rects.map(r => ({ ...r })) : [];
+    const minX = Math.min(...rects.map(r => r.x));
+    const maxX = Math.max(...rects.map(r => r.x + r.w));
+    const minY = Math.min(...rects.map(r => r.y));
+    const maxY = Math.max(...rects.map(r => r.y + r.h));
+
+    return rects.map(r => {
+      const copy = { ...r };
+      switch (alignment) {
+        case 'left':
+          copy.x = minX;
+          break;
+        case 'right':
+          copy.x = maxX - r.w;
+          break;
+        case 'center':
+          copy.x = Math.round(minX + (maxX - minX - r.w) / 2);
+          break;
+        case 'top':
+          copy.y = minY;
+          break;
+        case 'bottom':
+          copy.y = maxY - r.h;
+          break;
+        case 'middle':
+          copy.y = Math.round(minY + (maxY - minY - r.h) / 2);
+          break;
+      }
+      return copy;
+    });
+  }
+
+  function distributeRects(rects, direction = 'horizontal') {
+    if (!rects || rects.length <= 2) return rects ? rects.map(r => ({ ...r })) : [];
+    const copies = rects.map(r => ({ ...r }));
+
+    if (direction === 'horizontal') {
+      copies.sort((a, b) => a.x - b.x);
+      const first = copies[0];
+      const last = copies[copies.length - 1];
+      const span = (last.x + last.w) - first.x;
+      const sumW = copies.reduce((acc, r) => acc + r.w, 0);
+      const gap = (span - sumW) / (copies.length - 1);
+
+      let curX = first.x;
+      for (const item of copies) {
+        item.x = Math.round(curX);
+        curX += item.w + gap;
+      }
+    } else {
+      copies.sort((a, b) => a.y - b.y);
+      const first = copies[0];
+      const last = copies[copies.length - 1];
+      const span = (last.y + last.h) - first.y;
+      const sumH = copies.reduce((acc, r) => acc + r.h, 0);
+      const gap = (span - sumH) / (copies.length - 1);
+
+      let curY = first.y;
+      for (const item of copies) {
+        item.y = Math.round(curY);
+        curY += item.h + gap;
+      }
+    }
+    return copies;
+  }
+
+  function sameSizeRects(rects, dimension = 'width') {
+    if (!rects || rects.length <= 1) return rects ? rects.map(r => ({ ...r })) : [];
+    const targetW = rects[0].w;
+    const targetH = rects[0].h;
+
+    return rects.map(r => {
+      const copy = { ...r };
+      if (dimension === 'width' || dimension === 'both') copy.w = targetW;
+      if (dimension === 'height' || dimension === 'both') copy.h = targetH;
+      return copy;
+    });
+  }
+
+  function fitIslandToContent(islandRect, childrenRects, padding = 20) {
+    if (!childrenRects || childrenRects.length === 0) return { ...islandRect };
+    let maxRight = 0;
+    let maxBottom = 0;
+
+    for (const c of childrenRects) {
+      const right = (c.x >= islandRect.x ? c.x - islandRect.x : c.x) + c.w;
+      const bottom = (c.y >= islandRect.y ? c.y - islandRect.y : c.y) + c.h;
+      if (right > maxRight) maxRight = right;
+      if (bottom > maxBottom) maxBottom = bottom;
+    }
+
+    return {
+      ...islandRect,
+      w: Math.max(islandRect.w, Math.round(maxRight + padding)),
+      h: Math.max(islandRect.h, Math.round(maxBottom + padding))
+    };
+  }
+
   return {
     solveAutoLayout,
     solveFlowLayout,
@@ -508,6 +610,10 @@
     solveMasonryLayout,
     solveStackLayout,
     solveCarouselLayout,
-    solveFreeLayout
+    solveFreeLayout,
+    alignRects,
+    distributeRects,
+    sameSizeRects,
+    fitIslandToContent
   };
 });

@@ -113,17 +113,19 @@
   position: relative;
   flex: 1;
   padding: calc(12px * var(--wu));
-  overflow: hidden;
+  overflow: auto;
+  min-height: 0;
   content-visibility: auto;
   contain-intrinsic-size: calc(var(--w, 300) * var(--wu) * 1px) calc(var(--h, 180) * var(--wu) * 1px);
 }
 
 /* Service Tiles inside Island */
 .stage-service-tile {
-  display: flex;
+  display: grid !important;
+  grid-template-columns: var(--tile-icon-size, calc(40px * var(--wu))) 1fr auto;
   align-items: center;
   gap: calc(12px * var(--wu));
-  padding: calc(10px * var(--wu)) calc(14px * var(--wu));
+  padding: calc(8px * var(--wu)) calc(12px * var(--wu));
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: calc(12px * var(--wu));
@@ -131,6 +133,12 @@
   color: var(--text-main, #f8fafc);
   cursor: pointer;
   min-height: var(--tap-min, 44px);
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-drag: none;
   transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
 }
 
@@ -159,29 +167,48 @@
 .stage-tile-icon svg {
   max-width: 100%;
   max-height: 100%;
+  object-fit: contain;
 }
 
 .stage-tile-info {
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   min-width: 0;
-  flex: 1;
 }
 
 .stage-tile-title {
-  font-size: calc(0.9rem * var(--wu));
+  font-size: calc(0.92rem * var(--wu));
   font-weight: 600;
+  color: #f8fafc;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .stage-tile-subtitle {
   font-size: calc(0.72rem * var(--wu));
-  color: var(--text-muted, #94a3b8);
+  color: #94a3b8;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.tile-fallback-plate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(99, 102, 241, 0.25));
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: calc(10px * var(--wu));
+  font-weight: 700;
+  font-size: calc(1.15rem * var(--wu));
+  color: #f8fafc;
+  user-select: none;
 }
 
 /* Monitoring Gauge Widget within Stage */
@@ -309,12 +336,42 @@ body.tenfoot-idle * {
   background: rgba(20, 24, 38, 0.94) !important;
 }
 
+/* Layer ordering: ensure tiles and children always stay above island background */
+.stage-item[data-parent] {
+  z-index: calc(var(--z, 2) + 20);
+}
+
 /* Selected item styling */
 .stage-item.is-selected {
   outline: 2px solid #38bdf8;
   outline-offset: 2px;
   box-shadow: 0 0 20px rgba(56, 189, 248, 0.35);
-  z-index: 50 !important;
+  z-index: 30 !important;
+}
+
+.stage-item[data-kind="island"].is-selected {
+  z-index: 15 !important;
+}
+
+.stage-item[data-parent].is-selected {
+  z-index: 60 !important;
+}
+
+/* In Blueprint Edit Mode: disable native dragging and link triggering */
+.stage-viewport.editing a {
+  pointer-events: none;
+}
+.stage-viewport.editing .stage-service-tile {
+  pointer-events: auto;
+}
+.stage-viewport.editing img {
+  -webkit-user-drag: none;
+  user-select: none;
+  pointer-events: none;
+}
+.stage-viewport.editing .stage-item {
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* Blueprint mode subtle canvas dim */
@@ -886,4 +943,85 @@ body.tenfoot-idle * {
   from { opacity: 0; transform: translateY(-8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Shortcuts Help Modal (#keyboardModal) */
+#keyboardModal.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+#keyboardModal .modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+#keyboardModal .keyboard-modal-content {
+  position: relative;
+  z-index: 1;
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  width: 100%;
+  max-width: 540px;
+  max-height: min(70vh, 520px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7),
+              0 0 30px rgba(56, 189, 248, 0.15);
+}
+
+#keyboardModal .modal-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+#keyboardModal .modal-close {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+#keyboardModal .modal-close:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+#keyboardModal .modal-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+}
+
+/* Performance: Dragging optimizations */
+.stage-item.is-dragging {
+  will-change: transform !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: rgba(18, 22, 31, 0.92) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5) !important;
+}
+
+.stage-item.is-dragging * {
+  pointer-events: none !important;
+}
+
 

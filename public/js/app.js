@@ -1052,6 +1052,9 @@ function updateWidgetValues() {
     const isOnline = srvEntry ? srvEntry.status === 'online' : (srvId === 'local');
 
     const card = document.getElementById(`widget-card-${w.id}`);
+    if (card && card.closest('.is-dragging')) {
+      return; // Do not re-render widgets in the subtree being dragged
+    }
     if (card) {
       card.classList.toggle('server-offline', !isOnline);
     }

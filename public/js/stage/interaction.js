@@ -139,6 +139,10 @@
       this.requestOverlayRedraw();
     }
 
+    setEditMode(isEditing) {
+      return this.setEditing(isEditing);
+    }
+
     toggleEditing() {
       this.setEditing(!this.isEditing);
     }
@@ -205,22 +209,73 @@
       }
     }
 
+    getItemPlacement(id, profileId = null) {
+      if (!this.stage?.board?.layout) return null;
+      const profile = profileId || this.stage.currentProfile?.id || 'lg';
+      const placementMap = this.stage.board.layout.placement || {};
+      const itemPl = placementMap[id];
+      if (!itemPl) return null;
+      if (itemPl[profile]) return itemPl[profile];
+      return itemPl['lg'] || itemPl['md'] || Object.values(itemPl)[0] || null;
+    }
+
+    setItemPlacement(id, profileId, updates) {
+      if (!this.stage?.board?.layout) return;
+      const profile = profileId || this.stage.currentProfile?.id || 'lg';
+      if (!this.stage.board.layout.placement) {
+        this.stage.board.layout.placement = {};
+      }
+      if (!this.stage.board.layout.placement[id]) {
+        this.stage.board.layout.placement[id] = {};
+      }
+      if (!this.stage.board.layout.placement[id][profile]) {
+        const fallback = this.getItemPlacement(id, profile) || { x: 0, y: 0, w: 100, h: 100 };
+        this.stage.board.layout.placement[id][profile] = { ...fallback };
+      }
+      Object.assign(this.stage.board.layout.placement[id][profile], updates);
+    }
+
     getSelectedWorldRects() {
       if (!this.stage?.board?.layout) return [];
       const profile = this.stage.currentProfile?.id || 'lg';
-      const placement = this.stage.board.layout.profiles?.[profile]?.placement || {};
       const rects = [];
 
       for (const id of this.selectedIds) {
-        const p = placement[id];
+        const p = this.getItemPlacement(id, profile);
         if (p) {
           rects.push({
             id,
-            x: p.x,
-            y: p.y,
-            w: p.w,
-            h: p.h,
-            z: p.z || 1
+            x: Number(p.x) || 0,
+            y: Number(p.y) || 0,
+            w: Number(p.w) || 100,
+            h: Number(p.h) || 100,
+            z: p.z || 1,
+            parent: p.parent || null
+          });
+        }
+      }
+      return rects;
+    }
+
+    getSelectedScreenRects() {
+      if (!this.stage?.viewportEl) return [];
+      const vpRect = this.stage.viewportEl.getBoundingClientRect();
+      const rects = [];
+
+      for (const id of this.selectedIds) {
+        const el = this.stage.itemElements?.get(id);
+        if (el) {
+          const elRect = el.getBoundingClientRect();
+          rects.push({
+            id,
+            screenX: elRect.left - vpRect.left,
+            screenY: elRect.top - vpRect.top,
+            screenW: elRect.width,
+            screenH: elRect.height,
+            x: elRect.left - vpRect.left,
+            y: elRect.top - vpRect.top,
+            w: elRect.width,
+            h: elRect.height
           });
         }
       }
@@ -239,21 +294,32 @@
       const isCoarse = e.pointerType === 'touch' || window.matchMedia?.('(pointer: coarse)').matches;
 
       const rect = viewportEl.getBoundingClientRect();
+      this.cachedViewportRect = rect;
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
 
-      // 1. Check Handle Hit Test on currently selected items
-      const selectedRects = this.getSelectedWorldRects();
+      // STEP 0: Hit-test probe behind ?debug=1
+      if (window.location.search.includes('debug=1')) {
+        const elements = document.elementsFromPoint(e.clientX, e.clientY);
+        console.log('[DEBUG Hit-Test Probe]', {
+          point: { clientX: e.clientX, clientY: e.clientY, screenX, screenY },
+          elementsUnderPoint: elements.map(el => el.id || el.getAttribute('data-id') || el.className),
+          topOverlay: elements[0]?.className
+        });
+      }
+
+      // 1. Check Handle Hit Test on currently selected items (Source of truth: measured screen bounds)
+      const selectedScreenRects = this.getSelectedScreenRects();
       let hitHandle = null;
       let handleItemId = null;
 
-      if (window.DimDashOverlay && selectedRects.length === 1) {
-        const sr = selectedRects[0];
+      if (window.DimDashOverlay && selectedScreenRects.length === 1) {
+        const sr = selectedScreenRects[0];
         const screenBounds = {
-          x: sr.x * wu * camera.z + camera.x,
-          y: sr.y * wu * camera.z + camera.y,
-          w: sr.w * wu * camera.z,
-          h: sr.h * wu * camera.z
+          x: sr.screenX,
+          y: sr.screenY,
+          w: sr.screenW,
+          h: sr.screenH
         };
         hitHandle = window.DimDashOverlay.StageOverlay.hitTestHandles(screenX, screenY, screenBounds, isCoarse);
         if (hitHandle) {
@@ -263,18 +329,21 @@
 
       if (hitHandle && handleItemId) {
         // Start Resize
+        const profile = this.stage.currentProfile?.id || 'lg';
+        const p = this.getItemPlacement(handleItemId, profile) || { x: 0, y: 0, w: 100, h: 100 };
         this.transitionTo(STATES.RESIZE, {
           pointerId: e.pointerId,
           handle: hitHandle,
           itemId: handleItemId,
           startX: screenX,
           startY: screenY,
-          startRect: { ...selectedRects[0] },
+          startRect: { ...p },
+          startScreenRect: { ...selectedScreenRects[0] },
           shiftKey: e.shiftKey,
           altKey: e.altKey,
           ctrlKey: e.ctrlKey || e.metaKey
         });
-        viewportEl.setPointerCapture(e.pointerId);
+        try { viewportEl.setPointerCapture(e.pointerId); } catch (_) {}
         e.preventDefault();
         return;
       }
@@ -291,22 +360,38 @@
           this.selectItem(id, false);
         }
 
-        // Measure once before move loop starts (Read Once)
+        // Measure once before move loop starts
         const profile = this.stage.currentProfile?.id || 'lg';
-        const placement = this.stage.board.layout.profiles?.[profile]?.placement || {};
         const dragItems = [];
 
         for (const selId of this.selectedIds) {
-          const p = placement[selId];
+          const p = this.getItemPlacement(selId, profile);
           const el = this.stage.itemElements.get(selId);
           if (p && el) {
+            const itemObj = this.stage.board.config?.items?.find(it => it.id === selId);
+            const childElements = [];
+
+            // If selected item is an island, collect its child elements to move with it
+            if (itemObj?.kind === 'island') {
+              for (const childIt of (this.stage.board.config?.items || [])) {
+                const childP = this.getItemPlacement(childIt.id, profile);
+                if (childP?.parent === selId) {
+                  const childEl = this.stage.itemElements.get(childIt.id);
+                  if (childEl) childElements.push({ id: childIt.id, el: childEl });
+                }
+              }
+            }
+
             dragItems.push({
               id: selId,
               el,
-              origX: p.x,
-              origY: p.y,
-              w: p.w,
-              h: p.h
+              kind: itemObj?.kind || 'widget',
+              parent: p.parent || null,
+              origX: Number(p.x) || 0,
+              origY: Number(p.y) || 0,
+              w: Number(p.w) || 100,
+              h: Number(p.h) || 100,
+              childElements
             });
           }
         }
@@ -322,7 +407,7 @@
           ctrlKey: e.ctrlKey || e.metaKey
         });
 
-        viewportEl.setPointerCapture(e.pointerId);
+        try { viewportEl.setPointerCapture(e.pointerId); } catch (_) {}
         e.preventDefault();
         return;
       }
@@ -358,7 +443,10 @@
       if (!this.isEditing) return;
 
       const viewportEl = this.stage.viewportEl;
-      const rect = viewportEl.getBoundingClientRect();
+      const rect = (this.session && this.cachedViewportRect) ? this.cachedViewportRect : viewportEl.getBoundingClientRect();
+      if (!this.session) {
+        this.cachedViewportRect = rect;
+      }
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
 
@@ -473,11 +561,12 @@
      * High-Speed Zero-Layout-Read Move Loop
      * ------------------------------------------------------------- */
     updateMoveLoop(screenX, screenY, camera, wu) {
+      const stageScale = this.stage.stageScale || 1.0;
       const dxScreen = screenX - this.session.startX;
       const dyScreen = screenY - this.session.startY;
 
-      let dxWu = dxScreen / (wu * camera.z);
-      let dyWu = dyScreen / (wu * camera.z);
+      let dxWu = dxScreen / (wu * stageScale);
+      let dyWu = dyScreen / (wu * stageScale);
 
       // Shift = Axis lock
       if (this.session.shiftKey) {
@@ -500,27 +589,33 @@
 
       // Magnetic Snapping
       let snapGuides = [];
-      if (!this.session.ctrlKey && window.DimDashSnap && this.stage.spatialIndex) {
-        const neighbours = this.stage.spatialIndex.getNeighbours(candidateRect, 400);
-        const snapped = window.DimDashSnap.computeSnap(
-          candidateRect,
-          neighbours,
-          {
-            thresholdScreenPx: 6,
-            releaseScreenPx: 10,
-            zoom: camera.z,
-            wu: wu,
-            gridStep: 4,
-            useGrid: true,
-            magneticFactor: 0.4
-          },
-          this.session.activeSnap
-        );
+      try {
+        if (!this.session.ctrlKey && window.DimDashSnap && this.stage.spatialIndex) {
+          const neighbours = this.stage.spatialIndex.getNeighbours(candidateRect, 400);
+          const snapped = window.DimDashSnap.computeSnap(
+            candidateRect,
+            neighbours,
+            {
+              thresholdScreenPx: 6,
+              releaseScreenPx: 10,
+              zoom: stageScale,
+              wu: wu,
+              gridStep: 4,
+              useGrid: true,
+              magneticFactor: 0.4
+            },
+            this.session.activeSnap
+          );
 
-        this.session.activeSnap = snapped.activeSnap;
-        dxWu += snapped.dx;
-        dyWu += snapped.dy;
-        snapGuides = snapped.guides || [];
+          if (snapped) {
+            this.session.activeSnap = snapped.activeSnapLines || snapped.activeSnap;
+            if (typeof snapped.x === 'number') dxWu = snapped.x - primary.origX;
+            if (typeof snapped.y === 'number') dyWu = snapped.y - primary.origY;
+            snapGuides = snapped.guides || [];
+          }
+        }
+      } catch (snapErr) {
+        console.error('[DimDash Snapping Error]', snapErr);
       }
 
       this.session.currentDxWu = dxWu;
@@ -538,7 +633,16 @@
           const pxDy = this.session.currentDyWu * wu;
 
           for (const item of this.session.dragItems) {
-            item.el.style.transform = `translate3d(${pxDx.toFixed(1)}px, ${pxDy.toFixed(1)}px, 0)`;
+            item.el.style.transform = `translate3d(calc((var(--x, 0) * var(--wu) + ${pxDx.toFixed(1)}) * 1px), calc((var(--y, 0) * var(--wu) + ${pxDy.toFixed(1)}) * 1px), 0)`;
+            item.el.style.zIndex = '999';
+
+            // Also move children if item is an island
+            if (item.childElements && item.childElements.length > 0) {
+              for (const child of item.childElements) {
+                child.el.style.transform = `translate3d(calc((var(--x, 0) * var(--wu) + ${pxDx.toFixed(1)}) * 1px), calc((var(--y, 0) * var(--wu) + ${pxDy.toFixed(1)}) * 1px), 0)`;
+                child.el.style.zIndex = '1000';
+              }
+            }
           }
 
           this.requestOverlayRedraw({
@@ -616,11 +720,12 @@
     }
 
     updateResizeLoop(screenX, screenY, camera, wu) {
+      const stageScale = this.stage.stageScale || 1.0;
       const dxScreen = screenX - this.session.startX;
       const dyScreen = screenY - this.session.startY;
 
-      const dxWu = dxScreen / (wu * camera.z);
-      const dyWu = dyScreen / (wu * camera.z);
+      const dxWu = dxScreen / (wu * stageScale);
+      const dyWu = dyScreen / (wu * stageScale);
 
       const resized = InteractionController.calculateResize(
         this.session.startRect,
@@ -690,6 +795,13 @@
       if (this.session?.dragItems) {
         for (const it of this.session.dragItems) {
           it.el.style.willChange = 'transform';
+          it.el.classList.add('is-dragging');
+          if (it.childElements) {
+            for (const child of it.childElements) {
+              child.el.style.willChange = 'transform';
+              child.el.classList.add('is-dragging');
+            }
+          }
         }
       }
     }
@@ -703,6 +815,7 @@
         if (this.stage?.itemElements) {
           for (const el of this.stage.itemElements.values()) {
             el.style.willChange = '';
+            el.classList.remove('is-dragging');
           }
         }
       }, 150);
@@ -731,51 +844,107 @@
     commitMove() {
       if (!this.session || !this.session.dragItems) return;
       const profile = this.stage.currentProfile?.id || 'lg';
-      const placement = this.stage.board.layout.profiles?.[profile]?.placement;
-      if (!placement) return;
+      if (!this.stage.board?.layout) return;
 
       const patches = [];
       const inverses = [];
-
+      const dxWu = this.session.currentDxWu || 0;
+      const dyWu = this.session.currentDyWu || 0;
+      // Clean up temporary DOM transforms and zIndex
       for (const it of this.session.dragItems) {
         it.el.style.transform = '';
-        const finalX = Math.round(it.origX + (this.session.currentDxWu || 0));
-        const finalY = Math.round(it.origY + (this.session.currentDyWu || 0));
+        it.el.style.zIndex = '';
+        if (it.childElements) {
+          for (const child of it.childElements) {
+            child.el.style.transform = '';
+            child.el.style.zIndex = '';
+          }
+        }
+      }
 
-        if (finalX !== it.origX || finalY !== it.origY) {
-          // Mutate local state immediately
-          placement[it.id] = {
-            ...placement[it.id],
-            x: finalX,
-            y: finalY
-          };
+      // Check if distance > 1wu so tiny clicks are not treated as moves
+      const movedDist = Math.hypot(dxWu, dyWu);
+      if (movedDist < 1) {
+        return;
+      }
 
-          it.el.style.setProperty('--x', finalX);
-          it.el.style.setProperty('--y', finalY);
+      for (const it of this.session.dragItems) {
+        let finalX = Math.round(it.origX + dxWu);
+        let finalY = Math.round(it.origY + dyWu);
+        let newParent = it.parent;
 
-          // Update spatial index
-          if (this.stage.spatialIndex) {
-            this.stage.spatialIndex.update({
-              id: it.id,
-              x: finalX,
-              y: finalY,
-              w: it.w,
-              h: it.h
-            });
+        // If this is a child tile/widget (not an island), check if dropped into an island or onto empty board
+        if (it.kind !== 'island') {
+          let globalX = finalX;
+          let globalY = finalY;
+          if (it.parent) {
+            const parentP = this.getItemPlacement(it.parent, profile);
+            if (parentP) {
+              globalX = (Number(parentP.x) || 0) + finalX;
+              globalY = (Number(parentP.y) || 0) + finalY;
+            }
           }
 
-          patches.push({
-            op: 'merge',
-            path: `/layout/profiles/${profile}/placement/${it.id}`,
-            value: { x: finalX, y: finalY }
-          });
+          const cx = globalX + it.w / 2;
+          const cy = globalY + it.h / 2;
 
-          inverses.push({
-            op: 'merge',
-            path: `/layout/profiles/${profile}/placement/${it.id}`,
-            value: { x: it.origX, y: it.origY }
+          let targetIsland = null;
+          for (const potentialIsland of (this.stage.board.config?.items || [])) {
+            if (potentialIsland.kind === 'island' && potentialIsland.id !== it.id) {
+              const islP = this.getItemPlacement(potentialIsland.id, profile);
+              if (islP) {
+                const ix = Number(islP.x) || 0;
+                const iy = Number(islP.y) || 0;
+                const iw = Number(islP.w) || 200;
+                const ih = Number(islP.h) || 150;
+                if (cx >= ix && cx <= ix + iw && cy >= iy && cy <= iy + ih) {
+                  targetIsland = { id: potentialIsland.id, x: ix, y: iy };
+                  break;
+                }
+              }
+            }
+          }
+
+          if (targetIsland) {
+            newParent = targetIsland.id;
+            finalX = Math.round(globalX - targetIsland.x);
+            finalY = Math.round(globalY - targetIsland.y);
+          } else {
+            newParent = null;
+            finalX = Math.round(globalX);
+            finalY = Math.round(globalY);
+          }
+        }
+
+        const prevPlacement = this.getItemPlacement(it.id, profile) || {};
+        this.setItemPlacement(it.id, profile, {
+          x: finalX,
+          y: finalY,
+          parent: newParent
+        });
+
+        // Update spatial index
+        if (this.stage.spatialIndex) {
+          this.stage.spatialIndex.update({
+            id: it.id,
+            x: finalX,
+            y: finalY,
+            w: it.w,
+            h: it.h
           });
         }
+
+        patches.push({
+          op: 'merge',
+          path: `/layout/placement/${it.id}/${profile}`,
+          value: { x: finalX, y: finalY, parent: newParent }
+        });
+
+        inverses.push({
+          op: 'merge',
+          path: `/layout/placement/${it.id}/${profile}`,
+          value: { x: prevPlacement.x, y: prevPlacement.y, parent: prevPlacement.parent || null }
+        });
       }
 
       if (patches.length > 0) {
@@ -788,27 +957,27 @@
         });
 
         this.sendPatch(patches);
+        this.stage.render();
       }
     }
 
     commitResize() {
       if (!this.session || !this.session.currentRect) return;
       const profile = this.stage.currentProfile?.id || 'lg';
-      const placement = this.stage.board.layout.profiles?.[profile]?.placement;
-      if (!placement) return;
+      if (!this.stage.board?.layout) return;
 
       const id = this.session.itemId;
       const sr = this.session.startRect;
       const cr = this.session.currentRect;
 
       if (cr.x !== sr.x || cr.y !== sr.y || cr.w !== sr.w || cr.h !== sr.h) {
-        placement[id] = {
-          ...placement[id],
+        const prevPlacement = this.getItemPlacement(id, profile) || {};
+        this.setItemPlacement(id, profile, {
           x: cr.x,
           y: cr.y,
           w: cr.w,
           h: cr.h
-        };
+        });
 
         if (this.stage.spatialIndex) {
           this.stage.spatialIndex.update({
@@ -822,14 +991,14 @@
 
         const patches = [{
           op: 'merge',
-          path: `/layout/profiles/${profile}/placement/${id}`,
+          path: `/layout/placement/${id}/${profile}`,
           value: { x: cr.x, y: cr.y, w: cr.w, h: cr.h }
         }];
 
         const inverses = [{
           op: 'merge',
-          path: `/layout/profiles/${profile}/placement/${id}`,
-          value: { x: sr.x, y: sr.y, w: sr.w, h: sr.h }
+          path: `/layout/placement/${id}/${profile}`,
+          value: { x: prevPlacement.x, y: prevPlacement.y, w: prevPlacement.w, h: prevPlacement.h }
         }];
 
         this.history.push({
@@ -841,6 +1010,7 @@
         });
 
         this.sendPatch(patches);
+        this.stage.render();
       }
     }
 
@@ -980,23 +1150,21 @@
 
     nudgeSelection(dx, dy) {
       const profile = this.stage.currentProfile?.id || 'lg';
-      const placement = this.stage.board.layout.profiles?.[profile]?.placement;
-      if (!placement) return;
+      if (!this.stage.board?.layout) return;
 
       const patches = [];
       const inverses = [];
 
       for (const id of this.selectedIds) {
-        const p = placement[id];
+        const p = this.getItemPlacement(id, profile);
         if (!p) continue;
 
-        const origX = p.x;
-        const origY = p.y;
-        const newX = origX + dx;
-        const newY = origY + dy;
+        const origX = Number(p.x) || 0;
+        const origY = Number(p.y) || 0;
+        const newX = Math.round(origX + dx);
+        const newY = Math.round(origY + dy);
 
-        p.x = newX;
-        p.y = newY;
+        this.setItemPlacement(id, profile, { x: newX, y: newY });
 
         const el = this.stage.itemElements.get(id);
         if (el) {
@@ -1010,13 +1178,13 @@
 
         patches.push({
           op: 'merge',
-          path: `/layout/profiles/${profile}/placement/${id}`,
+          path: `/layout/placement/${id}/${profile}`,
           value: { x: newX, y: newY }
         });
 
         inverses.push({
           op: 'merge',
-          path: `/layout/profiles/${profile}/placement/${id}`,
+          path: `/layout/placement/${id}/${profile}`,
           value: { x: origX, y: origY }
         });
       }
@@ -1062,7 +1230,7 @@
       if (!inverseOps) return;
       this.applyOpsLocally(inverseOps);
       this.sendPatch(inverseOps);
-      this.requestOverlayRedraw();
+      this.stage.render();
     }
 
     redo() {
@@ -1070,55 +1238,47 @@
       if (!patchOps) return;
       this.applyOpsLocally(patchOps);
       this.sendPatch(patchOps);
-      this.requestOverlayRedraw();
+      this.stage.render();
     }
 
     applyOpsLocally(ops) {
       const profile = this.stage.currentProfile?.id || 'lg';
-      const placement = this.stage.board.layout.profiles?.[profile]?.placement;
-      if (!placement) return;
+      if (!this.stage.board?.layout?.placement) return;
 
       for (const op of ops) {
-        if (op.op === 'merge' && op.path.includes('/placement/')) {
+        if ((op.op === 'merge' || op.op === 'set') && op.path.includes('/placement/')) {
           const parts = op.path.split('/');
-          const itemId = parts[parts.length - 1];
-          if (placement[itemId]) {
-            Object.assign(placement[itemId], op.value);
-            const el = this.stage.itemElements.get(itemId);
-            if (el) {
-              if (op.value.x !== undefined) el.style.setProperty('--x', op.value.x);
-              if (op.value.y !== undefined) el.style.setProperty('--y', op.value.y);
-              if (op.value.w !== undefined) el.style.setProperty('--w', op.value.w);
-              if (op.value.h !== undefined) el.style.setProperty('--h', op.value.h);
-            }
+          const itemId = parts[parts.length - 2];
+          const profId = parts[parts.length - 1] || profile;
+          if (itemId && op.value) {
+            this.setItemPlacement(itemId, profId, op.value);
           }
         }
       }
     }
 
     deleteSelected() {
-      // Deletes items from layout & config
       const profile = this.stage.currentProfile?.id || 'lg';
       const items = this.stage.board.config?.items || [];
-      const placement = this.stage.board.layout.profiles?.[profile]?.placement;
-      if (!placement) return;
+      const placementMap = this.stage.board.layout.placement;
+      if (!placementMap) return;
 
       const patches = [];
       const inverses = [];
 
       for (const id of this.selectedIds) {
-        const p = placement[id];
+        const p = this.getItemPlacement(id, profile);
         const itemIdx = items.findIndex(it => it.id === id);
         const item = items[itemIdx];
 
         if (p && item) {
-          patches.push({ op: 'remove', path: `/layout/profiles/${profile}/placement/${id}` });
+          patches.push({ op: 'remove', path: `/layout/placement/${id}` });
           patches.push({ op: 'remove', path: `/config/items/${itemIdx}` });
 
-          inverses.push({ op: 'set', path: `/layout/profiles/${profile}/placement/${id}`, value: p });
+          inverses.push({ op: 'set', path: `/layout/placement/${id}/${profile}`, value: p });
           inverses.push({ op: 'add', path: `/config/items/-`, value: item });
 
-          delete placement[id];
+          delete placementMap[id];
           items.splice(itemIdx, 1);
 
           const el = this.stage.itemElements.get(id);
@@ -1137,20 +1297,20 @@
           isCoalesceable: false
         });
         this.sendPatch(patches);
-        this.requestOverlayRedraw();
+        this.stage.render();
       }
     }
 
     duplicateSelected() {
       const profile = this.stage.currentProfile?.id || 'lg';
       const items = this.stage.board.config?.items || [];
-      const placement = this.stage.board.layout.profiles?.[profile]?.placement;
-      if (!placement) return;
+      const placementMap = this.stage.board.layout.placement;
+      if (!placementMap) return;
 
       const newIds = [];
       for (const id of this.selectedIds) {
         const item = items.find(it => it.id === id);
-        const p = placement[id];
+        const p = this.getItemPlacement(id, profile);
         if (!item || !p) continue;
 
         const newId = `${item.id}_copy_${Math.floor(Math.random() * 1000)}`;
@@ -1160,12 +1320,12 @@
 
         const newPlacement = {
           ...p,
-          x: p.x + 16,
-          y: p.y + 16
+          x: (Number(p.x) || 0) + 16,
+          y: (Number(p.y) || 0) + 16
         };
 
         items.push(newItem);
-        placement[newId] = newPlacement;
+        this.setItemPlacement(newId, profile, newPlacement);
         newIds.push(newId);
       }
 
@@ -1179,12 +1339,11 @@
     copySelected() {
       const profile = this.stage.currentProfile?.id || 'lg';
       const items = this.stage.board.config?.items || [];
-      const placement = this.stage.board.layout.profiles?.[profile]?.placement || {};
 
       this.clipboard = [];
       for (const id of this.selectedIds) {
         const item = items.find(it => it.id === id);
-        const p = placement[id];
+        const p = this.getItemPlacement(id, profile);
         if (item && p) {
           this.clipboard.push({ item: JSON.parse(JSON.stringify(item)), placement: { ...p } });
         }
@@ -1195,8 +1354,6 @@
       if (!this.clipboard || this.clipboard.length === 0) return;
       const profile = this.stage.currentProfile?.id || 'lg';
       const items = this.stage.board.config?.items || [];
-      const placement = this.stage.board.layout.profiles?.[profile]?.placement;
-      if (!placement) return;
 
       const newIds = [];
       for (const entry of this.clipboard) {
@@ -1206,12 +1363,12 @@
 
         const newPlacement = {
           ...entry.placement,
-          x: entry.placement.x + 20,
-          y: entry.placement.y + 20
+          x: (Number(entry.placement.x) || 0) + 20,
+          y: (Number(entry.placement.y) || 0) + 20
         };
 
         items.push(newItem);
-        placement[newId] = newPlacement;
+        this.setItemPlacement(newId, profile, newPlacement);
         newIds.push(newId);
       }
 
@@ -1220,6 +1377,132 @@
       newIds.forEach(id => this.selectedIds.add(id));
       this.syncSelectionDom();
       this.requestOverlayRedraw();
+    }
+
+    /* -------------------------------------------------------------
+     * Pure Alignment & Sizing Actions (STEP 3)
+     * ------------------------------------------------------------- */
+    alignSelected(alignment = 'left') {
+      if (this.selectedIds.size <= 1 || !window.DimDashAutoLayout) return;
+      const profile = this.stage.currentProfile?.id || 'lg';
+      const selectedWorld = this.getSelectedWorldRects();
+      if (selectedWorld.length <= 1) return;
+
+      const aligned = window.DimDashAutoLayout.alignRects(selectedWorld, alignment);
+      const patches = [];
+      const inverses = [];
+
+      for (const item of aligned) {
+        const orig = selectedWorld.find(w => w.id === item.id);
+        if (!orig || (orig.x === item.x && orig.y === item.y)) continue;
+
+        const prevP = this.getItemPlacement(item.id, profile) || {};
+        this.setItemPlacement(item.id, profile, { x: item.x, y: item.y });
+
+        patches.push({
+          op: 'merge',
+          path: `/layout/placement/${item.id}/${profile}`,
+          value: { x: item.x, y: item.y }
+        });
+        inverses.push({
+          op: 'merge',
+          path: `/layout/placement/${item.id}/${profile}`,
+          value: { x: prevP.x, y: prevP.y }
+        });
+      }
+
+      if (patches.length > 0) {
+        this.history.push({
+          type: 'align',
+          patches,
+          inverse: inverses,
+          isCoalesceable: false
+        });
+        this.sendPatch(patches);
+        this.stage.render();
+      }
+    }
+
+    distributeSelected(direction = 'horizontal') {
+      if (this.selectedIds.size <= 2 || !window.DimDashAutoLayout) return;
+      const profile = this.stage.currentProfile?.id || 'lg';
+      const selectedWorld = this.getSelectedWorldRects();
+      if (selectedWorld.length <= 2) return;
+
+      const distributed = window.DimDashAutoLayout.distributeRects(selectedWorld, direction);
+      const patches = [];
+      const inverses = [];
+
+      for (const item of distributed) {
+        const orig = selectedWorld.find(w => w.id === item.id);
+        if (!orig || (orig.x === item.x && orig.y === item.y)) continue;
+
+        const prevP = this.getItemPlacement(item.id, profile) || {};
+        this.setItemPlacement(item.id, profile, { x: item.x, y: item.y });
+
+        patches.push({
+          op: 'merge',
+          path: `/layout/placement/${item.id}/${profile}`,
+          value: { x: item.x, y: item.y }
+        });
+        inverses.push({
+          op: 'merge',
+          path: `/layout/placement/${item.id}/${profile}`,
+          value: { x: prevP.x, y: prevP.y }
+        });
+      }
+
+      if (patches.length > 0) {
+        this.history.push({
+          type: 'distribute',
+          patches,
+          inverse: inverses,
+          isCoalesceable: false
+        });
+        this.sendPatch(patches);
+        this.stage.render();
+      }
+    }
+
+    sameSizeSelected(dimension = 'width') {
+      if (this.selectedIds.size <= 1 || !window.DimDashAutoLayout) return;
+      const profile = this.stage.currentProfile?.id || 'lg';
+      const selectedWorld = this.getSelectedWorldRects();
+      if (selectedWorld.length <= 1) return;
+
+      const resized = window.DimDashAutoLayout.sameSizeRects(selectedWorld, dimension);
+      const patches = [];
+      const inverses = [];
+
+      for (const item of resized) {
+        const orig = selectedWorld.find(w => w.id === item.id);
+        if (!orig || (orig.w === item.w && orig.h === item.h)) continue;
+
+        const prevP = this.getItemPlacement(item.id, profile) || {};
+        this.setItemPlacement(item.id, profile, { w: item.w, h: item.h });
+
+        patches.push({
+          op: 'merge',
+          path: `/layout/placement/${item.id}/${profile}`,
+          value: { w: item.w, h: item.h }
+        });
+        inverses.push({
+          op: 'merge',
+          path: `/layout/placement/${item.id}/${profile}`,
+          value: { w: prevP.w, h: prevP.h }
+        });
+      }
+
+      if (patches.length > 0) {
+        this.history.push({
+          type: 'same_size',
+          patches,
+          inverse: inverses,
+          isCoalesceable: false
+        });
+        this.sendPatch(patches);
+        this.stage.render();
+      }
     }
 
     /* -------------------------------------------------------------
@@ -1250,18 +1533,18 @@
 
     updateHoverCursor(screenX, screenY, camera, wu) {
       if (!this.stage.viewportEl) return;
-      const selectedRects = this.getSelectedWorldRects();
-      if (selectedRects.length !== 1 || !window.DimDashOverlay) {
+      const selectedScreenRects = this.getSelectedScreenRects();
+      if (selectedScreenRects.length !== 1 || !window.DimDashOverlay) {
         this.stage.viewportEl.style.cursor = '';
         return;
       }
 
-      const sr = selectedRects[0];
+      const sr = selectedScreenRects[0];
       const screenBounds = {
-        x: sr.x * wu * camera.z + camera.x,
-        y: sr.y * wu * camera.z + camera.y,
-        w: sr.w * wu * camera.z,
-        h: sr.h * wu * camera.z
+        x: sr.screenX,
+        y: sr.screenY,
+        w: sr.screenW,
+        h: sr.screenH
       };
 
       const handle = window.DimDashOverlay.StageOverlay.hitTestHandles(screenX, screenY, screenBounds, false);
@@ -1288,13 +1571,55 @@
 
       const wu = this.stage.metrics ? this.stage.metrics.wu : 1.0;
       const camera = this.stage.camera || { x: 0, y: 0, z: 1 };
-      const selectedRects = this.getSelectedWorldRects();
+      const selectedRects = this.getSelectedScreenRects();
+
+      // Collect debug items if ?debug=1
+      let debugItems = [];
+      const isDebug = window.location.search.includes('debug=1');
+      if (isDebug && this.stage.itemElements) {
+        const vpRect = this.stage.viewportEl?.getBoundingClientRect();
+        const profile = this.stage.currentProfile?.id || 'lg';
+        const stageScale = this.stage.stageScale || 1.0;
+
+        for (const [id, el] of this.stage.itemElements.entries()) {
+          const elRect = el.getBoundingClientRect();
+          const p = this.getItemPlacement(id, profile);
+          const item = this.stage.board.config?.items?.find(it => it.id === id);
+
+          const domRect = vpRect ? {
+            x: elRect.left - vpRect.left,
+            y: elRect.top - vpRect.top,
+            w: elRect.width,
+            h: elRect.height
+          } : null;
+
+          const numX = parseFloat(el.style.getPropertyValue('--x')) || (p ? Number(p.x) : 0);
+          const numY = parseFloat(el.style.getPropertyValue('--y')) || (p ? Number(p.y) : 0);
+          const numW = parseFloat(el.style.getPropertyValue('--w')) || (p ? Number(p.w) : 100);
+          const numH = parseFloat(el.style.getPropertyValue('--h')) || (p ? Number(p.h) : 100);
+
+          const modelRect = {
+            x: numX * wu * stageScale,
+            y: numY * wu * stageScale,
+            w: numW * wu * stageScale,
+            h: numH * wu * stageScale
+          };
+
+          debugItems.push({
+            id,
+            kind: item?.kind || el.getAttribute('data-kind') || 'item',
+            modelRect,
+            domRect
+          });
+        }
+      }
 
       this.stage.overlayRenderer.render({
         isEditing: this.isEditing,
         camera,
         wu,
         selectedRects,
+        debugItems,
         ...extra
       });
     }

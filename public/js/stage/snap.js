@@ -233,6 +233,7 @@
 
   return {
     computeMoveSnap,
+    computeSnap: computeMoveSnap,
     computeResizeSnap
   };
 });

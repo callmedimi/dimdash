@@ -115,7 +115,9 @@
         marquee = null,
         pointerPos = null,
         activeHandle = null,
-        sizingInfo = null
+        sizingInfo = null,
+        debug = false,
+        debugItems = []
       } = state;
 
       if (!isEditing) return;
@@ -148,47 +150,79 @@
       if (sizingInfo && sizingInfo.rect) {
         this.renderSizeBadge(ctx, sizingInfo, camera, wu);
       }
+
+      // 6. Debug Overlay (STEP 0: ?debug=1)
+      const isDebug = debug || (typeof window !== 'undefined' && window.location.search.includes('debug=1'));
+      if (isDebug && debugItems && debugItems.length > 0) {
+        this.renderDebugOverlay(ctx, debugItems);
+      }
     }
 
-    renderProximityGrid(ctx, pointerPos, camera, wu) {
-      const radius = 180; // px
-      const px = pointerPos.screenX;
-      const py = pointerPos.screenY;
-
-      // Determine world bounds of the proximity circle
-      const stepPx = this.theme.dotGridStep * wu * camera.z;
-      if (stepPx < 8) return; // don't draw if zoomed out too far
-
-      // Snap world origin to grid
-      const minX = Math.floor((px - radius - camera.x) / stepPx) * stepPx + camera.x;
-      const maxX = Math.ceil((px + radius - camera.x) / stepPx) * stepPx + camera.x;
-      const minY = Math.floor((py - radius - camera.y) / stepPx) * stepPx + camera.y;
-      const maxY = Math.ceil((py + radius - camera.y) / stepPx) * stepPx + camera.y;
-
+    renderDebugOverlay(ctx, items) {
       ctx.save();
-      for (let x = minX; x <= maxX; x += stepPx) {
-        for (let y = minY; y <= maxY; y += stepPx) {
-          const dx = x - px;
-          const dy = y - py;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < radius) {
-            const alpha = (1 - dist / radius) * 0.28;
-            ctx.fillStyle = `rgba(148, 163, 184, ${alpha.toFixed(3)})`;
-            ctx.beginPath();
-            ctx.arc(x, y, this.theme.dotRadius, 0, Math.PI * 2);
-            ctx.fill();
+      const diffs = [];
+
+      for (const item of items) {
+        const { id, kind, modelRect, domRect } = item;
+
+        // Draw model rect in RED (dashed)
+        if (modelRect) {
+          ctx.strokeStyle = '#ef4444';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 2]);
+          ctx.strokeRect(modelRect.x, modelRect.y, modelRect.w, modelRect.h);
+
+          ctx.fillStyle = '#ef4444';
+          ctx.font = '10px monospace';
+          ctx.fillText(`[Model] ${id} (${kind})`, modelRect.x + 4, modelRect.y + 12);
+        }
+
+        // Draw real DOM rect in GREEN (solid)
+        if (domRect) {
+          ctx.strokeStyle = '#10b981';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([]);
+          ctx.strokeRect(domRect.x, domRect.y, domRect.w, domRect.h);
+
+          ctx.fillStyle = '#10b981';
+          ctx.font = '10px monospace';
+          ctx.fillText(`[DOM] ${id}`, domRect.x + 4, domRect.y + domRect.h - 4);
+        }
+
+        // Compare
+        if (modelRect && domRect) {
+          const dx = Math.abs(modelRect.x - domRect.x);
+          const dy = Math.abs(modelRect.y - domRect.y);
+          const dw = Math.abs(modelRect.w - domRect.w);
+          const dh = Math.abs(modelRect.h - domRect.h);
+          if (dx > 1 || dy > 1 || dw > 1 || dh > 1) {
+            diffs.push({
+              id,
+              kind,
+              model: `${modelRect.x.toFixed(1)}, ${modelRect.y.toFixed(1)} [${modelRect.w.toFixed(1)}x${modelRect.h.toFixed(1)}]`,
+              dom: `${domRect.x.toFixed(1)}, ${domRect.y.toFixed(1)} [${domRect.w.toFixed(1)}x${domRect.h.toFixed(1)}]`,
+              delta: `dx:${dx.toFixed(1)}, dy:${dy.toFixed(1)}, dw:${dw.toFixed(1)}, dh:${dh.toFixed(1)}`
+            });
           }
         }
       }
+
       ctx.restore();
+
+      if (diffs.length > 0 && (!this._lastDiffLogTime || (Date.now() - this._lastDiffLogTime > 2000))) {
+        this._lastDiffLogTime = Date.now();
+        console.group('[DimDash Debug Overlay] Coordinate Mismatches (>1px)');
+        console.table(diffs);
+        console.groupEnd();
+      }
     }
 
-    renderSelectionBounds(ctx, worldRect, camera, wu, activeHandle) {
-      // Convert world rect to screen rect
-      const screenX = worldRect.x * wu * camera.z + camera.x;
-      const screenY = worldRect.y * wu * camera.z + camera.y;
-      const screenW = worldRect.w * wu * camera.z;
-      const screenH = worldRect.h * wu * camera.z;
+    renderSelectionBounds(ctx, rect, camera, wu, activeHandle) {
+      // Source of truth: prefer measured screen rect from DOM getBoundingClientRect
+      const screenX = rect.screenX !== undefined ? rect.screenX : (rect.x * wu * camera.z + camera.x);
+      const screenY = rect.screenY !== undefined ? rect.screenY : (rect.y * wu * camera.z + camera.y);
+      const screenW = rect.screenW !== undefined ? rect.screenW : (rect.w * wu * camera.z);
+      const screenH = rect.screenH !== undefined ? rect.screenH : (rect.h * wu * camera.z);
 
       ctx.save();
 

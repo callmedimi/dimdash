@@ -9,9 +9,13 @@ yarn-error.log*
 server.log
 data/*.bak
 data/*.tmp
+data/history/snap_*.yaml
 data/metrics_history.json
 data/uploads/*
 !data/uploads/.gitkeep
+
+# Scratch & test scripts
+scratch/
 
 # Environment variables
 .env

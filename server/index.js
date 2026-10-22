@@ -103,6 +103,9 @@ const staticCacheOptions = {
   lastModified: true
 };
 app.use('/uploads', express.static(uploadsDir, staticCacheOptions));
+app.get('/__selftest', (req, res) => {
+  res.sendFile(path.resolve(__dirname, '../public/__selftest.html'));
+});
 app.use(express.static(path.resolve(__dirname, '../public'), staticCacheOptions));
 
 // Server-Sent Events (SSE) clients

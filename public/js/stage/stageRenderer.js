@@ -36,6 +36,7 @@
       this.spatialIndex = null;
       this.overlayRenderer = null;
       this.interaction = null;
+      this.stageScale = 1.0;
 
       this.initDom();
       this.initDisplayScale();
@@ -43,6 +44,10 @@
       this.initObservers();
       this.initIdleHandler();
       this.initSpatialKeyboardNavigation();
+
+      if (typeof window !== 'undefined') {
+        window.stageRenderer = this;
+      }
     }
 
     initDom() {
@@ -111,6 +116,22 @@
             pill.classList.toggle('active', this.interaction.isEditing);
           }
         });
+      }
+
+      // STEP 4: Delegated capture listener for broken icon images
+      if (this.viewportEl) {
+        this.viewportEl.addEventListener('error', (e) => {
+          if (e.target && e.target.tagName === 'IMG' && e.target.closest('.stage-service-tile')) {
+            const tile = e.target.closest('.stage-service-tile');
+            const titleEl = tile ? tile.querySelector('.stage-tile-title') : null;
+            const titleText = (titleEl ? titleEl.textContent : '').trim() || '?';
+            const firstChar = titleText.charAt(0).toUpperCase();
+            const box = e.target.parentElement;
+            if (box) {
+              box.innerHTML = `<span class="tile-fallback-plate" aria-hidden="true">${firstChar}</span>`;
+            }
+          }
+        }, true);
       }
     }
 
@@ -283,8 +304,10 @@
 
       if (this.currentMode === 'fit') {
         const stageScale = modeResult.scale || 1.0;
+        this.stageScale = stageScale;
         this.canvasEl.style.setProperty('--stage-scale', stageScale);
       } else {
+        this.stageScale = 1.0;
         this.canvasEl.style.setProperty('--stage-scale', 1.0);
       }
 
@@ -354,6 +377,11 @@
         el.style.setProperty('--w', rect.w);
         el.style.setProperty('--h', rect.h);
         el.style.setProperty('--z', rect.z || 1);
+        if (rect.parent) {
+          el.setAttribute('data-parent', rect.parent);
+        } else {
+          el.removeAttribute('data-parent');
+        }
 
         // Virtualize content if needed
         if (shouldVirtualize) {
@@ -395,6 +423,9 @@
       el.setAttribute('data-id', item.id);
       el.setAttribute('data-kind', item.kind || 'widget');
       el.setAttribute('tabindex', '-1');
+      if (rect?.parent) {
+        el.setAttribute('data-parent', rect.parent);
+      }
 
       if (item.kind === 'island') {
         el.setAttribute('role', 'group');
@@ -505,14 +536,15 @@
         const openInNew = item.props?.open_in_new_tab !== false ? '_blank' : '_self';
         const iconVal = item.props?.icon_value || '';
         const iconType = item.props?.icon_type || (iconVal.startsWith('/') || iconVal.startsWith('http') ? 'image' : 'builtin');
+        const initialChar = ((item.title || 'S').trim().charAt(0) || '?').toUpperCase();
 
         let iconMarkup = '';
         if (window.IconCatalog && typeof window.IconCatalog.render === 'function') {
           iconMarkup = window.IconCatalog.render(iconType, iconVal);
         } else if (iconVal.startsWith('/') || iconVal.startsWith('http')) {
-          iconMarkup = `<img src="${iconVal}" alt="${item.title || 'Service'}" loading="lazy" style="max-width:100%; max-height:100%; object-fit:contain;">`;
+          iconMarkup = `<img src="${iconVal}" alt="${item.title || 'Service'}" loading="lazy" draggable="false" onerror="this.parentElement.innerHTML='<span class=\\'tile-fallback-plate\\'>${initialChar}</span>';" style="max-width:100%; max-height:100%; object-fit:contain;">`;
         } else {
-          iconMarkup = `<span class="icon-text" style="font-size:calc(1.3rem * var(--wu));">🔗</span>`;
+          iconMarkup = `<span class="tile-fallback-plate">${initialChar}</span>`;
         }
 
         const probeId = item.bind?.status ? item.bind.status.replace('probe:', '') : item.id;
@@ -524,15 +556,15 @@
         const ariaLabel = `${item.title || 'Service'} — ${statusText}${item.subtitle ? ', ' + item.subtitle : ''}`;
 
         el.innerHTML = `
-          <a class="stage-service-tile tile-main-link" href="${targetUrl}" target="${openInNew}" rel="noreferrer" title="${item.subtitle || item.title}" aria-label="${ariaLabel}" style="width:100%; height:100%; box-sizing:border-box;">
-            <div class="stage-tile-icon tile-icon-box" style="width:calc(40px * var(--wu)); height:calc(40px * var(--wu)); display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.06); border-radius:calc(10px * var(--wu)); flex-shrink:0;">
+          <a class="stage-service-tile tile-main-link" href="${targetUrl}" target="${openInNew}" rel="noreferrer" title="${item.subtitle || item.title}" aria-label="${ariaLabel}" draggable="false">
+            <div class="stage-tile-icon tile-icon-box">
               ${iconMarkup}
             </div>
-            <div class="stage-tile-info" style="display:flex; flex-direction:column; overflow:hidden; flex:1;">
-              <span class="stage-tile-title" style="font-size:calc(0.92rem * var(--wu)); font-weight:600; color:#f8fafc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.title || 'Service'}</span>
-              ${item.subtitle ? `<span class="stage-tile-subtitle" style="font-size:calc(0.72rem * var(--wu)); color:#94a3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.subtitle}</span>` : ''}
+            <div class="stage-tile-info">
+              <span class="stage-tile-title" dir="auto">${item.title || 'Service'}</span>
+              ${item.subtitle ? `<span class="stage-tile-subtitle" dir="auto">${item.subtitle}</span>` : ''}
             </div>
-            <div class="tile-status-indicator" style="display:flex; align-items:center; margin-left:auto;">
+            <div class="tile-status-indicator">
               <span class="pilot-light ${isOnline ? 'pilot-active' : ''}" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${statusColor}; box-shadow:0 0 8px ${statusColor};"></span>
             </div>
           </a>

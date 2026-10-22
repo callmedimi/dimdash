@@ -307,8 +307,25 @@
       // Recursively solve children if any
       const children = childrenByParent.get(item.id);
       if (children && rect) {
+        let maxChildRight = 0;
+        let maxChildBottom = 0;
         for (const child of children) {
-          solveItem(child, rect, 1);
+          const childRect = solveItem(child, rect, 1);
+          if (childRect) {
+            const relRight = (childRect.x - rect.x) + childRect.w;
+            const relBottom = (childRect.y - rect.y) + childRect.h;
+            if (relRight > maxChildRight) maxChildRight = relRight;
+            if (relBottom > maxChildBottom) maxChildBottom = relBottom;
+          }
+        }
+        // Constraint: Island bounds must contain all children (no overflow)
+        if (item.kind === 'island') {
+          if (maxChildRight > rect.w) {
+            rect.w = Math.round(maxChildRight + 20);
+          }
+          if (maxChildBottom > rect.h) {
+            rect.h = Math.round(maxChildBottom + 20);
+          }
         }
       }
     }
