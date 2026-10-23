@@ -1140,6 +1140,14 @@
           w: cr.w,
           h: cr.h
         });
+        if (profile !== 'lg') {
+          this.setItemPlacement(id, 'lg', {
+            x: cr.x,
+            y: cr.y,
+            w: cr.w,
+            h: cr.h
+          });
+        }
 
         if (this.stage.spatialIndex) {
           const worldX = (this.session.parentWorldX || 0) + cr.x;
@@ -1158,6 +1166,13 @@
           path: `/layout/placement/${id}/${profile}`,
           value: { x: cr.x, y: cr.y, w: cr.w, h: cr.h }
         }];
+        if (profile !== 'lg') {
+          patches.push({
+            op: 'merge',
+            path: `/layout/placement/${id}/lg`,
+            value: { x: cr.x, y: cr.y, w: cr.w, h: cr.h }
+          });
+        }
 
         const inverses = [{
           op: 'merge',

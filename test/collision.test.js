@@ -371,4 +371,42 @@ describe('Deterministic Collision Relief', () => {
     assert.strictEqual(res.rects[0].customMeta, 'special_value');
     assert.strictEqual(res.rects[0].z, 4);
   });
+
+  test('enlarging top item downward pushes lower item down and shifts all its children', () => {
+    const rects = [
+      { id: 'it_island_widgets', x: 40, y: 40, w: 1720, h: 300, importance: 10, kind: 'island', depth: 0 },
+      { id: 'it_w_clock', x: 60, y: 60, w: 220, h: 180, parent: 'it_island_widgets', importance: 5, depth: 1 },
+      { id: 'it_isl_cat_mon', x: 40, y: 280, w: 540, h: 310, importance: 10, kind: 'island', depth: 0 },
+      { id: 'it_srv_grafana', x: 60, y: 340, w: 230, h: 85, parent: 'it_isl_cat_mon', importance: 5, depth: 1 }
+    ];
+    const res = relieveCollisions(rects, S_1080);
+    const widgets = res.rects.find(r => r.id === 'it_island_widgets');
+    const clock = res.rects.find(r => r.id === 'it_w_clock');
+    const mon = res.rects.find(r => r.id === 'it_isl_cat_mon');
+    const grafana = res.rects.find(r => r.id === 'it_srv_grafana');
+
+    // Widgets stays anchored at the top
+    assert.strictEqual(widgets.y, 40);
+    assert.strictEqual(clock.y, 60);
+
+    // Monitoring is pushed below Widgets (40 + 300 + 16 = 356)
+    assert.strictEqual(mon.y, 356);
+
+    // Child of Monitoring moves in lockstep (+76)
+    assert.strictEqual(grafana.y, 340 + 76);
+  });
+
+  test('separates sibling tiles inside the same island when separateSiblings is true', () => {
+    const rects = [
+      { id: 'tile_1', x: 20, y: 60, w: 230, h: 85, parent: 'island_1', importance: 5, depth: 1 },
+      { id: 'tile_2', x: 20, y: 60, w: 230, h: 85, parent: 'island_1', importance: 5, depth: 1 } // Overlapping exactly
+    ];
+    const res = relieveCollisions(rects, { w: 540, h: 310 }, { separateSiblings: true });
+    const t1 = res.rects.find(r => r.id === 'tile_1');
+    const t2 = res.rects.find(r => r.id === 'tile_2');
+
+    // They should not overlap
+    assert(t1.x + t1.w <= t2.x || t2.x + t2.w <= t1.x || t1.y + t1.h <= t2.y || t2.y + t2.h <= t1.y);
+  });
 });
+

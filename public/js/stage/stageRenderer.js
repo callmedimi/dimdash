@@ -145,8 +145,12 @@
         savedDisplay = JSON.parse(localStorage.getItem('dimdash_display_profile') || '{}');
       } catch (e) {}
 
+      // Stabilize display scale against browser tab zoom using hardware screen bounds
+      const screenW = (typeof window !== 'undefined' && window.screen && window.screen.width) ? window.screen.width : (window.innerWidth || 1920);
+      const screenH = (typeof window !== 'undefined' && window.screen && window.screen.height) ? window.screen.height : (window.innerHeight || 1080);
+
       const guessed = window.DimDashScale
-        ? window.DimDashScale.guessDisplayProfile(window.innerWidth, window.innerHeight, window.devicePixelRatio)
+        ? window.DimDashScale.guessDisplayProfile(screenW, screenH, window.devicePixelRatio)
         : { diagonal_in: 27, distance_m: 0.7, preset: 'desk' };
 
       const diagIn = parseFloat(urlParams.get('diag')) || savedDisplay.diagonal_in || guessed.diagonal_in;
@@ -157,8 +161,8 @@
         this.metrics = window.DimDashScale.computeDisplayScale({
           diagonal_in: diagIn,
           distance_m: distM,
-          width_px: window.innerWidth,
-          height_px: window.innerHeight,
+          width_px: screenW,
+          height_px: screenH,
           dpr: window.devicePixelRatio || 1,
           preset,
           user_scale: userScaleParam,

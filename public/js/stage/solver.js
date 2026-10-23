@@ -317,15 +317,29 @@
       if (children && rect) {
         let maxChildRight = 0;
         let maxChildBottom = 0;
+        const childSolved = [];
         for (const child of children) {
           const childRect = solveItem(child, rect, 1);
           if (childRect) {
+            childSolved.push(childRect);
             const relRight = (childRect.x - rect.x) + childRect.w;
             const relBottom = (childRect.y - rect.y) + childRect.h;
             if (relRight > maxChildRight) maxChildRight = relRight;
             if (relBottom > maxChildBottom) maxChildBottom = relBottom;
           }
         }
+
+        // Relieve any overlapping sibling tiles inside the island
+        if (childSolved.length > 1) {
+          relieveCollisions(childSolved, { w: rect.w, h: rect.h }, { separateSiblings: true });
+          for (const cr of childSolved) {
+            const relRight = (cr.x - rect.x) + cr.w;
+            const relBottom = (cr.y - rect.y) + cr.h;
+            if (relRight > maxChildRight) maxChildRight = relRight;
+            if (relBottom > maxChildBottom) maxChildBottom = relBottom;
+          }
+        }
+
         // Constraint: Island bounds must contain all children (no overflow)
         if (item.kind === 'island') {
           if (maxChildRight > rect.w) {
@@ -411,6 +425,21 @@
       return grid;
     }
 
+    function moveItem(item, newX, newY) {
+      const dx = newX - item.x;
+      const dy = newY - item.y;
+      item.x = newX;
+      item.y = newY;
+      if (dx !== 0 || dy !== 0) {
+        for (const c of working) {
+          if (c.parent === item.id) {
+            c.x += dx;
+            c.y += dy;
+          }
+        }
+      }
+    }
+
     let pass = 0;
     let hadCollision = true;
 
@@ -418,9 +447,12 @@
       hadCollision = false;
       pass++;
 
-      // Sort items by importance descending, tie-break by ID
+      // Sort: parents first (depth ascending), then by importance descending, then natural geometric order
       working.sort((a, b) => {
+        if ((a.depth || 0) !== (b.depth || 0)) return (a.depth || 0) - (b.depth || 0);
         if (b.importance !== a.importance) return b.importance - a.importance;
+        if (Math.abs(a.y - b.y) > 2) return a.y - b.y;
+        if (Math.abs(a.x - b.x) > 2) return a.x - b.x;
         return a.id.localeCompare(b.id);
       });
 
@@ -444,7 +476,9 @@
             const b = working[j];
             if (b.overlap === 'allow') continue;
             if (a.id === b.parent || b.id === a.parent) continue;
-            if (a.parent && a.parent === b.parent) continue;
+            if ((a.depth || 0) !== (b.depth || 0)) continue;
+            if (a.parent && b.parent && a.parent !== b.parent) continue;
+            if (a.parent && a.parent === b.parent && !options.separateSiblings) continue;
 
             if (checkOverlap(a, b)) {
               hadCollision = true;
@@ -463,40 +497,81 @@
               const isRowAligned = Math.abs(a.y - b.y) < Math.min(a.h, b.h) * 0.45;
               const isColAligned = Math.abs(a.x - b.x) < Math.min(a.w, b.w) * 0.45;
 
-              if (isRowAligned && !isColAligned) {
-                // Horizontally adjacent items in same row: push horizontally
-                if (b.x >= a.x) {
-                  b.x = a.x + a.w + gap;
+              if (a.importance !== b.importance) {
+                // Higher importance is anchor; lower importance moves
+                const anchor = a.importance > b.importance ? a : b;
+                const mover = a.importance > b.importance ? b : a;
+
+                if (isRowAligned && !isColAligned) {
+                  if (mover.x >= anchor.x) {
+                    moveItem(mover, anchor.x + anchor.w + gap, mover.y);
+                  } else {
+                    moveItem(mover, Math.max(0, anchor.x - mover.w - gap), mover.y);
+                  }
+                } else if (isColAligned && !isRowAligned) {
+                  if (mover.y >= anchor.y) {
+                    moveItem(mover, mover.x, anchor.y + anchor.h + gap);
+                  } else {
+                    moveItem(mover, mover.x, Math.max(0, anchor.y - mover.h - gap));
+                  }
+                } else if (penX <= penY) {
+                  if (mover.x >= anchor.x) {
+                    moveItem(mover, anchor.x + anchor.w + gap, mover.y);
+                  } else if (anchor.x - mover.w - gap >= 0) {
+                    moveItem(mover, anchor.x - mover.w - gap, mover.y);
+                  } else {
+                    moveItem(mover, anchor.x + anchor.w + gap, mover.y);
+                  }
                 } else {
-                  b.x = Math.max(0, a.x - b.w - gap);
-                }
-              } else if (isColAligned && !isRowAligned) {
-                // Vertically stacked items in same column: push vertically
-                if (b.y >= a.y) {
-                  b.y = a.y + a.h + gap;
-                } else {
-                  b.y = Math.max(0, a.y - b.h - gap);
-                }
-              } else if (penX <= penY) {
-                if (b.x >= a.x) {
-                  b.x = a.x + a.w + gap;
-                } else if (a.x - b.w - gap >= 0) {
-                  b.x = a.x - b.w - gap;
-                } else {
-                  b.x = a.x + a.w + gap;
+                  if (mover.y >= anchor.y) {
+                    moveItem(mover, mover.x, anchor.y + anchor.h + gap);
+                  } else if (anchor.y - mover.h - gap >= 0) {
+                    moveItem(mover, mover.x, anchor.y - mover.h - gap);
+                  } else {
+                    moveItem(mover, mover.x, anchor.y + anchor.h + gap);
+                  }
                 }
               } else {
-                if (b.y >= a.y) {
-                  b.y = a.y + a.h + gap;
-                } else if (a.y - b.h - gap >= 0) {
-                  b.y = a.y - b.h - gap;
+                // Equal importance: Natural geometric flow (lower items push down, right items push right)
+                if (isRowAligned && !isColAligned) {
+                  const left = a.x <= b.x ? a : b;
+                  const right = a.x <= b.x ? b : a;
+                  moveItem(right, left.x + left.w + gap, right.y);
+                } else if (isColAligned && !isRowAligned) {
+                  const top = a.y <= b.y ? a : b;
+                  const bottom = a.y <= b.y ? b : a;
+                  moveItem(bottom, bottom.x, top.y + top.h + gap);
+                } else if (penX <= penY) {
+                  const left = a.x <= b.x ? a : b;
+                  const right = a.x <= b.x ? b : a;
+                  moveItem(right, left.x + left.w + gap, right.y);
                 } else {
-                  b.y = a.y + a.h + gap;
+                  const top = a.y <= b.y ? a : b;
+                  const bottom = a.y <= b.y ? b : a;
+                  moveItem(bottom, bottom.x, top.y + top.h + gap);
                 }
               }
             }
           }
         }
+      }
+    }
+
+    // Ensure island bounds cleanly encompass any shifted children
+    for (const r of working) {
+      if (r.kind === 'island') {
+        let maxRight = r.w;
+        let maxBottom = r.h;
+        for (const c of working) {
+          if (c.parent === r.id) {
+            const relRight = (c.x - r.x) + c.w;
+            const relBottom = (c.y - r.y) + c.h;
+            if (relRight + 20 > maxRight) maxRight = relRight + 20;
+            if (relBottom + 20 > maxBottom) maxBottom = relBottom + 20;
+          }
+        }
+        r.w = Math.round(maxRight);
+        r.h = Math.round(maxBottom);
       }
     }
 
@@ -520,7 +595,10 @@
 
           const b = working[j];
           if (b.overlap === 'allow') continue;
-          if (a.parent && a.parent === b.parent) continue;
+          if (a.id === b.parent || b.id === a.parent) continue;
+          if ((a.depth || 0) !== (b.depth || 0)) continue;
+          if (a.parent && b.parent && a.parent !== b.parent) continue;
+          if (a.parent && a.parent === b.parent && !options.separateSiblings) continue;
 
           if (checkOverlap(a, b)) {
             remainingCollisions = true;
