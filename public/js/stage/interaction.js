@@ -1022,16 +1022,28 @@
           let targetIsland = null;
           for (const potentialIsland of (this.stage.board.config?.items || [])) {
             if (potentialIsland.kind === 'island' && potentialIsland.id !== it.id) {
+              const islEl = this.stage.itemElements?.get(potentialIsland.id);
               const islP = this.getItemPlacement(potentialIsland.id, profile);
-              if (islP) {
-                const ix = Number(islP.x) || 0;
-                const iy = Number(islP.y) || 0;
-                const iw = Number(islP.w) || 200;
-                const ih = Number(islP.h) || 150;
-                if (cx >= ix && cx <= ix + iw && cy >= iy && cy <= iy + ih) {
-                  targetIsland = { id: potentialIsland.id, x: ix, y: iy };
-                  break;
-                }
+              
+              let ix = Number(islP?.x) || 0;
+              let iy = Number(islP?.y) || 0;
+              let iw = Number(islP?.w) || 200;
+              let ih = Number(islP?.h) || 150;
+
+              if (islEl) {
+                const elX = parseFloat(islEl.style.getPropertyValue('--x'));
+                const elY = parseFloat(islEl.style.getPropertyValue('--y'));
+                const elW = parseFloat(islEl.style.getPropertyValue('--w'));
+                const elH = parseFloat(islEl.style.getPropertyValue('--h'));
+                if (!isNaN(elX)) ix = elX;
+                if (!isNaN(elY)) iy = elY;
+                if (!isNaN(elW)) iw = elW;
+                if (!isNaN(elH)) ih = elH;
+              }
+
+              if (cx >= ix && cx <= ix + iw && cy >= iy && cy <= iy + ih) {
+                targetIsland = { id: potentialIsland.id, x: ix, y: iy };
+                break;
               }
             }
           }
@@ -1053,6 +1065,18 @@
           y: finalY,
           parent: newParent
         });
+        if (profile !== 'lg') {
+          this.setItemPlacement(it.id, 'lg', {
+            x: finalX,
+            y: finalY,
+            parent: newParent
+          });
+        }
+
+        const confItem = this.stage.board.config?.items?.find(x => x.id === it.id);
+        if (confItem) {
+          confItem.parent = newParent;
+        }
 
         // Update spatial index
         if (this.stage.spatialIndex) {
@@ -1070,6 +1094,13 @@
           path: `/layout/placement/${it.id}/${profile}`,
           value: { x: finalX, y: finalY, parent: newParent }
         });
+        if (profile !== 'lg') {
+          patches.push({
+            op: 'merge',
+            path: `/layout/placement/${it.id}/lg`,
+            value: { x: finalX, y: finalY, parent: newParent }
+          });
+        }
 
         inverses.push({
           op: 'merge',

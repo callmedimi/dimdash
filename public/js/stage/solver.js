@@ -14,10 +14,10 @@
 
   const DEFAULT_PROFILES = [
     { id: 'xs', match: { max_w: 480 }, mode: 'flow', design: [390, 844] },
-    { id: 'sm', match: { min_w: 481, max_w: 900 }, mode: 'flow', design: [768, 1024] },
+    { id: 'sm', match: { min_w: 481, max_w: 900 }, mode: 'fit', design: [768, 1024] },
     { id: 'md', match: { min_w: 901, max_w: 1500 }, mode: 'fit', design: [1280, 800] },
     { id: 'lg', match: { min_w: 1501, max_w: 2400 }, mode: 'fit', design: [1920, 1080] },
-    { id: 'xl', match: { min_w: 2401 }, mode: 'fit', design: [3440, 1440] },
+    { id: 'xl', match: { min_w: 2401 }, mode: 'fit', design: [2560, 1440] },
     { id: 'wall', match: { display_class: 'wall' }, mode: 'fit', design: [1920, 1080], ui: 'tenfoot' }
   ];
 
@@ -231,21 +231,23 @@
     // Resolve an item's base placement for profile (supporting inherit)
     function getBasePlacement(itemId, targetProfId) {
       const itemPlacements = placementMap[itemId] || {};
-      if (itemPlacements[targetProfId]) return itemPlacements[targetProfId];
+      if (itemPlacements[targetProfId]) return { placement: itemPlacements[targetProfId], sourceProfileId: targetProfId };
 
       const profObj = profiles.find(p => p.id === targetProfId);
       if (profObj && profObj.inherit && itemPlacements[profObj.inherit]) {
-        return itemPlacements[profObj.inherit];
+        return { placement: itemPlacements[profObj.inherit], sourceProfileId: profObj.inherit };
       }
 
-      return itemPlacements['lg'] || itemPlacements['md'] || Object.values(itemPlacements)[0] || null;
+      const fallbackProfId = itemPlacements['lg'] ? 'lg' : (itemPlacements['md'] ? 'md' : Object.keys(itemPlacements)[0]);
+      return { placement: itemPlacements[fallbackProfId] || null, sourceProfileId: fallbackProfId || 'lg' };
     }
 
     // 1. Solve top-level items first (items with no parent or parent === null)
     function solveItem(item, parentRect = null, depth = 0) {
       if (depth > 6) return null; // Cap nesting at 6
 
-      const base = getBasePlacement(item.id, activeProfile.id) || {
+      const baseInfo = getBasePlacement(item.id, activeProfile.id);
+      const base = baseInfo?.placement || {
         x: 40,
         y: 40,
         w: 300,
@@ -255,8 +257,13 @@
         z: 1
       };
 
+      const sourceProfId = baseInfo?.sourceProfileId || activeProfile.id;
+      const sourceProf = profiles.find(p => p.id === sourceProfId) || activeProfile;
+      const baseDesignW = sourceProf.design ? sourceProf.design[0] : designW;
+      const baseDesignH = sourceProf.design ? sourceProf.design[1] : designH;
+
       const containerS = parentRect ? { w: parentRect.w, h: parentRect.h } : S;
-      const containerR = parentRect ? { w: parentRect.baseW || parentRect.w, h: parentRect.baseH || parentRect.h } : R;
+      const containerR = parentRect ? { w: parentRect.baseW || parentRect.w, h: parentRect.baseH || parentRect.h } : { w: baseDesignW, h: baseDesignH };
 
       const solved = solveItemConstraints(base, containerS, containerR, options);
 
@@ -291,7 +298,8 @@
     const childrenByParent = new Map();
 
     for (const item of items) {
-      const base = getBasePlacement(item.id, activeProfile.id);
+      const baseInfo = getBasePlacement(item.id, activeProfile.id);
+      const base = baseInfo?.placement;
       const parentId = base?.parent;
       if (parentId && itemsById.has(parentId)) {
         if (!childrenByParent.has(parentId)) childrenByParent.set(parentId, []);
@@ -452,7 +460,24 @@
               const penY = Math.min(overlapY1, overlapY2);
 
               const gap = 16;
-              if (penX <= penY) {
+              const isRowAligned = Math.abs(a.y - b.y) < Math.min(a.h, b.h) * 0.45;
+              const isColAligned = Math.abs(a.x - b.x) < Math.min(a.w, b.w) * 0.45;
+
+              if (isRowAligned && !isColAligned) {
+                // Horizontally adjacent items in same row: push horizontally
+                if (b.x >= a.x) {
+                  b.x = a.x + a.w + gap;
+                } else {
+                  b.x = Math.max(0, a.x - b.w - gap);
+                }
+              } else if (isColAligned && !isRowAligned) {
+                // Vertically stacked items in same column: push vertically
+                if (b.y >= a.y) {
+                  b.y = a.y + a.h + gap;
+                } else {
+                  b.y = Math.max(0, a.y - b.h - gap);
+                }
+              } else if (penX <= penY) {
                 if (b.x >= a.x) {
                   b.x = a.x + a.w + gap;
                 } else if (a.x - b.w - gap >= 0) {

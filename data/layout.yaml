@@ -12,7 +12,7 @@ profiles:
     match:
       min_w: 481
       max_w: 900
-    mode: flow
+    mode: fit
     design:
       - 768
       - 1024
@@ -21,6 +21,7 @@ profiles:
       min_w: 901
       max_w: 1500
     mode: fit
+    inherit: lg
     design:
       - 1280
       - 800
@@ -36,8 +37,9 @@ profiles:
     match:
       min_w: 2401
     mode: fit
+    inherit: lg
     design:
-      - 3440
+      - 2560
       - 1440
   - id: wall
     match:

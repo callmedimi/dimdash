@@ -2101,16 +2101,21 @@ function attachCardEvents() {
       }
     });
 
-    // 3. Empty dropzones
-    document.querySelectorAll('.empty-dropzone').forEach(zone => {
+    // 3. Empty dropzones and category tile grids
+    document.querySelectorAll('.empty-dropzone, .tile-grid').forEach(zone => {
       zone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        zone.classList.add('drag-over-tile');
+        if (AppState.draggedTileId) {
+          e.preventDefault();
+          zone.classList.add('drag-over-tile');
+        }
       });
-      zone.addEventListener('dragleave', () => {
-        zone.classList.remove('drag-over-tile');
+      zone.addEventListener('dragleave', (e) => {
+        if (!zone.contains(e.relatedTarget)) {
+          zone.classList.remove('drag-over-tile');
+        }
       });
       zone.addEventListener('drop', (e) => {
+        if (e.target.closest('.tile-card')) return;
         e.preventDefault();
         e.stopPropagation();
         zone.classList.remove('drag-over-tile');
