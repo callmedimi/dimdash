@@ -6,6 +6,7 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const { STATES, HistoryController, InteractionController } = require('../public/js/stage/interaction.js');
+const { StageOverlay } = require('../public/js/stage/overlay.js');
 
 describe('Interaction Engine: State Machine & History', () => {
 
@@ -170,3 +171,50 @@ describe('Interaction Engine: Resize Handle Math (8 Handles x Modifiers)', () =>
     assert.equal(res.h, 20);
   });
 });
+
+describe('StageOverlay: Geometric Handle & Continuous Border Hit-Testing', () => {
+  const bounds = { x: 100, y: 100, w: 400, h: 200 };
+
+  test('Direct corner handle hits return corresponding corner name', () => {
+    assert.equal(StageOverlay.hitTestHandles(100, 100, bounds), 'nw');
+    assert.equal(StageOverlay.hitTestHandles(500, 100, bounds), 'ne');
+    assert.equal(StageOverlay.hitTestHandles(500, 300, bounds), 'se');
+    assert.equal(StageOverlay.hitTestHandles(100, 300, bounds), 'sw');
+  });
+
+  test('Direct midpoint handle hits return corresponding midpoint name', () => {
+    assert.equal(StageOverlay.hitTestHandles(300, 100, bounds), 'n');
+    assert.equal(StageOverlay.hitTestHandles(300, 300, bounds), 's');
+    assert.equal(StageOverlay.hitTestHandles(100, 200, bounds), 'w');
+    assert.equal(StageOverlay.hitTestHandles(500, 200, bounds), 'e');
+  });
+
+  test('Continuous border perimeter hits allow resizing anywhere along edges', () => {
+    // Top border far from center (x=200, y=101)
+    assert.equal(StageOverlay.hitTestHandles(200, 101, bounds), 'n');
+    // Bottom border far from center (x=380, y=299)
+    assert.equal(StageOverlay.hitTestHandles(380, 299, bounds), 's');
+    // Left border far from center (x=102, y=160)
+    assert.equal(StageOverlay.hitTestHandles(102, 160, bounds), 'w');
+    // Right border far from center (x=498, y=240)
+    assert.equal(StageOverlay.hitTestHandles(498, 240, bounds), 'e');
+  });
+
+  test('Inner safe interior returns null so clicking interior moves/selects element', () => {
+    // Center point inside card
+    assert.equal(StageOverlay.hitTestHandles(300, 200, bounds), null);
+    // Well inside near top-left but outside border tolerance
+    assert.equal(StageOverlay.hitTestHandles(150, 150, bounds), null);
+  });
+
+  test('Points outside bounds return null', () => {
+    assert.equal(StageOverlay.hitTestHandles(50, 50, bounds), null);
+    assert.equal(StageOverlay.hitTestHandles(600, 400, bounds), null);
+  });
+
+  test('Invalid or zero-size bounds return null safely', () => {
+    assert.equal(StageOverlay.hitTestHandles(100, 100, null), null);
+    assert.equal(StageOverlay.hitTestHandles(100, 100, { x: 0, y: 0, w: 0, h: 0 }), null);
+  });
+});
+

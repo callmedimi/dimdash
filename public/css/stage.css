@@ -444,6 +444,13 @@ body.tenfoot-idle * {
   cursor: grabbing;
 }
 
+/* Resizing / Handle Hover cursor cascade */
+.stage-viewport[data-hover-handle] *,
+.stage-viewport.is-resizing,
+.stage-viewport.is-resizing * {
+  cursor: inherit !important;
+}
+
 /* Fast interaction mode (disables expensive CSS transitions and filters during drag) */
 .stage-viewport.is-interacting .stage-item {
   transition: none !important;

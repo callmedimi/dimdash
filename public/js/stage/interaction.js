@@ -118,6 +118,7 @@
       this.boundPointerMove = this.onPointerMove.bind(this);
       this.boundPointerUp = this.onPointerUp.bind(this);
       this.boundPointerCancel = this.onPointerCancel.bind(this);
+      this.boundPointerLeave = this.onPointerLeave.bind(this);
       this.boundKeyDown = this.onKeyDown.bind(this);
       this.boundWheel = this.onWheel.bind(this);
 
@@ -172,6 +173,7 @@
       el.addEventListener('pointermove', this.boundPointerMove);
       el.addEventListener('pointerup', this.boundPointerUp);
       el.addEventListener('pointercancel', this.boundPointerCancel);
+      el.addEventListener('pointerleave', this.boundPointerLeave);
       el.addEventListener('wheel', this.boundWheel, { passive: false });
       window.addEventListener('keydown', this.boundKeyDown);
     }
@@ -183,6 +185,7 @@
         el.removeEventListener('pointermove', this.boundPointerMove);
         el.removeEventListener('pointerup', this.boundPointerUp);
         el.removeEventListener('pointercancel', this.boundPointerCancel);
+        el.removeEventListener('pointerleave', this.boundPointerLeave);
         el.removeEventListener('wheel', this.boundWheel);
       }
       window.removeEventListener('keydown', this.boundKeyDown);
@@ -329,6 +332,7 @@
       const selectedScreenRects = this.getSelectedScreenRects();
       let hitHandle = null;
       let handleItemId = null;
+      let targetScreenRect = null;
 
       if (window.DimDashOverlay && selectedScreenRects.length === 1) {
         const sr = selectedScreenRects[0];
@@ -341,6 +345,34 @@
         hitHandle = window.DimDashOverlay.StageOverlay.hitTestHandles(screenX, screenY, screenBounds, isCoarse);
         if (hitHandle) {
           handleItemId = sr.id;
+          targetScreenRect = sr;
+        }
+      } else if (window.DimDashOverlay && selectedScreenRects.length === 0) {
+        // Direct border grab on unselected item
+        const itemEl = e.target.closest('.stage-item');
+        if (itemEl && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+          const vpRect = viewportEl.getBoundingClientRect();
+          const r = itemEl.getBoundingClientRect();
+          const screenBounds = {
+            x: r.left - vpRect.left,
+            y: r.top - vpRect.top,
+            w: r.width,
+            h: r.height
+          };
+          const h = window.DimDashOverlay.StageOverlay.hitTestHandles(screenX, screenY, screenBounds, isCoarse);
+          if (h) {
+            const id = itemEl.getAttribute('data-id');
+            this.selectItem(id, false);
+            hitHandle = h;
+            handleItemId = id;
+            targetScreenRect = {
+              id,
+              screenX: screenBounds.x,
+              screenY: screenBounds.y,
+              screenW: screenBounds.w,
+              screenH: screenBounds.h
+            };
+          }
         }
       }
 
@@ -355,7 +387,7 @@
           startX: screenX,
           startY: screenY,
           startRect: { ...p },
-          startScreenRect: { ...selectedScreenRects[0] },
+          startScreenRect: targetScreenRect || { ...selectedScreenRects[0] },
           shiftKey: e.shiftKey,
           altKey: e.altKey,
           ctrlKey: e.ctrlKey || e.metaKey
@@ -546,6 +578,17 @@
       if (!this.session || this.session.pointerId !== e.pointerId) return;
       this.rollbackSessionTransforms();
       this.transitionTo(STATES.IDLE);
+    }
+
+    onPointerLeave(e) {
+      if (this.state === STATES.IDLE) {
+        this.hoverHandle = null;
+        if (this.stage?.viewportEl) {
+          this.stage.viewportEl.style.cursor = '';
+          this.stage.viewportEl.removeAttribute('data-hover-handle');
+        }
+        this.requestOverlayRedraw({ hoverHandle: null });
+      }
     }
 
     onWheel(e) {
@@ -808,12 +851,35 @@
       // Enter new state
       if (newState === STATES.MOVE || newState === STATES.RESIZE) {
         this.session = payload;
+        if (newState === STATES.RESIZE) {
+          this.activeHandle = payload?.handle || null;
+          if (this.stage?.viewportEl) {
+            this.stage.viewportEl.classList.add('is-resizing');
+            const cursorMap = {
+              nw: 'nwse-resize',
+              se: 'nwse-resize',
+              ne: 'nesw-resize',
+              sw: 'nesw-resize',
+              n: 'ns-resize',
+              s: 'ns-resize',
+              e: 'ew-resize',
+              w: 'ew-resize'
+            };
+            this.stage.viewportEl.style.cursor = cursorMap[payload?.handle] || '';
+            this.stage.viewportEl.setAttribute('data-hover-handle', payload?.handle || '');
+          }
+        }
         this.promoteLayers();
       } else if (newState === STATES.PAN || newState === STATES.LASSO) {
         this.session = payload;
       } else if (newState === STATES.IDLE) {
         this.session = null;
         this.activeHandle = null;
+        if (this.stage?.viewportEl) {
+          this.stage.viewportEl.classList.remove('is-resizing');
+          this.stage.viewportEl.removeAttribute('data-hover-handle');
+          this.stage.viewportEl.style.cursor = '';
+        }
         this.requestOverlayRedraw();
       }
     }
@@ -841,6 +907,8 @@
       this.promoteTimer = setTimeout(() => {
         if (this.stage?.viewportEl) {
           this.stage.viewportEl.classList.remove('is-interacting');
+          this.stage.viewportEl.classList.remove('is-resizing');
+          this.stage.viewportEl.removeAttribute('data-hover-handle');
         }
         if (this.stage?.itemElements) {
           for (const el of this.stage.itemElements.values()) {
@@ -1566,24 +1634,42 @@
     }
 
     updateHoverCursor(screenX, screenY, camera, wu) {
-      if (!this.stage.viewportEl) return;
+      if (!this.stage?.viewportEl) return;
       const selectedScreenRects = this.getSelectedScreenRects();
-      if (selectedScreenRects.length !== 1 || !window.DimDashOverlay) {
-        this.stage.viewportEl.style.cursor = '';
-        return;
+      let handle = null;
+
+      if (selectedScreenRects.length === 1 && window.DimDashOverlay) {
+        const sr = selectedScreenRects[0];
+        const screenBounds = {
+          x: sr.screenX,
+          y: sr.screenY,
+          w: sr.screenW,
+          h: sr.screenH
+        };
+        handle = window.DimDashOverlay.StageOverlay.hitTestHandles(screenX, screenY, screenBounds, false);
+      } else if (selectedScreenRects.length === 0 && window.DimDashOverlay && this.stage.viewportEl) {
+        const vpRect = this.stage.viewportEl.getBoundingClientRect();
+        const clientX = vpRect.left + screenX;
+        const clientY = vpRect.top + screenY;
+        const targetEl = document.elementFromPoint(clientX, clientY);
+        const itemEl = targetEl ? targetEl.closest('.stage-item') : null;
+        if (itemEl) {
+          const r = itemEl.getBoundingClientRect();
+          const screenBounds = {
+            x: r.left - vpRect.left,
+            y: r.top - vpRect.top,
+            w: r.width,
+            h: r.height
+          };
+          handle = window.DimDashOverlay.StageOverlay.hitTestHandles(screenX, screenY, screenBounds, false);
+        }
       }
 
-      const sr = selectedScreenRects[0];
-      const screenBounds = {
-        x: sr.screenX,
-        y: sr.screenY,
-        w: sr.screenW,
-        h: sr.screenH
-      };
+      this.hoverHandle = handle || null;
 
-      const handle = window.DimDashOverlay.StageOverlay.hitTestHandles(screenX, screenY, screenBounds, false);
       if (!handle) {
         this.stage.viewportEl.style.cursor = '';
+        this.stage.viewportEl.removeAttribute('data-hover-handle');
         return;
       }
 
@@ -1598,6 +1684,7 @@
         w: 'ew-resize'
       };
       this.stage.viewportEl.style.cursor = cursorMap[handle] || '';
+      this.stage.viewportEl.setAttribute('data-hover-handle', handle);
     }
 
     requestOverlayRedraw(extra = {}) {
@@ -1653,6 +1740,8 @@
         camera,
         wu,
         selectedRects,
+        activeHandle: this.activeHandle || null,
+        hoverHandle: this.hoverHandle || null,
         debugItems,
         ...extra
       });

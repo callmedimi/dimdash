@@ -27,13 +27,14 @@
 
       this.theme = {
         accent: options.accent || '#38bdf8', // Tailwind sky-400
-        accentDim: options.accentDim || 'rgba(56, 189, 248, 0.12)',
+        accentDim: options.accentDim || 'rgba(56, 189, 248, 0.08)',
         guideColor: options.guideColor || '#06b6d4', // cyan-500
         handleFill: '#ffffff',
         handleStroke: '#0284c7',
-        handleSize: 8, // px
-        coarseHitRadius: 22, // px
-        fineHitRadius: 9, // px
+        handleSize: 10, // px
+        coarseHitRadius: 28, // px
+        fineHitRadius: 15, // px
+        borderTolerance: 9, // px
         dotColor: 'rgba(255, 255, 255, 0.18)',
         dotRadius: 1.2,
         dotGridStep: 32 // wu
@@ -82,21 +83,111 @@
       };
     }
 
+    /**
+     * Hit tests resize handles and continuous borders geometrically for a given item bounding box in screen space.
+     * Supports:
+     * - Generous corner handles (nw, ne, se, sw)
+     * - Midpoint handles (n, s, e, w)
+     * - Continuous border perimeter edges (top -> n, bottom -> s, left -> w, right -> e)
+     * - Safe interior zone (returns null so clicking interior moves/drags the item)
+     */
     static hitTestHandles(screenX, screenY, bounds, isCoarse = false) {
       if (!bounds || bounds.w <= 0 || bounds.h <= 0) return null;
-      const handles = StageOverlay.getHandlePositions(bounds);
-      const hitRadius = isCoarse ? 22 : 9;
-      const hitRadiusSq = hitRadius * hitRadius;
+      const { x, y, w, h } = bounds;
+      const x2 = x + w;
+      const y2 = y + h;
 
-      for (const name of HANDLE_NAMES) {
-        const hp = handles[name];
-        const dx = screenX - hp.x;
-        const dy = screenY - hp.y;
-        if (dx * dx + dy * dy <= hitRadiusSq) {
-          return name;
+      // 1. Direct Corner Handle check (highest priority with generous radius)
+      const cornerHitRadius = isCoarse ? 28 : 15;
+      const cornerRadiusSq = cornerHitRadius * cornerHitRadius;
+
+      const corners = [
+        { name: 'nw', x: x,  y: y },
+        { name: 'ne', x: x2, y: y },
+        { name: 'se', x: x2, y: y2 },
+        { name: 'sw', x: x,  y: y2 }
+      ];
+
+      for (const c of corners) {
+        const dx = screenX - c.x;
+        const dy = screenY - c.y;
+        if (dx * dx + dy * dy <= cornerRadiusSq) {
+          return c.name;
         }
       }
-      return null;
+
+      // 2. Direct Midpoint Handle check
+      const midHitRadius = isCoarse ? 24 : 13;
+      const midRadiusSq = midHitRadius * midHitRadius;
+      const midpoints = [
+        { name: 'n', x: x + w / 2, y: y },
+        { name: 's', x: x + w / 2, y: y2 },
+        { name: 'w', x: x,         y: y + h / 2 },
+        { name: 'e', x: x2,        y: y + h / 2 }
+      ];
+
+      for (const m of midpoints) {
+        const dx = screenX - m.x;
+        const dy = screenY - m.y;
+        if (dx * dx + dy * dy <= midRadiusSq) {
+          return m.name;
+        }
+      }
+
+      // 3. Continuous Border Hit Zone (Outer and Inner tolerance bands)
+      const borderTolerance = isCoarse ? 18 : 9;
+      const outerX1 = x - borderTolerance;
+      const outerX2 = x2 + borderTolerance;
+      const outerY1 = y - borderTolerance;
+      const outerY2 = y2 + borderTolerance;
+
+      // Check if pointer is anywhere within outer bounding halo
+      if (screenX < outerX1 || screenX > outerX2 || screenY < outerY1 || screenY > outerY2) {
+        return null;
+      }
+
+      // Check if pointer is inside inner safe interior (where clicking moves/drags the card)
+      const innerX1 = x + borderTolerance;
+      const innerX2 = x2 - borderTolerance;
+      const innerY1 = y + borderTolerance;
+      const innerY2 = y2 - borderTolerance;
+
+      if (innerX1 < innerX2 && innerY1 < innerY2) {
+        if (screenX > innerX1 && screenX < innerX2 && screenY > innerY1 && screenY < innerY2) {
+          // Inside safe interior -> allows moving/dragging the card
+          return null;
+        }
+      }
+
+      // Pointer is on the border perimeter!
+      // Resolve corner regions vs edge regions
+      const cornerZone = Math.min(28, Math.max(14, Math.min(w, h) * 0.28));
+
+      // Check if in corner zones of the border
+      if (screenX <= x + cornerZone) {
+        if (screenY <= y + cornerZone) return 'nw';
+        if (screenY >= y2 - cornerZone) return 'sw';
+      }
+      if (screenX >= x2 - cornerZone) {
+        if (screenY <= y + cornerZone) return 'ne';
+        if (screenY >= y2 - cornerZone) return 'se';
+      }
+
+      // Along the edges: find closest edge
+      const dTop = Math.abs(screenY - y);
+      const dBottom = Math.abs(screenY - y2);
+      const dLeft = Math.abs(screenX - x);
+      const dRight = Math.abs(screenX - x2);
+
+      const minDistance = Math.min(dTop, dBottom, dLeft, dRight);
+      if (minDistance > borderTolerance) {
+        return null;
+      }
+
+      if (minDistance === dTop) return 'n';
+      if (minDistance === dBottom) return 's';
+      if (minDistance === dLeft) return 'w';
+      return 'e';
     }
 
     /**
@@ -115,6 +206,7 @@
         marquee = null,
         pointerPos = null,
         activeHandle = null,
+        hoverHandle = null,
         sizingInfo = null,
         debug = false,
         debugItems = []
@@ -137,7 +229,7 @@
       // 3. Selection Boxes & Resize Handles
       if (selectedRects && selectedRects.length > 0) {
         for (const rect of selectedRects) {
-          this.renderSelectionBounds(ctx, rect, camera, wu, activeHandle);
+          this.renderSelectionBounds(ctx, rect, camera, wu, activeHandle, hoverHandle);
         }
       }
 
@@ -217,7 +309,7 @@
       }
     }
 
-    renderSelectionBounds(ctx, rect, camera, wu, activeHandle) {
+    renderSelectionBounds(ctx, rect, camera, wu, activeHandle, hoverHandle) {
       // Source of truth: prefer measured screen rect from DOM getBoundingClientRect
       const screenX = rect.screenX !== undefined ? rect.screenX : (rect.x * wu * camera.z + camera.x);
       const screenY = rect.screenY !== undefined ? rect.screenY : (rect.y * wu * camera.z + camera.y);
@@ -235,6 +327,32 @@
       ctx.lineWidth = 1.5;
       ctx.strokeRect(screenX, screenY, screenW, screenH);
 
+      // Highlight active or hovered edge/border
+      const targetHandle = activeHandle || hoverHandle;
+      if (targetHandle) {
+        ctx.save();
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = 'rgba(56, 189, 248, 0.8)';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        if (targetHandle === 'n') {
+          ctx.moveTo(screenX, screenY);
+          ctx.lineTo(screenX + screenW, screenY);
+        } else if (targetHandle === 's') {
+          ctx.moveTo(screenX, screenY + screenH);
+          ctx.lineTo(screenX + screenW, screenY + screenH);
+        } else if (targetHandle === 'w') {
+          ctx.moveTo(screenX, screenY);
+          ctx.lineTo(screenX, screenY + screenH);
+        } else if (targetHandle === 'e') {
+          ctx.moveTo(screenX + screenW, screenY);
+          ctx.lineTo(screenX + screenW, screenY + screenH);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
+
       // 8 Resize Handles
       const handles = StageOverlay.getHandlePositions({
         x: screenX,
@@ -243,22 +361,39 @@
         h: screenH
       });
 
-      const hs = this.theme.handleSize;
-      const half = hs / 2;
+      const baseHs = this.theme.handleSize || 10;
 
       for (const name of HANDLE_NAMES) {
         const hp = handles[name];
         const isActive = activeHandle === name;
+        const isHovered = hoverHandle === name;
+        const hs = (isActive || isHovered) ? baseHs + 3 : baseHs;
+        const half = hs / 2;
 
-        ctx.fillStyle = isActive ? this.theme.accent : this.theme.handleFill;
-        ctx.strokeStyle = this.theme.handleStroke;
-        ctx.lineWidth = 1.5;
+        ctx.save();
+        if (isActive || isHovered) {
+          ctx.fillStyle = this.theme.accent;
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.shadowColor = 'rgba(56, 189, 248, 0.7)';
+          ctx.shadowBlur = 6;
+        } else {
+          ctx.fillStyle = this.theme.handleFill;
+          ctx.strokeStyle = this.theme.handleStroke;
+          ctx.lineWidth = 1.5;
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+          ctx.shadowBlur = 3;
+        }
 
         ctx.beginPath();
-        // Slightly rounded corner box
-        ctx.rect(hp.x - half, hp.y - half, hs, hs);
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(hp.x - half, hp.y - half, hs, hs, 2.5);
+        } else {
+          ctx.rect(hp.x - half, hp.y - half, hs, hs);
+        }
         ctx.fill();
         ctx.stroke();
+        ctx.restore();
       }
 
       ctx.restore();
