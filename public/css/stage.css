@@ -509,7 +509,7 @@ body.tenfoot-idle * {
 .stage-blueprint-pill {
   position: fixed;
   bottom: 24px;
-  right: 28px;
+  right: calc(var(--sidebar-width, 68px) + 20px);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -524,10 +524,17 @@ body.tenfoot-idle * {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 14px rgba(56, 189, 248, 0.25);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  z-index: 9999;
+  z-index: 50;
   cursor: pointer;
   user-select: none;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (max-width: 768px) {
+  .stage-blueprint-pill {
+    bottom: 80px;
+    right: 16px;
+  }
 }
 
 .stage-blueprint-pill:hover {

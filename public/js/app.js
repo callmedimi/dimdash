@@ -169,8 +169,12 @@ function openSpotlightSearch() {
     elements.spotlightSearchOverlay.classList.add('open');
   }
   if (elements.searchBar) {
-    elements.searchBar.focus();
-    elements.searchBar.select();
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        elements.searchBar.focus();
+        elements.searchBar.select();
+      }, 50);
+    });
   }
 }
 
@@ -180,13 +184,24 @@ function closeSpotlightSearch() {
   }
   if (elements.searchBar) {
     elements.searchBar.blur();
+    if (elements.searchBar.value) {
+      elements.searchBar.value = '';
+      AppState.searchQuery = '';
+      renderGrid();
+    }
   }
 }
+window.openSpotlightSearch = openSpotlightSearch;
+window.closeSpotlightSearch = closeSpotlightSearch;
 
 // Keyboard shortcuts
 function setupKeyboardShortcuts() {
   window.addEventListener('keydown', (e) => {
     if ((e.key === '/' || (e.ctrlKey && e.key === 'k')) && document.activeElement !== elements.searchBar) {
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) {
+        return;
+      }
       e.preventDefault();
       openSpotlightSearch();
     }
@@ -240,6 +255,11 @@ async function loadConfig() {
       AppState.authRole = savedRole;
       AppState.isAdmin = (savedRole === 'admin');
       AppState.adminPin = (savedRole === 'admin' ? (savedPin || '') : '');
+    } else if (!AppState.config?.is_pin_protected) {
+      // If the dashboard is not PIN-protected, default to admin access
+      AppState.authRole = 'admin';
+      AppState.isAdmin = true;
+      AppState.adminPin = '';
     } else {
       AppState.authRole = 'guest';
       AppState.isAdmin = false;
@@ -307,8 +327,17 @@ function applyTheme(theme) {
   const bgLogoLayer = document.getElementById('bgLogoOverlay');
   if (bgLogoLayer) {
     if (theme.bg_logo_url) {
-      bgLogoLayer.style.display = 'block';
-      bgLogoLayer.style.backgroundImage = `url("${theme.bg_logo_url}")`;
+      const testImg = new Image();
+      testImg.onload = () => {
+        bgLogoLayer.style.display = 'block';
+        bgLogoLayer.style.backgroundImage = `url("${theme.bg_logo_url}")`;
+      };
+      testImg.onerror = () => {
+        bgLogoLayer.style.display = 'none';
+        bgLogoLayer.style.backgroundImage = 'none';
+      };
+      testImg.src = theme.bg_logo_url;
+
       const opVal = theme.bg_logo_opacity !== undefined ? Number(theme.bg_logo_opacity) : 18;
       bgLogoLayer.style.opacity = String(opVal / 100);
       
@@ -2467,6 +2496,11 @@ function closeAllModals() {
     m.classList.remove('open');
     m.style.display = '';
   });
+  const kbModal = document.getElementById('keyboardModal');
+  if (kbModal) {
+    kbModal.style.display = 'none';
+  }
+  closeSpotlightSearch();
 }
 window.closeAllModals = closeAllModals;
 

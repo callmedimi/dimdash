@@ -1322,11 +1322,11 @@
 
   <!-- Keyboard Shortcuts Help Modal (?) -->
   <div class="modal" id="keyboardModal" role="dialog" aria-modal="true" aria-labelledby="kbTitle" style="display:none;">
-    <div class="modal-overlay" id="kbOverlay"></div>
+    <div class="modal-overlay" id="kbOverlay" onclick="document.getElementById('keyboardModal').style.display='none'"></div>
     <div class="modal-content keyboard-modal-content" style="max-width:540px;">
       <div class="modal-header">
         <h3 id="kbTitle" style="color:#f8fafc; font-size:1.1rem; font-weight:700;">⌨️ Keyboard Shortcuts & Spatial Navigation</h3>
-        <button class="modal-close" id="btnCloseKeyboardModal" aria-label="Close shortcuts modal">&times;</button>
+        <button class="modal-close" id="btnCloseKeyboardModal" onclick="document.getElementById('keyboardModal').style.display='none'" aria-label="Close shortcuts modal">&times;</button>
       </div>
       <div class="modal-body" style="padding:16px 20px;">
         <table class="shortcuts-table" style="width:100%; border-collapse:collapse; font-size:0.88rem; color:#cbd5e1;">
