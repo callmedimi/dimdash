@@ -186,17 +186,27 @@
       this.sizeObserver = new ResizeObserver(entries => {
         for (const entry of entries) {
           const w = entry.contentRect.width;
+          const h = entry.contentRect.height;
           const wu = this.metrics ? this.metrics.wu : 1.0;
           const wWu = w / wu;
+          const hWu = h / wu;
 
           let sizeClass = 'm';
-          if (wWu < 120) sizeClass = 'xs';
-          else if (wWu < 220) sizeClass = 's';
-          else if (wWu < 380) sizeClass = 'm';
-          else if (wWu < 640) sizeClass = 'l';
-          else sizeClass = 'xl';
+          if (wWu < 130 || hWu < 52) {
+            sizeClass = 'xs';
+          } else if (wWu < 240 && hWu < 95) {
+            sizeClass = 's';
+          } else if (wWu < 360 && hWu < 140) {
+            sizeClass = 'm';
+          } else if (wWu < 540 && hWu < 220) {
+            sizeClass = 'l';
+          } else {
+            sizeClass = 'xl';
+          }
 
+          const isCard = hWu >= 130 && (hWu / Math.max(1, wWu) >= 0.40);
           entry.target.setAttribute('data-size', sizeClass);
+          entry.target.setAttribute('data-card-layout', isCard ? 'stacked' : 'row');
         }
       });
     }
@@ -377,6 +387,20 @@
         el.style.setProperty('--w', rect.w);
         el.style.setProperty('--h', rect.h);
         el.style.setProperty('--z', rect.z || 1);
+
+        const wWu = Number(rect.w) || 100;
+        const hWu = Number(rect.h) || 100;
+        let sizeClass = 'm';
+        if (wWu < 130 || hWu < 52) sizeClass = 'xs';
+        else if (wWu < 240 && hWu < 95) sizeClass = 's';
+        else if (wWu < 360 && hWu < 140) sizeClass = 'm';
+        else if (wWu < 540 && hWu < 220) sizeClass = 'l';
+        else sizeClass = 'xl';
+
+        const isCard = hWu >= 130 && (hWu / Math.max(1, wWu) >= 0.40);
+        el.setAttribute('data-size', sizeClass);
+        el.setAttribute('data-card-layout', isCard ? 'stacked' : 'row');
+
         if (rect.parent) {
           el.setAttribute('data-parent', rect.parent);
         } else {

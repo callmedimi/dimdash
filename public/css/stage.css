@@ -124,11 +124,11 @@
   display: grid !important;
   grid-template-columns: var(--tile-icon-size, calc(40px * var(--wu))) 1fr auto;
   align-items: center;
-  gap: calc(12px * var(--wu));
-  padding: calc(8px * var(--wu)) calc(12px * var(--wu));
+  gap: var(--tile-gap, calc(12px * var(--wu)));
+  padding: var(--tile-padding, calc(8px * var(--wu)) calc(12px * var(--wu)));
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: calc(12px * var(--wu));
+  border-radius: calc(14px * var(--wu));
   text-decoration: none;
   color: var(--text-main, #f8fafc);
   cursor: pointer;
@@ -154,13 +154,14 @@
 }
 
 .stage-tile-icon {
-  width: calc(36px * var(--wu));
-  height: calc(36px * var(--wu));
+  width: var(--tile-icon-size, calc(36px * var(--wu)));
+  height: var(--tile-icon-size, calc(36px * var(--wu)));
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: calc(8px * var(--wu));
+  border-radius: calc(var(--tile-icon-size, 36px) * 0.22);
   flex-shrink: 0;
+  transition: width 0.15s ease, height 0.15s ease;
 }
 
 .stage-tile-icon img,
@@ -178,22 +179,32 @@
 }
 
 .stage-tile-title {
-  font-size: calc(0.92rem * var(--wu));
+  font-size: var(--tile-title-size, calc(0.92rem * var(--wu)));
   font-weight: 600;
   color: #f8fafc;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
+  transition: font-size 0.15s ease;
 }
 
 .stage-tile-subtitle {
-  font-size: calc(0.72rem * var(--wu));
+  font-size: var(--tile-subtitle-size, calc(0.72rem * var(--wu)));
   color: #94a3b8;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
+  transition: font-size 0.15s ease;
+}
+
+.tile-status-indicator .pilot-light {
+  width: var(--tile-status-size, 8px) !important;
+  height: var(--tile-status-size, 8px) !important;
+  border-radius: 50%;
+  display: inline-block;
+  transition: width 0.15s ease, height 0.15s ease;
 }
 
 .tile-fallback-plate {
@@ -204,11 +215,119 @@
   height: 100%;
   background: linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(99, 102, 241, 0.25));
   border: 1px solid rgba(56, 189, 248, 0.3);
-  border-radius: calc(10px * var(--wu));
+  border-radius: calc(var(--tile-icon-size, 36px) * 0.22);
   font-weight: 700;
-  font-size: calc(1.15rem * var(--wu));
+  font-size: calc(var(--tile-icon-size, 36px) * 0.45);
   color: #f8fafc;
   user-select: none;
+}
+
+/* ==========================================================================
+   Adaptive Size Classes (XS, S, M, L, XL)
+   ========================================================================== */
+
+/* XS: Micro / Icon Only */
+.stage-item[data-size="xs"] {
+  --tile-icon-size: calc(28px * var(--wu));
+  --tile-padding: calc(4px * var(--wu));
+}
+.stage-item[data-size="xs"] .stage-service-tile {
+  grid-template-columns: 1fr !important;
+  justify-items: center;
+  align-items: center;
+}
+.stage-item[data-size="xs"] .stage-tile-info,
+.stage-item[data-size="xs"] .tile-status-indicator {
+  display: none !important;
+}
+
+/* S: Small / Compact */
+.stage-item[data-size="s"] {
+  --tile-icon-size: calc(34px * var(--wu));
+  --tile-title-size: calc(0.86rem * var(--wu));
+  --tile-subtitle-size: calc(0.68rem * var(--wu));
+  --tile-gap: calc(8px * var(--wu));
+  --tile-padding: calc(6px * var(--wu)) calc(10px * var(--wu));
+  --tile-status-size: 7px;
+}
+
+/* M: Standard (Default) */
+.stage-item[data-size="m"] {
+  --tile-icon-size: calc(42px * var(--wu));
+  --tile-title-size: calc(0.98rem * var(--wu));
+  --tile-subtitle-size: calc(0.75rem * var(--wu));
+  --tile-gap: calc(12px * var(--wu));
+  --tile-padding: calc(10px * var(--wu)) calc(14px * var(--wu));
+  --tile-status-size: 8px;
+}
+
+/* L: Large — Resized card gets larger logo and typography */
+.stage-item[data-size="l"] {
+  --tile-icon-size: calc(64px * var(--wu));
+  --tile-title-size: calc(1.28rem * var(--wu));
+  --tile-subtitle-size: calc(0.94rem * var(--wu));
+  --tile-gap: calc(18px * var(--wu));
+  --tile-padding: calc(16px * var(--wu)) calc(22px * var(--wu));
+  --tile-status-size: 11px;
+}
+.stage-item[data-size="l"] .stage-tile-title {
+  font-weight: 700;
+}
+.stage-item[data-size="l"] .stage-tile-subtitle {
+  margin-top: calc(4px * var(--wu));
+}
+
+/* XL: Extra Large — Hero display size */
+.stage-item[data-size="xl"] {
+  --tile-icon-size: calc(92px * var(--wu));
+  --tile-title-size: calc(1.65rem * var(--wu));
+  --tile-subtitle-size: calc(1.15rem * var(--wu));
+  --tile-gap: calc(24px * var(--wu));
+  --tile-padding: calc(22px * var(--wu)) calc(30px * var(--wu));
+  --tile-status-size: 14px;
+}
+.stage-item[data-size="xl"] .stage-tile-title {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.stage-item[data-size="xl"] .stage-tile-subtitle {
+  margin-top: calc(6px * var(--wu));
+}
+
+/* Stacked Layout: when card aspect is tall or squarish */
+.stage-item[data-card-layout="stacked"] .stage-service-tile {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+  position: relative !important;
+  gap: var(--tile-gap, calc(14px * var(--wu))) !important;
+  padding: var(--tile-padding, calc(16px * var(--wu))) !important;
+}
+
+.stage-item[data-card-layout="stacked"] .stage-tile-info {
+  align-items: center !important;
+  text-align: center !important;
+  width: 100%;
+}
+
+.stage-item[data-card-layout="stacked"] .tile-status-indicator {
+  position: absolute;
+  top: calc(16px * var(--wu));
+  right: calc(18px * var(--wu));
+}
+
+.stage-item[data-card-layout="stacked"][data-size="l"] {
+  --tile-icon-size: calc(76px * var(--wu));
+  --tile-title-size: calc(1.36rem * var(--wu));
+  --tile-subtitle-size: calc(0.98rem * var(--wu));
+}
+
+.stage-item[data-card-layout="stacked"][data-size="xl"] {
+  --tile-icon-size: calc(112px * var(--wu));
+  --tile-title-size: calc(1.85rem * var(--wu));
+  --tile-subtitle-size: calc(1.22rem * var(--wu));
 }
 
 /* Monitoring Gauge Widget within Stage */

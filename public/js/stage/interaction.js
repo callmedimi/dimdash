@@ -769,6 +769,19 @@
             el.style.setProperty('--y', resized.y);
             el.style.setProperty('--w', resized.w);
             el.style.setProperty('--h', resized.h);
+
+            const wWu = Number(resized.w) || 100;
+            const hWu = Number(resized.h) || 100;
+            let sizeClass = 'm';
+            if (wWu < 130 || hWu < 52) sizeClass = 'xs';
+            else if (wWu < 240 && hWu < 95) sizeClass = 's';
+            else if (wWu < 360 && hWu < 140) sizeClass = 'm';
+            else if (wWu < 540 && hWu < 220) sizeClass = 'l';
+            else sizeClass = 'xl';
+
+            const isCard = hWu >= 130 && (hWu / Math.max(1, wWu) >= 0.40);
+            el.setAttribute('data-size', sizeClass);
+            el.setAttribute('data-card-layout', isCard ? 'stacked' : 'row');
           }
 
           this.requestOverlayRedraw({
