@@ -111,6 +111,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadConfig();
   fetchSystemTelemetry();
   setupSSE();
+  // Periodic fallback polling so telemetry and probes never freeze
+  setInterval(fetchSystemTelemetry, 5000);
+  setInterval(fetchProbes, 10000);
 });
 
 // Clock & Calendar Update Loop
@@ -1052,9 +1055,25 @@ function updateWidgetValues() {
   }
   if (!AppState.systemTelemetry) return;
 
-  const widgets = (AppState.config?.widgets && AppState.config.widgets.length > 0)
-    ? AppState.config.widgets
-    : (AppState.board?.config?.items?.filter(it => it.kind === 'widget') || []);
+  const widgetMap = new Map();
+  if (Array.isArray(AppState.config?.widgets)) {
+    AppState.config.widgets.forEach(w => widgetMap.set(w.id, w));
+  }
+  if (Array.isArray(AppState.board?.config?.items)) {
+    AppState.board.config.items.filter(it => it.kind === 'widget').forEach(w => {
+      if (!widgetMap.has(w.id)) {
+        widgetMap.set(w.id, {
+          id: w.id,
+          type: w.type || w.props?.type,
+          props: w.props,
+          server_id: w.props?.server_id || w.bind?.server_id || 'local',
+          color: w.props?.color || '#38bdf8',
+          title: w.title || w.props?.title || 'Widget'
+        });
+      }
+    });
+  }
+  const widgets = Array.from(widgetMap.values());
   const C = 213.6;
   const telemetryServers = AppState.systemTelemetry.servers || {};
 
@@ -1120,37 +1139,47 @@ function updateWidgetValues() {
       if (ioEl) {
         ioEl.textContent = `⬇️ ${stats.net.rxTotalMb} MB | ⬆️ ${stats.net.txTotalMb} MB`;
       }
-    } else if (w.type === 'docker_stats' && stats.docker) {
-      const isAvail = stats.docker.available !== false;
-      const total = stats.docker.total || 0;
-      const running = stats.docker.running || 0;
-      const stopped = stats.docker.stopped || 0;
+    } else if (w.type === 'docker_stats') {
+      const dockerData = stats.docker || AppState.systemTelemetry?.docker;
+      if (!dockerData) return;
+      const isAvail = dockerData.available !== false;
+      const total = dockerData.total || 0;
+      const running = dockerData.running || 0;
+      const stopped = dockerData.stopped || 0;
       const pct = total > 0 ? Math.round((running / total) * 100) : 0;
+      const isFa = (AppState.config?.settings?.locale === 'fa');
+
       if (arc) {
         arc.style.strokeDashoffset = isAvail ? (C - (pct / 100) * C) : C;
         arc.style.stroke = isAvail ? (w.props?.color || w.color || '#38bdf8') : '#ef4444';
       }
       if (val) {
         val.innerHTML = isAvail
-          ? `${running}<span class="radial-gauge-unit">Up</span>`
+          ? `${running}<span class="radial-gauge-unit">${isFa ? 'فعال' : 'Up'}</span>`
           : `<span style="font-size:0.65rem; color:#ef4444;">N/A</span>`;
       }
       const runEl = document.getElementById(`docker-running-${w.id}`);
       if (runEl) {
-        runEl.textContent = isAvail ? `${running} Containers` : 'سرویس قطع است';
+        runEl.textContent = isAvail
+          ? (isFa ? `${running} در حال اجرا` : `${running} Containers`)
+          : (isFa ? 'سرویس قطع است' : 'Offline');
         runEl.style.color = isAvail ? '#10b981' : '#ef4444';
       }
       const stopEl = document.getElementById(`docker-stopped-${w.id}`);
-      if (stopEl) stopEl.textContent = `${stopped} Containers`;
+      if (stopEl) {
+        stopEl.textContent = isFa ? `${stopped} متوقف` : `${stopped} Containers`;
+      }
       const totalEl = document.getElementById(`docker-total-${w.id}`);
       if (totalEl) {
-        totalEl.textContent = isAvail ? `${total} Total` : 'عدم دسترسی به داکر';
+        totalEl.textContent = isAvail
+          ? (isFa ? `${total} کل کانتینرها` : `${total} Total`)
+          : (isFa ? 'عدم دسترسی به داکر' : 'Docker unavailable');
       }
 
       // Populate mini list in stage view if present
       const miniListEl = document.getElementById(`docker-mini-list-${w.id}`);
       if (miniListEl) {
-        const containers = Array.isArray(stats.docker.containers) ? stats.docker.containers : [];
+        const containers = Array.isArray(dockerData.containers) ? dockerData.containers : [];
         if (containers.length > 0) {
           miniListEl.style.display = 'flex';
           const topItems = containers.slice(0, 3);

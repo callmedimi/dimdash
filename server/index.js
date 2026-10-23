@@ -98,9 +98,14 @@ app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 // Static file serving with browser caching headers
 const staticCacheOptions = {
-  maxAge: '1d',
+  maxAge: 0,
   etag: true,
-  lastModified: true
+  lastModified: true,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html') || filePath.endsWith('.js')) {
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    }
+  }
 };
 app.use('/uploads', express.static(uploadsDir, staticCacheOptions));
 app.get('/__selftest', (req, res) => {

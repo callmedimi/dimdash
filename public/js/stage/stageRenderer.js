@@ -735,23 +735,32 @@
       }
 
       if (type === 'docker_stats') {
+        const initialDocker = window.AppState?.systemTelemetry?.docker;
+        const isFa = (window.AppState?.config?.settings?.locale === 'fa');
+        const running = initialDocker?.running ?? 0;
+        const stopped = initialDocker?.stopped ?? 0;
+        const total = initialDocker?.total ?? 0;
+        const pct = total > 0 ? Math.round((running / total) * 100) : 0;
+        const dashOffset = C - (pct / 100) * C;
+
         el.innerHTML = `
-          <div class="widget-card stage-widget docker-widget-card" id="widget-card-${wId}" onclick="if(!document.getElementById('stageViewport')?.classList.contains('is-resizing') && !document.getElementById('stageViewport')?.classList.contains('is-interacting') && window.openDockerContainersModal) window.openDockerContainersModal();" title="مشاهده لیست کامل کانتینرها (Click to view containers)" style="--widget-accent: ${color}; width:100%; height:100%; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; padding:12px; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu)); cursor:pointer; transition:border-color 0.2s, transform 0.15s;">
+          <div class="widget-card stage-widget docker-widget-card" id="widget-card-${wId}" onclick="if(!document.getElementById('stageViewport')?.classList.contains('is-resizing') && !document.getElementById('stageViewport')?.classList.contains('is-interacting') && window.openDockerContainersModal) window.openDockerContainersModal();" title="${isFa ? 'مشاهده لیست کامل کانتینرها (برای مشاهده کلیک کنید)' : 'Click to view containers'}" style="--widget-accent: ${color}; width:100%; height:100%; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; padding:12px; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu)); cursor:pointer; transition:border-color 0.2s, transform 0.15s;">
             <div style="display:flex; align-items:center; justify-content:space-between;">
               <span style="font-size:calc(0.85rem * var(--wu)); font-weight:600; color:#f8fafc;">🐳 ${title}</span>
-              <span style="font-size:calc(0.68rem * var(--wu)); color:#38bdf8; opacity:0.85; font-weight:500;">🔍 جزئیات</span>
+              <span style="font-size:calc(0.68rem * var(--wu)); color:#38bdf8; opacity:0.85; font-weight:500;">🔍 ${isFa ? 'جزئیات' : 'Details'}</span>
             </div>
             <div style="display:flex; align-items:center; gap:12px; margin:auto 0;">
               <div class="radial-gauge-box" style="position:relative; width:calc(64px * var(--wu)); height:calc(64px * var(--wu)); flex-shrink:0;">
                 <svg class="radial-gauge-svg" viewBox="0 0 80 80" style="width:100%; height:100%; transform:rotate(-90deg);">
                   <circle class="radial-gauge-bg" cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8" />
-                  <circle class="radial-gauge-progress" id="gauge-arc-${wId}" cx="40" cy="40" r="34" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}" style="transition:stroke-dashoffset 0.5s ease;" />
+                  <circle class="radial-gauge-progress" id="gauge-arc-${wId}" cx="40" cy="40" r="34" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${dashOffset}" style="transition:stroke-dashoffset 0.5s ease;" />
                 </svg>
-                <div class="radial-gauge-val" id="gauge-val-${wId}" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:calc(0.95rem * var(--wu)); font-weight:700; color:#f8fafc;">0<span class="radial-gauge-unit">Up</span></div>
+                <div class="radial-gauge-val" id="gauge-val-${wId}" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:calc(0.95rem * var(--wu)); font-weight:700; color:#f8fafc;">${running}<span class="radial-gauge-unit">${isFa ? 'فعال' : 'Up'}</span></div>
               </div>
-              <div style="display:flex; flex-direction:column; gap:4px; font-size:calc(0.72rem * var(--wu)); color:#94a3b8;">
-                <div id="docker-running-${wId}" style="color:#10b981; font-weight:600;">0 Containers</div>
-                <div id="docker-total-${wId}">0 Total</div>
+              <div style="display:flex; flex-direction:column; gap:3px; font-size:calc(0.72rem * var(--wu)); color:#94a3b8;">
+                <div id="docker-running-${wId}" style="color:#10b981; font-weight:600;">${running} ${isFa ? 'در حال اجرا' : 'Containers'}</div>
+                <div id="docker-stopped-${wId}" style="color:#94a3b8; font-size:calc(0.68rem * var(--wu));">${stopped} ${isFa ? 'متوقف' : 'Containers'}</div>
+                <div id="docker-total-${wId}">${total} ${isFa ? 'کل کانتینرها' : 'Total'}</div>
               </div>
             </div>
             <div class="docker-mini-list" id="docker-mini-list-${wId}" style="display:none; flex-direction:column; gap:3px; border-top:1px solid rgba(255,255,255,0.07); padding-top:6px; font-size:calc(0.68rem * var(--wu)); color:#cbd5e1; overflow:hidden;"></div>
