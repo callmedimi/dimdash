@@ -8,7 +8,7 @@ RUN npm ci --omit=dev
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-RUN apk add --no-cache su-exec
+RUN apk add --no-cache su-exec docker-cli
 
 ENV NODE_ENV=production
 ENV PORT=3080
@@ -28,9 +28,9 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 EXPOSE 3080
 VOLUME ["/app/data"]
 
-# Native zero-dependency health check
+# Native zero-dependency IPv4 health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:' + (process.env.PORT || 3080) + '/api/health', (r) => {if (r.statusCode !== 200) process.exit(1);})"
+  CMD node -e "require('http').get('http://127.0.0.1:' + (process.env.PORT || 3080) + '/api/health', (r) => {if (r.statusCode !== 200) process.exit(1);}).on('error', () => process.exit(1))"
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "server/index.js"]

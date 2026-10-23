@@ -70,6 +70,7 @@ docker run -d \
   --restart unless-stopped \
   -p 3080:3080 \
   -v $(pwd)/data:/app/data \
+  -v /var/run/docker.sock:/var/run/docker.sock:ro \
   --memory=128m \
   --cpus=0.5 \
   ghcr.io/callmedimi/dimdash:latest

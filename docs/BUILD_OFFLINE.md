@@ -159,7 +159,8 @@ docker run -d \
   --name dimdash \
   --restart unless-stopped \
   -p 3080:3080 \
-  -v /var/lib/dimdash/data:/opt/dimdash/data \
+  -v /var/lib/dimdash/data:/app/data \
+  -v /var/run/docker.sock:/var/run/docker.sock:ro \
   dimdash:2.0.0-airgap
 ```
 
