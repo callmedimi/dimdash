@@ -380,10 +380,31 @@
         // Start Resize
         const profile = this.stage.currentProfile?.id || 'lg';
         const p = this.getItemPlacement(handleItemId, profile) || { x: 0, y: 0, w: 100, h: 100 };
+        const el = this.stage.itemElements?.get(handleItemId);
+        const parentId = p.parent || el?.getAttribute('data-parent') || null;
+        let parentWorldX = 0;
+        let parentWorldY = 0;
+        if (parentId) {
+          const parentEl = this.stage.itemElements?.get(parentId);
+          if (parentEl) {
+            parentWorldX = parseFloat(parentEl.style.getPropertyValue('--x')) || 0;
+            parentWorldY = parseFloat(parentEl.style.getPropertyValue('--y')) || 0;
+          } else {
+            const parentP = this.getItemPlacement(parentId, profile);
+            if (parentP) {
+              parentWorldX = Number(parentP.x) || 0;
+              parentWorldY = Number(parentP.y) || 0;
+            }
+          }
+        }
+
         this.transitionTo(STATES.RESIZE, {
           pointerId: e.pointerId,
           handle: hitHandle,
           itemId: handleItemId,
+          parentId,
+          parentWorldX,
+          parentWorldY,
           startX: screenX,
           startY: screenY,
           startRect: { ...p },
@@ -808,8 +829,11 @@
 
           const el = this.stage.itemElements.get(this.session.itemId);
           if (el) {
-            el.style.setProperty('--x', resized.x);
-            el.style.setProperty('--y', resized.y);
+            const worldX = (this.session.parentWorldX || 0) + resized.x;
+            const worldY = (this.session.parentWorldY || 0) + resized.y;
+
+            el.style.setProperty('--x', worldX);
+            el.style.setProperty('--y', worldY);
             el.style.setProperty('--w', resized.w);
             el.style.setProperty('--h', resized.h);
 
@@ -827,9 +851,16 @@
             el.setAttribute('data-card-layout', isCard ? 'stacked' : 'row');
           }
 
+          const worldRect = {
+            x: (this.session.parentWorldX || 0) + resized.x,
+            y: (this.session.parentWorldY || 0) + resized.y,
+            w: resized.w,
+            h: resized.h
+          };
+
           this.requestOverlayRedraw({
             activeHandle: this.session.handle,
-            sizingInfo: { rect: resized },
+            sizingInfo: { rect: worldRect },
             pointerPos: { screenX, screenY }
           });
         });
@@ -928,8 +959,10 @@
       if (this.session?.itemId && this.session?.startRect) {
         const el = this.stage.itemElements.get(this.session.itemId);
         if (el) {
-          el.style.setProperty('--x', this.session.startRect.x);
-          el.style.setProperty('--y', this.session.startRect.y);
+          const worldX = (this.session.parentWorldX || 0) + this.session.startRect.x;
+          const worldY = (this.session.parentWorldY || 0) + this.session.startRect.y;
+          el.style.setProperty('--x', worldX);
+          el.style.setProperty('--y', worldY);
           el.style.setProperty('--w', this.session.startRect.w);
           el.style.setProperty('--h', this.session.startRect.h);
         }
@@ -1078,10 +1111,12 @@
         });
 
         if (this.stage.spatialIndex) {
+          const worldX = (this.session.parentWorldX || 0) + cr.x;
+          const worldY = (this.session.parentWorldY || 0) + cr.y;
           this.stage.spatialIndex.update({
             id,
-            x: cr.x,
-            y: cr.y,
+            x: worldX,
+            y: worldY,
             w: cr.w,
             h: cr.h
           });
@@ -1269,13 +1304,33 @@
         this.setItemPlacement(id, profile, { x: newX, y: newY });
 
         const el = this.stage.itemElements.get(id);
+        const parentId = p.parent || el?.getAttribute('data-parent') || null;
+        let parentWorldX = 0;
+        let parentWorldY = 0;
+        if (parentId) {
+          const parentEl = this.stage.itemElements?.get(parentId);
+          if (parentEl) {
+            parentWorldX = parseFloat(parentEl.style.getPropertyValue('--x')) || 0;
+            parentWorldY = parseFloat(parentEl.style.getPropertyValue('--y')) || 0;
+          } else {
+            const parentP = this.getItemPlacement(parentId, profile);
+            if (parentP) {
+              parentWorldX = Number(parentP.x) || 0;
+              parentWorldY = Number(parentP.y) || 0;
+            }
+          }
+        }
+
+        const worldX = parentWorldX + newX;
+        const worldY = parentWorldY + newY;
+
         if (el) {
-          el.style.setProperty('--x', newX);
-          el.style.setProperty('--y', newY);
+          el.style.setProperty('--x', worldX);
+          el.style.setProperty('--y', worldY);
         }
 
         if (this.stage.spatialIndex) {
-          this.stage.spatialIndex.update({ id, x: newX, y: newY, w: p.w, h: p.h });
+          this.stage.spatialIndex.update({ id, x: worldX, y: worldY, w: p.w, h: p.h });
         }
 
         patches.push({
