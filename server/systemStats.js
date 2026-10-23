@@ -204,7 +204,7 @@ class SystemStatsCollector {
         socketPath,
         path: '/containers/json?all=1',
         method: 'GET',
-        timeout: 1000
+        timeout: 2500
       }, (res) => {
         let raw = '';
         res.on('data', chunk => raw += chunk);
@@ -212,13 +212,32 @@ class SystemStatsCollector {
           try {
             const list = JSON.parse(raw);
             if (Array.isArray(list)) {
-              const total = list.length;
-              const running = list.filter(c => c.State === 'running' || (c.Status && c.Status.toLowerCase().startsWith('up'))).length;
+              const containers = list.map(c => {
+                const name = (Array.isArray(c.Names) && c.Names[0])
+                  ? c.Names[0].replace(/^\//, '')
+                  : (c.Id || '').slice(0, 12);
+                const isRunning = c.State === 'running' || (c.Status && c.Status.toLowerCase().startsWith('up'));
+                return {
+                  id: (c.Id || '').slice(0, 12),
+                  name,
+                  image: c.Image || '',
+                  state: isRunning ? 'running' : (c.State || 'stopped'),
+                  status: c.Status || '',
+                  created: c.Created || 0,
+                  ports: Array.isArray(c.Ports)
+                    ? c.Ports.map(p => `${p.PublicPort ? p.PublicPort + '->' : ''}${p.PrivatePort}/${p.Type || 'tcp'}`).filter(Boolean).join(', ')
+                    : ''
+                };
+              });
+
+              const total = containers.length;
+              const running = containers.filter(c => c.state === 'running').length;
               this.currentStats.docker = {
                 available: true,
                 total,
                 running,
-                stopped: total - running
+                stopped: total - running,
+                containers
               };
               return;
             }
@@ -242,20 +261,41 @@ class SystemStatsCollector {
     const now = Date.now();
     if (now < this.dockerCliCooldown) return;
 
-    exec('docker ps -a --format "{{.Status}}"', { timeout: 1500 }, (err, stdout) => {
+    exec('docker ps -a --format "{{.ID}}\t{{.Names}}\t{{.Image}}\t{{.State}}\t{{.Status}}"', { timeout: 3000 }, (err, stdout) => {
       if (!err && stdout !== undefined) {
         const lines = stdout.trim().split('\n').filter(Boolean);
-        const running = lines.filter(s => s.toLowerCase().startsWith('up')).length;
+        const containers = lines.map(line => {
+          const parts = line.split('\t');
+          const isRunning = (parts[3] && parts[3].toLowerCase() === 'running') || (parts[4] && parts[4].toLowerCase().startsWith('up'));
+          return {
+            id: parts[0] || '',
+            name: parts[1] || parts[0] || 'container',
+            image: parts[2] || '',
+            state: isRunning ? 'running' : (parts[3] || 'stopped'),
+            status: parts[4] || ''
+          };
+        });
+
+        const total = containers.length;
+        const running = containers.filter(c => c.state === 'running').length;
         this.currentStats.docker = {
           available: true,
-          total: lines.length,
+          total,
           running,
-          stopped: lines.length - running
+          stopped: total - running,
+          containers
         };
       } else {
-        this.currentStats.docker.available = false;
-        // Don't hammer failing docker CLI every 2 seconds: back off for 60 seconds
-        this.dockerCliCooldown = now + 60000;
+        this.currentStats.docker = {
+          available: false,
+          total: 0,
+          running: 0,
+          stopped: 0,
+          containers: [],
+          error: err ? err.message : 'Docker daemon not reachable'
+        };
+        // Cooldown for 15 seconds on failure before retrying
+        this.dockerCliCooldown = now + 15000;
       }
     });
   }

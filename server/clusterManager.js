@@ -238,7 +238,9 @@ class ClusterManager extends EventEmitter {
           available: !!raw.docker?.available,
           total: raw.docker?.total || 0,
           running: raw.docker?.running || 0,
-          stopped: raw.docker?.stopped || 0
+          stopped: raw.docker?.stopped || 0,
+          containers: Array.isArray(raw.docker?.containers) ? raw.docker.containers : [],
+          error: raw.docker?.error || null
         },
         host: {
           hostname: raw.host?.hostname || defaultHost,

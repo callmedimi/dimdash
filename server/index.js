@@ -182,8 +182,9 @@ setInterval(() => {
     prevTelemetryJson = currentJson;
     lastFullPushTime = now;
   } else if (currentJson !== prevTelemetryJson) {
-    // Send delta
+    // Send immediate update
     broadcastSSE('telemetry_delta', currentTelemetry);
+    broadcastSSE('system_telemetry', currentTelemetry);
     prevTelemetryJson = currentJson;
   }
 }, 2000).unref();

@@ -736,9 +736,10 @@
 
       if (type === 'docker_stats') {
         el.innerHTML = `
-          <div class="widget-card stage-widget" id="widget-card-${wId}" style="--widget-accent: ${color}; width:100%; height:100%; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; padding:12px; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
+          <div class="widget-card stage-widget docker-widget-card" id="widget-card-${wId}" onclick="if(!document.getElementById('stageViewport')?.classList.contains('is-resizing') && !document.getElementById('stageViewport')?.classList.contains('is-interacting') && window.openDockerContainersModal) window.openDockerContainersModal();" title="مشاهده لیست کامل کانتینرها (Click to view containers)" style="--widget-accent: ${color}; width:100%; height:100%; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; padding:12px; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu)); cursor:pointer; transition:border-color 0.2s, transform 0.15s;">
             <div style="display:flex; align-items:center; justify-content:space-between;">
               <span style="font-size:calc(0.85rem * var(--wu)); font-weight:600; color:#f8fafc;">🐳 ${title}</span>
+              <span style="font-size:calc(0.68rem * var(--wu)); color:#38bdf8; opacity:0.85; font-weight:500;">🔍 جزئیات</span>
             </div>
             <div style="display:flex; align-items:center; gap:12px; margin:auto 0;">
               <div class="radial-gauge-box" style="position:relative; width:calc(64px * var(--wu)); height:calc(64px * var(--wu)); flex-shrink:0;">
@@ -753,6 +754,7 @@
                 <div id="docker-total-${wId}">0 Total</div>
               </div>
             </div>
+            <div class="docker-mini-list" id="docker-mini-list-${wId}" style="display:none; flex-direction:column; gap:3px; border-top:1px solid rgba(255,255,255,0.07); padding-top:6px; font-size:calc(0.68rem * var(--wu)); color:#cbd5e1; overflow:hidden;"></div>
           </div>
         `;
         return;

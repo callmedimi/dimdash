@@ -9,6 +9,7 @@
     module.exports = factory();
   } else {
     root.CompatV1 = factory();
+    root.DimDashCompat = root.CompatV1;
   }
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';

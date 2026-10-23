@@ -221,8 +221,9 @@ async function loadConfig() {
       }
     } catch (e) {}
 
-    if (board && window.DimDashCompat) {
-      AppState.config = window.DimDashCompat.deriveV1FromV2(board);
+    const compat = window.DimDashCompat || window.CompatV1;
+    if (board && compat) {
+      AppState.config = compat.deriveV1FromV2(board);
     } else {
       const res = await fetch('/api/config');
       if (!res.ok) throw new Error('Failed to fetch config');
@@ -343,12 +344,18 @@ function setupSSE() {
     } catch (_) {}
   });
 
-  evtSource.addEventListener('system_telemetry', (e) => {
+  const handleTelemetry = (e) => {
     try {
       AppState.systemTelemetry = JSON.parse(e.data);
       updateWidgetValues();
+      if (document.getElementById('dockerContainersModal')?.classList.contains('open')) {
+        renderDockerContainersList();
+      }
     } catch (_) {}
-  });
+  };
+
+  evtSource.addEventListener('system_telemetry', handleTelemetry);
+  evtSource.addEventListener('telemetry_delta', handleTelemetry);
 
   evtSource.onerror = () => {
     // SSE will automatically retry connecting
@@ -371,6 +378,9 @@ async function fetchSystemTelemetry() {
     if (res.ok) {
       AppState.systemTelemetry = await res.json();
       updateWidgetValues();
+      if (document.getElementById('dockerContainersModal')?.classList.contains('open')) {
+        renderDockerContainersList();
+      }
     }
   } catch (_) {}
 }
@@ -822,7 +832,7 @@ function renderWidgets() {
       `;
     } else if (w.type === 'docker_stats') {
       html += `
-        <div class="widget-card ${sizeClass}" id="widget-card-${w.id}" data-widget-id="${w.id}" ${isDraggable} style="--widget-accent: ${accent};">
+        <div class="widget-card ${sizeClass}" id="widget-card-${w.id}" data-widget-id="${w.id}" ${isDraggable} onclick="if(!this.closest('.is-dragging') && window.openDockerContainersModal) window.openDockerContainersModal();" title="مشاهده لیست کامل کانتینرها (Click to view containers)" style="--widget-accent: ${accent}; cursor:pointer;">
           ${getWidgetCardHeader(w, '🐳')}
           <div class="widget-card-body">
             <div class="radial-gauge-box">
@@ -1042,12 +1052,14 @@ function updateWidgetValues() {
   }
   if (!AppState.systemTelemetry) return;
 
-  const widgets = AppState.config?.widgets || [];
+  const widgets = (AppState.config?.widgets && AppState.config.widgets.length > 0)
+    ? AppState.config.widgets
+    : (AppState.board?.config?.items?.filter(it => it.kind === 'widget') || []);
   const C = 213.6;
   const telemetryServers = AppState.systemTelemetry.servers || {};
 
   widgets.forEach(w => {
-    const srvId = w.server_id || 'local';
+    const srvId = w.server_id || w.props?.server_id || 'local';
     const srvEntry = telemetryServers[srvId];
     const stats = srvEntry?.stats || (srvId === 'local' ? AppState.systemTelemetry : null);
     const isOnline = srvEntry ? srvEntry.status === 'online' : (srvId === 'local');
@@ -1109,18 +1121,49 @@ function updateWidgetValues() {
         ioEl.textContent = `⬇️ ${stats.net.rxTotalMb} MB | ⬆️ ${stats.net.txTotalMb} MB`;
       }
     } else if (w.type === 'docker_stats' && stats.docker) {
+      const isAvail = stats.docker.available !== false;
       const total = stats.docker.total || 0;
       const running = stats.docker.running || 0;
       const stopped = stats.docker.stopped || 0;
       const pct = total > 0 ? Math.round((running / total) * 100) : 0;
-      if (arc) arc.style.strokeDashoffset = C - (pct / 100) * C;
-      if (val) val.innerHTML = `${running}<span class="radial-gauge-unit">Up</span>`;
+      if (arc) {
+        arc.style.strokeDashoffset = isAvail ? (C - (pct / 100) * C) : C;
+        arc.style.stroke = isAvail ? (w.props?.color || w.color || '#38bdf8') : '#ef4444';
+      }
+      if (val) {
+        val.innerHTML = isAvail
+          ? `${running}<span class="radial-gauge-unit">Up</span>`
+          : `<span style="font-size:0.65rem; color:#ef4444;">N/A</span>`;
+      }
       const runEl = document.getElementById(`docker-running-${w.id}`);
-      if (runEl) runEl.textContent = `${running} Containers`;
+      if (runEl) {
+        runEl.textContent = isAvail ? `${running} Containers` : 'سرویس قطع است';
+        runEl.style.color = isAvail ? '#10b981' : '#ef4444';
+      }
       const stopEl = document.getElementById(`docker-stopped-${w.id}`);
       if (stopEl) stopEl.textContent = `${stopped} Containers`;
       const totalEl = document.getElementById(`docker-total-${w.id}`);
-      if (totalEl) totalEl.textContent = `${total} Total`;
+      if (totalEl) {
+        totalEl.textContent = isAvail ? `${total} Total` : 'عدم دسترسی به داکر';
+      }
+
+      // Populate mini list in stage view if present
+      const miniListEl = document.getElementById(`docker-mini-list-${w.id}`);
+      if (miniListEl) {
+        const containers = Array.isArray(stats.docker.containers) ? stats.docker.containers : [];
+        if (containers.length > 0) {
+          miniListEl.style.display = 'flex';
+          const topItems = containers.slice(0, 3);
+          miniListEl.innerHTML = topItems.map(c => `
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; font-size:calc(0.68rem * var(--wu));">
+              <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:140px;">${c.name}</span>
+              <span style="color:${c.state === 'running' ? '#10b981' : '#ef4444'}; font-size:0.6rem;">●</span>
+            </div>
+          `).join('');
+        } else {
+          miniListEl.style.display = 'none';
+        }
+      }
     } else if (w.type === 'host_info' && stats.host) {
       const hostEl = document.getElementById(`host-hostname-${w.id}`);
       if (hostEl) hostEl.textContent = stats.host.hostname || 'box';
@@ -3205,3 +3248,114 @@ function openYamlModal() {
     URL.revokeObjectURL(url);
   };
 }
+// Docker Containers Modal
+function openDockerContainersModal() {
+  const modal = document.getElementById('dockerContainersModal');
+  if (!modal) return;
+  modal.classList.add('open');
+  renderDockerContainersList();
+  if (typeof fetchSystemTelemetry === 'function') {
+    fetchSystemTelemetry();
+  }
+}
+window.openDockerContainersModal = openDockerContainersModal;
+
+function renderDockerContainersList() {
+  const listEl = document.getElementById('dockerContainersList');
+  const badgeEl = document.getElementById('dockerModalBadge');
+  const summaryEl = document.getElementById('dockerModalSummary');
+  const searchInput = document.getElementById('dockerSearchInput');
+  if (!listEl) return;
+
+  const filter = (searchInput?.value || '').trim().toLowerCase();
+  const dockerStats = AppState.systemTelemetry?.docker || AppState.systemTelemetry?.servers?.local?.stats?.docker;
+
+  if (!dockerStats) {
+    listEl.innerHTML = `
+      <div style="text-align:center; padding:24px; color:#94a3b8;">
+        در حال دریافت اطلاعات داکر... (Fetching telemetry)
+      </div>
+    `;
+    return;
+  }
+
+  if (dockerStats.available === false) {
+    listEl.innerHTML = `
+      <div style="text-align:center; padding:28px 20px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:10px; color:#fca5a5;">
+        <div style="font-size:2rem; margin-bottom:8px;">⚠️</div>
+        <div style="font-weight:700; font-size:1rem; margin-bottom:6px; color:#ef4444;">ارتباط با سرویس داکر برقرار نشد</div>
+        <div style="font-size:0.85rem; color:#cbd5e1; max-width:480px; margin:0 auto; line-height:1.5;">
+          ${dockerStats.error ? `خطا: ${dockerStats.error}<br>` : ''}
+          برای اتصال داکر به دشبورد، از در دسترس بودن سوکت داکر اطمینان حاصل کنید:<br>
+          <code style="display:inline-block; background:rgba(0,0,0,0.4); padding:4px 8px; border-radius:4px; margin-top:8px; font-size:0.8rem; color:#38bdf8;">
+            ls -la /var/run/docker.sock
+          </code>
+        </div>
+      </div>
+    `;
+    if (badgeEl) {
+      badgeEl.textContent = 'قطع (Offline)';
+      badgeEl.style.background = 'rgba(239,68,68,0.2)';
+      badgeEl.style.color = '#ef4444';
+      badgeEl.style.borderColor = 'rgba(239,68,68,0.4)';
+    }
+    if (summaryEl) summaryEl.textContent = 'سرویس داکر در دسترس نیست';
+    return;
+  }
+
+  const containers = Array.isArray(dockerStats.containers) ? dockerStats.containers : [];
+  const filtered = filter
+    ? containers.filter(c => (c.name || '').toLowerCase().includes(filter) || (c.image || '').toLowerCase().includes(filter))
+    : containers;
+
+  if (badgeEl) {
+    badgeEl.textContent = `${dockerStats.running || 0} فعال (Running)`;
+    badgeEl.style.background = 'rgba(16,185,129,0.15)';
+    badgeEl.style.color = '#10b981';
+    badgeEl.style.borderColor = 'rgba(16,185,129,0.3)';
+  }
+  if (summaryEl) {
+    summaryEl.textContent = `${dockerStats.total || 0} کانتینر در کل (${dockerStats.running || 0} در حال اجرا، ${dockerStats.stopped || 0} متوقف شده)`;
+  }
+
+  if (filtered.length === 0) {
+    listEl.innerHTML = `
+      <div style="text-align:center; padding:32px; color:#94a3b8; font-size:0.9rem;">
+        ${containers.length === 0 ? 'هیچ کانتینری روی این سرور یافت نشد. (No containers found)' : 'کانتینری با این مشخصات یافت نشد.'}
+      </div>
+    `;
+    return;
+  }
+
+  listEl.innerHTML = filtered.map(c => {
+    const isUp = c.state === 'running' || (c.status && c.status.toLowerCase().startsWith('up'));
+    const statusColor = isUp ? '#10b981' : '#ef4444';
+    const statusBg = isUp ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)';
+    const statusBorder = isUp ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)';
+    const statusLabel = isUp ? (c.status || 'Up') : (c.status || 'Stopped');
+
+    return `
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:8px; gap:12px; transition:background 0.2s;" onmouseenter="this.style.background='rgba(255,255,255,0.06)'" onmouseleave="this.style.background='rgba(255,255,255,0.03)'">
+        <div style="display:flex; align-items:center; gap:12px; min-width:0; flex:1;">
+          <div style="width:10px; height:10px; border-radius:50%; background:${statusColor}; box-shadow:0 0 8px ${statusColor}; flex-shrink:0;"></div>
+          <div style="min-width:0; flex:1;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-weight:700; color:#f8fafc; font-size:0.92rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${c.name}</span>
+              ${c.id ? `<span style="font-size:0.7rem; color:#64748b; font-family:monospace; background:rgba(0,0,0,0.3); padding:1px 6px; border-radius:4px;">${c.id}</span>` : ''}
+            </div>
+            <div style="font-size:0.75rem; color:#94a3b8; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:2px;">
+              📦 ${c.image}
+              ${c.ports ? `<span style="margin-left:8px; color:#38bdf8;">🌐 ${c.ports}</span>` : ''}
+            </div>
+          </div>
+        </div>
+        <div style="flex-shrink:0; text-align:right;">
+          <span style="display:inline-block; font-size:0.74rem; font-weight:600; padding:3px 10px; border-radius:6px; background:${statusBg}; color:${statusColor}; border:1px solid ${statusBorder};">
+            ${statusLabel}
+          </span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+window.renderDockerContainersList = renderDockerContainersList;

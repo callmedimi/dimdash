@@ -1286,6 +1286,35 @@
     </div>
   </div>
 
+  <!-- Docker Containers Details Modal -->
+  <div class="modal-backdrop" id="dockerContainersModal">
+    <div class="modal-window" style="max-width: 760px; width: 92vw;">
+      <div class="modal-header">
+        <h3 class="modal-title" style="display:flex; align-items:center; gap:10px;">
+          <span>🐳</span>
+          <span data-i18n="docker_modal_title">Docker Containers</span>
+          <span id="dockerModalBadge" style="background:rgba(56,189,248,0.15); color:#38bdf8; font-size:0.75rem; padding:3px 10px; border-radius:12px; font-weight:600; border:1px solid rgba(56,189,248,0.3);">0 Active</span>
+        </h3>
+        <button class="btn-icon" onclick="closeAllModals()" title="Close">✕</button>
+      </div>
+      <div class="modal-body" style="padding:16px 20px; max-height:68vh; overflow-y:auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:14px;">
+          <input type="text" id="dockerSearchInput" class="form-input" placeholder="🔍 جستجو بر اساس نام کانتینر یا ایمیج... (Search name or image)" style="flex:1;" oninput="window.renderDockerContainersList ? window.renderDockerContainersList() : null">
+          <button class="btn btn-secondary" style="display:flex; align-items:center; gap:6px; padding:7px 14px; font-size:0.85rem;" onclick="if(window.fetchSystemTelemetry) window.fetchSystemTelemetry();">
+            <span>🔄</span> <span>بروزرسانی</span>
+          </button>
+        </div>
+        <div id="dockerContainersList" style="display:flex; flex-direction:column; gap:8px;">
+          <!-- Containers rendered dynamically -->
+        </div>
+      </div>
+      <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
+        <span id="dockerModalSummary" style="font-size:0.82rem; color:#94a3b8;">در حال دریافت اطلاعات...</span>
+        <button class="btn btn-secondary" onclick="closeAllModals()">بستن</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Keyboard Shortcuts Help Modal (?) -->
