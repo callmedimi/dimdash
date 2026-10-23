@@ -71,6 +71,8 @@
   --glass-blur: 16px;
   --glass-opacity: 0.8;
   --card-radius: 16px;
+  --wallpaper-blur: 0px;
+  --wallpaper-dim: 0.45;
   --transition-smooth: all 0.24s cubic-bezier(0.16, 1, 0.3, 1);
   --sidebar-width: 68px;
   
@@ -2262,6 +2264,7 @@ body.has-wallpaper::before {
   backdrop-filter: blur(var(--wallpaper-blur, 0px));
   -webkit-backdrop-filter: blur(var(--wallpaper-blur, 0px));
   z-index: 0;
+  transition: backdrop-filter 0.3s ease, -webkit-backdrop-filter 0.3s ease, background 0.3s ease;
 }
 
 body.has-wallpaper .tile-card {

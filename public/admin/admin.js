@@ -536,6 +536,25 @@ function initThemeStudio() {
     document.getElementById('adminWpDimVal').textContent = `${theme.wallpaper_dim ?? 45}%`;
   }
 
+  function setAdminWpBlur(px) {
+    const input = document.getElementById('adminWpBlurInput');
+    const valEl = document.getElementById('adminWpBlurVal');
+    if (input) input.value = px;
+    if (valEl) {
+      const n = Number(px);
+      valEl.textContent = n === 0 ? '0px (Sharp)' : (n <= 4 ? `${n}px (Slight Blur)` : `${n}px (Medium Blur)`);
+    }
+  }
+  window.setAdminWpBlur = setAdminWpBlur;
+
+  if (document.getElementById('adminWpBlurInput')) {
+    const bVal = theme.wallpaper_blur ?? 0;
+    setAdminWpBlur(bVal);
+    document.getElementById('adminWpBlurInput').addEventListener('input', (e) => {
+      setAdminWpBlur(Number(e.target.value));
+    });
+  }
+
   AdminState.tempWp = {
     type: theme.background_type || 'image',
     value: theme.background_value || '/wallpapers/twilight_pines.jpg'
@@ -849,6 +868,7 @@ function setupEventListeners() {
       tile_density: document.getElementById('adminThemeDensitySelect').value,
       card_style: document.getElementById('adminCardStyleSelect')?.value || 'pill',
       wallpaper_dim: parseInt(document.getElementById('adminWpDimInput')?.value || 45, 10),
+      wallpaper_blur: parseInt(document.getElementById('adminWpBlurInput')?.value || 0, 10),
       background_type: AdminState.tempWp ? AdminState.tempWp.type : (AdminState.config.settings.theme?.background_type || 'image'),
       background_value: AdminState.tempWp ? AdminState.tempWp.value : (AdminState.config.settings.theme?.background_value || '/wallpapers/twilight_pines.jpg'),
       bg_logo_url: document.getElementById('adminBgLogoUrlInput')?.value.trim() || '',

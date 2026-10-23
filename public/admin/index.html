@@ -422,6 +422,18 @@
             <input type="range" id="adminWpDimInput" min="0" max="90" step="5" value="45" class="form-input" style="padding:0;">
           </div>
 
+          <div class="form-group" id="adminWpBlurGroup">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <label class="form-label" style="margin-bottom:0;">Wallpaper Background Blur: <span id="adminWpBlurVal" style="color:#38bdf8; font-weight:600;">0px (Sharp)</span></label>
+              <div style="display:flex; gap:4px;">
+                <button type="button" class="btn btn-secondary btn-xs" style="padding:2px 7px; font-size:0.72rem;" onclick="window.setAdminWpBlur && window.setAdminWpBlur(0)">Sharp</button>
+                <button type="button" class="btn btn-secondary btn-xs" style="padding:2px 7px; font-size:0.72rem; border-color:rgba(56,189,248,0.4); color:#38bdf8;" onclick="window.setAdminWpBlur && window.setAdminWpBlur(4)">Slight (4px)</button>
+                <button type="button" class="btn btn-secondary btn-xs" style="padding:2px 7px; font-size:0.72rem;" onclick="window.setAdminWpBlur && window.setAdminWpBlur(10)">Medium (10px)</button>
+              </div>
+            </div>
+            <input type="range" id="adminWpBlurInput" min="0" max="24" step="1" value="0" class="form-input" style="padding:0;">
+          </div>
+
           <div class="form-group">
             <label class="form-label">Service Cards Layout Style</label>
             <select id="adminCardStyleSelect" class="form-select">

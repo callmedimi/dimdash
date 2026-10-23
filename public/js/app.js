@@ -294,6 +294,8 @@ function applyTheme(theme) {
   if (theme.wallpaper_dim !== undefined) {
     root.style.setProperty('--wallpaper-dim', `${theme.wallpaper_dim / 100}`);
   }
+  const wpBlur = theme.wallpaper_blur !== undefined ? Number(theme.wallpaper_blur) : 0;
+  root.style.setProperty('--wallpaper-blur', `${wpBlur}px`);
   if (theme.tile_density) {
     document.body.classList.remove('density-compact', 'density-normal', 'density-expanded');
     document.body.classList.add(`density-${theme.tile_density}`);
@@ -3026,6 +3028,34 @@ function openThemeModal() {
   document.getElementById('themeDimInput').value = dimVal;
   document.getElementById('themeDimVal').textContent = `${dimVal}%`;
 
+  function getBlurLabel(px) {
+    const n = Number(px);
+    if (n === 0) return '0px (Sharp)';
+    if (n <= 4) return `${n}px (Slight Blur)`;
+    if (n <= 10) return `${n}px (Medium Blur)`;
+    return `${n}px (Heavy Blur)`;
+  }
+
+  function setThemeWpBlur(px) {
+    const input = document.getElementById('themeWpBlurInput');
+    const valEl = document.getElementById('themeWpBlurVal');
+    if (input) input.value = px;
+    if (valEl) valEl.textContent = getBlurLabel(px);
+    document.documentElement.style.setProperty('--wallpaper-blur', `${px}px`);
+  }
+  window.setThemeWpBlur = setThemeWpBlur;
+
+  const wpBlurVal = theme.wallpaper_blur !== undefined ? Number(theme.wallpaper_blur) : 0;
+  const wpBlurInput = document.getElementById('themeWpBlurInput');
+  const wpBlurValEl = document.getElementById('themeWpBlurVal');
+  if (wpBlurInput) wpBlurInput.value = wpBlurVal;
+  if (wpBlurValEl) wpBlurValEl.textContent = getBlurLabel(wpBlurVal);
+  if (wpBlurInput) {
+    wpBlurInput.oninput = (e) => {
+      setThemeWpBlur(Number(e.target.value));
+    };
+  }
+
   let selectedBgType = theme.background_type || 'image';
   let selectedBgValue = theme.background_value || '/wallpapers/twilight_pines.jpg';
 
@@ -3069,6 +3099,7 @@ function openThemeModal() {
         background_type: selectedBgType,
         background_value: selectedBgValue,
         wallpaper_dim: parseInt(document.getElementById('themeDimInput').value, 10),
+        wallpaper_blur: parseInt(document.getElementById('themeWpBlurInput')?.value || 0, 10),
         card_style: document.getElementById('themeCardStyleSelect').value
       });
     };
@@ -3116,6 +3147,7 @@ function openThemeModal() {
               background_type: 'image',
               background_value: data.url,
               wallpaper_dim: parseInt(document.getElementById('themeDimInput').value, 10),
+              wallpaper_blur: parseInt(document.getElementById('themeWpBlurInput')?.value || 0, 10),
               card_style: document.getElementById('themeCardStyleSelect').value
             });
             showToast('Wallpaper applied successfully', 'success');
@@ -3279,6 +3311,7 @@ function openThemeModal() {
       background_type: selectedBgType,
       background_value: selectedBgValue,
       wallpaper_dim: parseInt(document.getElementById('themeDimInput').value, 10),
+      wallpaper_blur: parseInt(document.getElementById('themeWpBlurInput')?.value || 0, 10),
       bg_logo_url: inputBgLogoUrl ? inputBgLogoUrl.value.trim() : '',
       bg_logo_opacity: inputBgLogoOpacity ? parseInt(inputBgLogoOpacity.value, 10) : 18,
       bg_logo_position: selectBgLogoPos ? selectBgLogoPos.value : 'center',
