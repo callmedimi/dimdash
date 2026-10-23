@@ -21,6 +21,7 @@ services:
       - TZ=${TZ:-Asia/Tehran}
       - ADMIN_PIN=1234
       - USER_PIN=5678
+      - DIMDASH_RUN_AS_ROOT=true
     deploy:
       resources:
         limits:

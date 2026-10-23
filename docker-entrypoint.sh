@@ -22,26 +22,26 @@ if [ -d "/app/data" ]; then
   fi
 fi
 
-# If docker socket is mounted, ensure node user has access to read container telemetry
-if [ -S "/var/run/docker.sock" ]; then
-  DOCKER_GID=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || stat -f '%g' /var/run/docker.sock 2>/dev/null || true)
-  if [ -n "$DOCKER_GID" ] && [ "$DOCKER_GID" != "0" ]; then
-    getent group "$DOCKER_GID" >/dev/null 2>&1 || addgroup -g "$DOCKER_GID" docker_host 2>/dev/null || true
-    DOCKER_GRP_NAME=$(getent group "$DOCKER_GID" | cut -d: -f1)
-    if [ -n "$DOCKER_GRP_NAME" ]; then
-      adduser node "$DOCKER_GRP_NAME" 2>/dev/null || addgroup node "$DOCKER_GRP_NAME" 2>/dev/null || true
+# If docker socket is mounted, configure permissions or preserve root privileges
+REMAIN_ROOT=0
+if [ "$(id -u)" = "0" ]; then
+  if [ "$DIMDASH_RUN_AS_ROOT" = "true" ] || [ "$PUID" = "0" ] || [ "$RUN_AS_ROOT" = "true" ]; then
+    REMAIN_ROOT=1
+  elif [ -S "/var/run/docker.sock" ]; then
+    # Try making socket readable inside namespace if writable
+    chmod 666 /var/run/docker.sock 2>/dev/null || true
+
+    # Test if node user can connect to / read socket
+    if ! su-exec node test -r "/var/run/docker.sock" 2>/dev/null || ! su-exec node test -w "/var/run/docker.sock" 2>/dev/null; then
+      REMAIN_ROOT=1
     fi
-  else
-    # Socket owned by root group
-    adduser node root 2>/dev/null || true
   fi
-  # Ensure socket permissions permit read access inside container namespace
-  chmod 666 /var/run/docker.sock 2>/dev/null || true
 fi
 
-# If running as root, drop privileges to node user
-if [ "$(id -u)" = "0" ]; then
+# Drop privileges to node user if root access to docker.sock or host volumes is not required
+if [ "$(id -u)" = "0" ] && [ "$REMAIN_ROOT" != "1" ]; then
   exec su-exec node "$@"
 fi
 
 exec "$@"
+
