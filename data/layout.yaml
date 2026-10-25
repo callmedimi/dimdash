@@ -58,7 +58,7 @@ placement:
       h: 220
       z: 1
       parent: null
-      hc: stretch
+      hc: left
       vc: top
       shape: rounded
     md:

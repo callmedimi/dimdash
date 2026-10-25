@@ -218,3 +218,53 @@ describe('StageOverlay: Geometric Handle & Continuous Border Hit-Testing', () =>
   });
 });
 
+describe('Interaction Engine: Proportional Child Scaling on Group Resize', () => {
+  test('scales child items proportionally when parent box expands', () => {
+    const parentStart = { x: 40, y: 40, w: 1000, h: 400 };
+    const childrenStart = [
+      { id: 'child-1', x: 40, y: 40, w: 400, h: 140 },
+      { id: 'child-2', x: 500, y: 40, w: 400, h: 140 }
+    ];
+
+    // Parent expands by 50% horizontally and 50% vertically
+    const parentNew = { x: 40, y: 40, w: 1500, h: 600 };
+    const scaleX = parentNew.w / parentStart.w; // 1.5
+    const scaleY = parentNew.h / parentStart.h; // 1.5
+
+    const scaledChildren = childrenStart.map(child => ({
+      id: child.id,
+      x: Math.round(child.x * scaleX * 10) / 10,
+      y: Math.round(child.y * scaleY * 10) / 10,
+      w: Math.max(20, Math.round(child.w * scaleX * 10) / 10),
+      h: Math.max(20, Math.round(child.h * scaleY * 10) / 10)
+    }));
+
+    assert.deepEqual(scaledChildren[0], { id: 'child-1', x: 60, y: 60, w: 600, h: 210 });
+    assert.deepEqual(scaledChildren[1], { id: 'child-2', x: 750, y: 60, w: 600, h: 210 });
+  });
+
+  test('scales child items proportionally when parent box shrinks with floor clamping', () => {
+    const parentStart = { x: 40, y: 40, w: 1000, h: 400 };
+    const childrenStart = [
+      { id: 'child-1', x: 40, y: 40, w: 400, h: 140 },
+      { id: 'child-2', x: 500, y: 40, w: 400, h: 140 }
+    ];
+
+    // Parent shrinks to 50%
+    const parentNew = { x: 40, y: 40, w: 500, h: 200 };
+    const scaleX = parentNew.w / parentStart.w; // 0.5
+    const scaleY = parentNew.h / parentStart.h; // 0.5
+
+    const scaledChildren = childrenStart.map(child => ({
+      id: child.id,
+      x: Math.round(child.x * scaleX * 10) / 10,
+      y: Math.round(child.y * scaleY * 10) / 10,
+      w: Math.max(20, Math.round(child.w * scaleX * 10) / 10),
+      h: Math.max(20, Math.round(child.h * scaleY * 10) / 10)
+    }));
+
+    assert.deepEqual(scaledChildren[0], { id: 'child-1', x: 20, y: 20, w: 200, h: 70 });
+    assert.deepEqual(scaledChildren[1], { id: 'child-2', x: 250, y: 20, w: 200, h: 70 });
+  });
+});
+

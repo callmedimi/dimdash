@@ -398,10 +398,30 @@
           }
         }
 
+        // Collect direct children if this item is a group / island container
+        const childrenStart = [];
+        const allItems = this.stage.board?.config?.items || [];
+        for (const it of allItems) {
+          const itemPl = this.getItemPlacement(it.id, profile);
+          const itemEl = this.stage.itemElements?.get(it.id);
+          const pId = itemPl?.parent || itemEl?.getAttribute('data-parent') || null;
+          if (pId === handleItemId) {
+            childrenStart.push({
+              id: it.id,
+              x: Number(itemPl?.x) || 0,
+              y: Number(itemPl?.y) || 0,
+              w: Math.max(10, Number(itemPl?.w) || 100),
+              h: Math.max(10, Number(itemPl?.h) || 100),
+              el: itemEl
+            });
+          }
+        }
+
         this.transitionTo(STATES.RESIZE, {
           pointerId: e.pointerId,
           handle: hitHandle,
           itemId: handleItemId,
+          childrenStart,
           parentId,
           parentWorldX,
           parentWorldY,
@@ -821,6 +841,22 @@
 
       this.session.currentRect = resized;
 
+      // Scale child items proportionally if resizing a group / island container
+      if (this.session.childrenStart && this.session.childrenStart.length > 0) {
+        const origParentW = Math.max(10, Number(this.session.startRect.w) || 100);
+        const origParentH = Math.max(10, Number(this.session.startRect.h) || 100);
+        const scaleX = Math.max(0.05, resized.w / origParentW);
+        const scaleY = Math.max(0.05, resized.h / origParentH);
+
+        for (const child of this.session.childrenStart) {
+          const childW = Math.max(20, Math.round(child.w * scaleX * 10) / 10);
+          const childH = Math.max(20, Math.round(child.h * scaleY * 10) / 10);
+          const childX = Math.round(child.x * scaleX * 10) / 10;
+          const childY = Math.round(child.y * scaleY * 10) / 10;
+          child.current = { x: childX, y: childY, w: childW, h: childH };
+        }
+      }
+
       if (!this.rafPending) {
         this.rafPending = true;
         requestAnimationFrame(() => {
@@ -849,6 +885,20 @@
             const isCard = hWu >= 130 && (hWu / Math.max(1, wWu) >= 0.40);
             el.setAttribute('data-size', sizeClass);
             el.setAttribute('data-card-layout', isCard ? 'stacked' : 'row');
+          }
+
+          // Live update child elements inside group
+          if (this.session.childrenStart && this.session.childrenStart.length > 0) {
+            const parentWorldX = (this.session.parentWorldX || 0) + resized.x;
+            const parentWorldY = (this.session.parentWorldY || 0) + resized.y;
+            for (const child of this.session.childrenStart) {
+              if (child.el && child.current) {
+                child.el.style.setProperty('--x', parentWorldX + child.current.x);
+                child.el.style.setProperty('--y', parentWorldY + child.current.y);
+                child.el.style.setProperty('--w', child.current.w);
+                child.el.style.setProperty('--h', child.current.h);
+              }
+            }
           }
 
           const worldRect = {
@@ -1149,6 +1199,73 @@
           });
         }
 
+        // Persist proportionally scaled children placements
+        if (this.session.childrenStart && this.session.childrenStart.length > 0) {
+          const origParentW = Math.max(10, Number(sr.w) || 100);
+          const origParentH = Math.max(10, Number(sr.h) || 100);
+          const scaleX = Math.max(0.05, cr.w / origParentW);
+          const scaleY = Math.max(0.05, cr.h / origParentH);
+
+          for (const child of this.session.childrenStart) {
+            const childPrev = this.getItemPlacement(child.id, profile) || {};
+            const childW = Math.max(20, Math.round(child.w * scaleX * 10) / 10);
+            const childH = Math.max(20, Math.round(child.h * scaleY * 10) / 10);
+            const childX = Math.round(child.x * scaleX * 10) / 10;
+            const childY = Math.round(child.y * scaleY * 10) / 10;
+
+            const childPlacement = {
+              ...childPrev,
+              x: childX,
+              y: childY,
+              w: childW,
+              h: childH
+            };
+
+            this.setItemPlacement(child.id, profile, childPlacement);
+            if (profile !== 'lg') {
+              this.setItemPlacement(child.id, 'lg', childPlacement);
+            }
+
+            if (this.stage.spatialIndex) {
+              const worldX = (this.session.parentWorldX || 0) + cr.x + childX;
+              const worldY = (this.session.parentWorldY || 0) + cr.y + childY;
+              this.stage.spatialIndex.update({
+                id: child.id,
+                x: worldX,
+                y: worldY,
+                w: childW,
+                h: childH
+              });
+            }
+
+            patches.push({
+              op: 'merge',
+              path: `/layout/placement/${child.id}/${profile}`,
+              value: { x: childX, y: childY, w: childW, h: childH }
+            });
+            if (profile !== 'lg') {
+              patches.push({
+                op: 'merge',
+                path: `/layout/placement/${child.id}/lg`,
+                value: { x: childX, y: childY, w: childW, h: childH }
+              });
+            }
+
+            inverses.push({
+              op: 'merge',
+              path: `/layout/placement/${child.id}/${profile}`,
+              value: { x: childPrev.x, y: childPrev.y, w: childPrev.w, h: childPrev.h }
+            });
+            if (profile !== 'lg') {
+              inverses.push({
+                op: 'merge',
+                path: `/layout/placement/${child.id}/lg`,
+                value: { x: childPrev.x, y: childPrev.y, w: childPrev.w, h: childPrev.h }
+              });
+            }
+          }
+        }
+
         if (this.stage.spatialIndex) {
           const worldX = (this.session.parentWorldX || 0) + cr.x;
           const worldY = (this.session.parentWorldY || 0) + cr.y;
@@ -1179,6 +1296,13 @@
           path: `/layout/placement/${id}/${profile}`,
           value: { x: prevPlacement.x, y: prevPlacement.y, w: prevPlacement.w, h: prevPlacement.h }
         }];
+        if (profile !== 'lg') {
+          inverses.push({
+            op: 'merge',
+            path: `/layout/placement/${id}/lg`,
+            value: { x: prevPlacement.x, y: prevPlacement.y, w: prevPlacement.w, h: prevPlacement.h }
+          });
+        }
 
         this.history.push({
           type: 'resize',
@@ -1820,9 +1944,12 @@
           const numW = parseFloat(el.style.getPropertyValue('--w')) || (p ? Number(p.w) : 100);
           const numH = parseFloat(el.style.getPropertyValue('--h')) || (p ? Number(p.h) : 100);
 
+          const stageTx = parseFloat(this.stage.canvasEl?.style.getPropertyValue('--stage-tx')) || 0;
+          const stageTy = parseFloat(this.stage.canvasEl?.style.getPropertyValue('--stage-ty')) || 0;
+
           const modelRect = {
-            x: numX * wu * stageScale,
-            y: numY * wu * stageScale,
+            x: (numX + stageTx) * wu * stageScale,
+            y: (numY + stageTy) * wu * stageScale,
             w: numW * wu * stageScale,
             h: numH * wu * stageScale
           };

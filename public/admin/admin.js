@@ -544,6 +544,7 @@ function initThemeStudio() {
       const n = Number(px);
       valEl.textContent = n === 0 ? '0px (Sharp)' : (n <= 4 ? `${n}px (Slight Blur)` : `${n}px (Medium Blur)`);
     }
+    document.documentElement.style.setProperty('--wallpaper-blur', `${px}px`);
   }
   window.setAdminWpBlur = setAdminWpBlur;
 

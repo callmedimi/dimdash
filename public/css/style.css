@@ -2260,12 +2260,52 @@ body.admin-mode .tile-card:hover .tile-admin-bar {
 /* --------------------------------------------------------------------------
    Wallpaper Scrim & Heimdall Capsule Card Styles
    -------------------------------------------------------------------------- */
-body.has-wallpaper::before {
+.wallpaper-layer {
+  position: fixed;
+  top: -30px;
+  left: -30px;
+  right: -30px;
+  bottom: -30px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: blur(var(--wallpaper-blur, 0px));
+  -webkit-filter: blur(var(--wallpaper-blur, 0px));
+  transform: translate3d(0, 0, 0);
+  will-change: filter, transform;
+  pointer-events: none;
+  z-index: -2;
+  opacity: 0;
+  transition: opacity 0.35s ease, filter 0.15s ease;
+}
+
+body.has-wallpaper .wallpaper-layer {
+  opacity: 1;
+}
+
+.wallpaper-scrim {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: rgba(2, 6, 23, var(--wallpaper-dim, 0.45));
-  backdrop-filter: blur(var(--wallpaper-blur, 0px));
-  -webkit-backdrop-filter: blur(var(--wallpaper-blur, 0px));
-  z-index: 0;
-  transition: backdrop-filter 0.3s ease, -webkit-backdrop-filter 0.3s ease, background 0.3s ease;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.35s ease, background 0.2s ease;
+}
+
+body.has-wallpaper .wallpaper-scrim {
+  opacity: 1;
+}
+
+/* Eliminate costly full-screen backdrop-filter on body::before for software compositing / Fedora */
+body.has-wallpaper::before {
+  background: transparent;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  pointer-events: none;
 }
 
 body.has-wallpaper .tile-card {

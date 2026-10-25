@@ -288,6 +288,25 @@ describe('Constraint Solver & Profile Matcher', () => {
       assert.strictEqual(res.scale, 0.8);
     });
 
+    test('fit mode scales up proportionally for video walls when isWall is true', () => {
+      const rects = [
+        { id: 'a', x: 0, y: 0, w: 1920, h: 1080 }
+      ];
+      // 4K video wall: 3840 x 2160 (2.0x scale)
+      const res = solveMode('fit', rects, { w: 3840, h: 2160 }, { isWall: true, maxScaleUp: 2.0 });
+      assert.strictEqual(res.mode, 'fit');
+      assert.strictEqual(res.scale, 2.0);
+      assert.strictEqual(res.feasible, true);
+    });
+
+    test('fit mode scales up for large screens with allowScaleUp capped at maxScaleUp', () => {
+      const rects = [
+        { id: 'a', x: 0, y: 0, w: 1000, h: 600 }
+      ];
+      const res = solveMode('fit', rects, { w: 3000, h: 1800 }, { allowScaleUp: true, maxScaleUp: 1.5 });
+      assert.strictEqual(res.scale, 1.5);
+    });
+
     test('flow mode stacks islands into full-width vertical blocks', () => {
       const rects = [
         { id: 'a', x: 40, y: 40, w: 400, h: 200, order: 2 },

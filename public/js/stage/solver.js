@@ -672,6 +672,11 @@
         const scaleX = S.w / Math.max(1, maxX);
         const scaleY = S.h / Math.max(1, maxY);
         scale = Math.min(scaleX, scaleY);
+      } else if (options.isWall || options.allowScaleUp) {
+        const scaleX = S.w / Math.max(1, maxX);
+        const scaleY = S.h / Math.max(1, maxY);
+        const maxScale = options.maxScaleUp || 2.5;
+        scale = Math.min(scaleX, scaleY, maxScale);
       }
 
       const minScale = options.minScale || 0.8;

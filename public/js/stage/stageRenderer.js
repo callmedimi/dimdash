@@ -189,28 +189,47 @@
       // 2. Shared item size class observer
       this.sizeObserver = new ResizeObserver(entries => {
         for (const entry of entries) {
+          const target = entry.target;
+          if (target.classList.contains('stage-island')) continue;
+
           const w = entry.contentRect.width;
           const h = entry.contentRect.height;
           const wu = this.metrics ? this.metrics.wu : 1.0;
           const wWu = w / wu;
           const hWu = h / wu;
 
-          let sizeClass = 'm';
-          if (wWu < 130 || hWu < 52) {
-            sizeClass = 'xs';
-          } else if (wWu < 240 && hWu < 95) {
-            sizeClass = 's';
-          } else if (wWu < 360 && hWu < 140) {
-            sizeClass = 'm';
-          } else if (wWu < 540 && hWu < 220) {
-            sizeClass = 'l';
+          const currentSize = target.getAttribute('data-size') || 'm';
+          let sizeClass = currentSize;
+
+          if (currentSize === 'xs') {
+            if (wWu > 140 && hWu > 55) sizeClass = 's';
+          } else if (currentSize === 's') {
+            if (wWu < 110 || hWu < 45) sizeClass = 'xs';
+            else if (wWu > 255 && hWu > 105) sizeClass = 'm';
+          } else if (currentSize === 'm') {
+            if (wWu < 225 || hWu < 85) sizeClass = 's';
+            else if (wWu > 380 && hWu > 160) sizeClass = 'l';
+          } else if (currentSize === 'l') {
+            if (wWu < 340 || hWu < 135) sizeClass = 'm';
+            else if (wWu > 560 && hWu > 230) sizeClass = 'xl';
+          } else if (currentSize === 'xl') {
+            if (wWu < 520 || hWu < 200) sizeClass = 'l';
           } else {
-            sizeClass = 'xl';
+            if (wWu < 120 || hWu < 48) sizeClass = 'xs';
+            else if (wWu < 240 && hWu < 95) sizeClass = 's';
+            else if (wWu < 360 && hWu < 150) sizeClass = 'm';
+            else if (wWu < 540 && hWu < 220) sizeClass = 'l';
+            else sizeClass = 'xl';
           }
 
           const isCard = hWu >= 130 && (hWu / Math.max(1, wWu) >= 0.40);
-          entry.target.setAttribute('data-size', sizeClass);
-          entry.target.setAttribute('data-card-layout', isCard ? 'stacked' : 'row');
+          if (target.getAttribute('data-size') !== sizeClass) {
+            target.setAttribute('data-size', sizeClass);
+          }
+          const layoutVal = isCard ? 'stacked' : 'row';
+          if (target.getAttribute('data-card-layout') !== layoutVal) {
+            target.setAttribute('data-card-layout', layoutVal);
+          }
         }
       });
     }
@@ -275,8 +294,9 @@
       // 1. Resolve Profile
       const urlParams = new URLSearchParams(window.location.search);
       const overrideProf = urlParams.get('profile');
+      const isCoarse = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
 
-      const profile = window.DimDashSolver
+      let profile = window.DimDashSolver
         ? window.DimDashSolver.resolveProfile(vwWu, vhWu, {
             profiles: layout.profiles,
             currentProfileId: this.currentProfile?.id,
@@ -284,6 +304,12 @@
             displayClass: this.board.config?.settings?.display_class
           })
         : { id: 'lg', mode: 'fit' };
+
+      // On desktop / non-coarse pointer, avoid collapsing to mobile flow mode (xs) on window resize/zoom
+      if (!isCoarse && !overrideProf && profile.id === 'xs') {
+        const desktopProfile = (layout.profiles || []).find(p => p.id === 'sm' || p.id === 'md') || { id: 'sm', mode: 'fit' };
+        profile = { ...desktopProfile, mode: 'fit' };
+      }
 
       this.currentProfile = profile;
       this.currentMode = profile.mode || 'fit';
@@ -313,16 +339,37 @@
       // Relieve Collisions
       const relieved = solver.relieveCollisions(solved.rects, { w: vwWu, h: vhWu });
 
-      // Solve Mode (fit/flow/canvas)
-      const modeResult = solver.solveMode(this.currentMode, relieved.rects, { w: vwWu, h: vhWu });
+      // Solve Mode (fit/flow/canvas) with flexible minScale and video wall support
+      const isWallDisplay = this.isTenFoot || this.board.config?.settings?.display_class === 'wall';
+      const modeResult = solver.solveMode(this.currentMode, relieved.rects, { w: vwWu, h: vhWu }, {
+        minScale: 0.25,
+        isWall: isWallDisplay,
+        maxScaleUp: 2.0
+      });
 
       if (this.currentMode === 'fit') {
         const stageScale = modeResult.scale || 1.0;
         this.stageScale = stageScale;
         this.canvasEl.style.setProperty('--stage-scale', stageScale);
+
+        // Center stage layout horizontally for curved ultrawide and large displays
+        const contentWidth = modeResult.contentWidth || 1920;
+        const effectiveContentWidth = contentWidth * stageScale;
+
+        if (vwWu > effectiveContentWidth) {
+          // CSS transform: scale(s) translate3d(tx, ty, 0)
+          // Visual px offset = tx * s => tx = (vwWu / stageScale - contentWidth) / 2
+          const centerTx = Math.max(0, Math.round((vwWu / stageScale - contentWidth) / 2));
+          this.canvasEl.style.setProperty('--stage-tx', `${centerTx}px`);
+        } else {
+          this.canvasEl.style.setProperty('--stage-tx', '0px');
+        }
+        this.canvasEl.style.setProperty('--stage-ty', '0px');
       } else {
         this.stageScale = 1.0;
         this.canvasEl.style.setProperty('--stage-scale', 1.0);
+        this.canvasEl.style.setProperty('--stage-tx', '0px');
+        this.canvasEl.style.setProperty('--stage-ty', '0px');
       }
 
       // 3. Render or Update DOM Nodes (Node Re-use)

@@ -111,9 +111,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadConfig();
   fetchSystemTelemetry();
   setupSSE();
-  // Periodic fallback polling so telemetry and probes never freeze
-  setInterval(fetchSystemTelemetry, 5000);
-  setInterval(fetchProbes, 10000);
+  // Periodic fallback polling only when SSE is inactive (saves CPU and network bandwidth on Linux/Fedora)
+  setInterval(() => {
+    if (!sseActive) fetchSystemTelemetry();
+  }, 5000);
+  setInterval(() => {
+    if (!sseActive) fetchProbes();
+  }, 10000);
 });
 
 // Clock & Calendar Update Loop
@@ -311,15 +315,19 @@ function applyTheme(theme) {
     document.body.classList.add('card-style-pill');
   }
 
-  // Background Image or Gradient / Unset
+  // Background Image or Gradient / Unset (Applied to dedicated wallpaperLayer for hardware-accelerated blur)
+  const wpLayer = document.getElementById('wallpaperLayer');
   if (theme.background_type === 'image' && theme.background_value) {
-    document.body.style.backgroundImage = `url("${theme.background_value}")`;
-    document.body.style.backgroundSize = 'cover';
-    document.body.style.backgroundPosition = 'center';
-    document.body.style.backgroundAttachment = 'fixed';
+    if (wpLayer) {
+      wpLayer.style.backgroundImage = `url("${theme.background_value}")`;
+    }
+    document.body.style.backgroundImage = '';
     document.body.style.backgroundColor = '#020617';
     document.body.classList.add('has-wallpaper');
   } else {
+    if (wpLayer) {
+      wpLayer.style.backgroundImage = '';
+    }
     document.body.style.backgroundImage = '';
     document.body.style.background = theme.background_value || 'var(--bg-primary)';
     document.body.classList.remove('has-wallpaper');
@@ -360,11 +368,31 @@ function applyTheme(theme) {
   }
 }
 
-// Server-Sent Events (SSE)
+// Server-Sent Events (SSE) & Debounced Updates
+let sseActive = false;
+let widgetUpdateScheduled = false;
+
+function scheduleWidgetUpdate() {
+  if (widgetUpdateScheduled) return;
+  widgetUpdateScheduled = true;
+  requestAnimationFrame(() => {
+    widgetUpdateScheduled = false;
+    updateWidgetValues();
+    if (document.getElementById('dockerContainersModal')?.classList.contains('open')) {
+      renderDockerContainersList();
+    }
+  });
+}
+
 function setupSSE() {
   const evtSource = new EventSource('/api/events');
+  evtSource.onopen = () => {
+    sseActive = true;
+  };
+
   evtSource.addEventListener('config', (e) => {
     try {
+      sseActive = true;
       AppState.config = JSON.parse(e.data);
       applyTheme(AppState.config.settings?.theme);
       renderDashboard();
@@ -373,6 +401,7 @@ function setupSSE() {
 
   evtSource.addEventListener('probes', (e) => {
     try {
+      sseActive = true;
       AppState.probes = JSON.parse(e.data);
       updateProbeBadges();
     } catch (_) {}
@@ -380,11 +409,9 @@ function setupSSE() {
 
   const handleTelemetry = (e) => {
     try {
+      sseActive = true;
       AppState.systemTelemetry = JSON.parse(e.data);
-      updateWidgetValues();
-      if (document.getElementById('dockerContainersModal')?.classList.contains('open')) {
-        renderDockerContainersList();
-      }
+      scheduleWidgetUpdate();
     } catch (_) {}
   };
 
@@ -392,6 +419,7 @@ function setupSSE() {
   evtSource.addEventListener('telemetry_delta', handleTelemetry);
 
   evtSource.onerror = () => {
+    sseActive = false;
     // SSE will automatically retry connecting
   };
 }
@@ -3017,6 +3045,23 @@ function deleteCategory(catId) {
   renderDashboard();
 }
 
+function getBlurLabel(px) {
+  const n = Number(px);
+  if (n === 0) return '0px (Sharp)';
+  if (n <= 4) return `${n}px (Slight Blur)`;
+  if (n <= 10) return `${n}px (Medium Blur)`;
+  return `${n}px (Heavy Blur)`;
+}
+
+function setThemeWpBlur(px) {
+  const input = document.getElementById('themeWpBlurInput');
+  const valEl = document.getElementById('themeWpBlurVal');
+  if (input) input.value = px;
+  if (valEl) valEl.textContent = getBlurLabel(px);
+  document.documentElement.style.setProperty('--wallpaper-blur', `${px}px`);
+}
+window.setThemeWpBlur = setThemeWpBlur;
+
 // Theme Studio Modal
 function openThemeModal() {
   const modal = document.getElementById('themeModal');
@@ -3032,23 +3077,6 @@ function openThemeModal() {
   const dimVal = theme.wallpaper_dim !== undefined ? theme.wallpaper_dim : 45;
   document.getElementById('themeDimInput').value = dimVal;
   document.getElementById('themeDimVal').textContent = `${dimVal}%`;
-
-  function getBlurLabel(px) {
-    const n = Number(px);
-    if (n === 0) return '0px (Sharp)';
-    if (n <= 4) return `${n}px (Slight Blur)`;
-    if (n <= 10) return `${n}px (Medium Blur)`;
-    return `${n}px (Heavy Blur)`;
-  }
-
-  function setThemeWpBlur(px) {
-    const input = document.getElementById('themeWpBlurInput');
-    const valEl = document.getElementById('themeWpBlurVal');
-    if (input) input.value = px;
-    if (valEl) valEl.textContent = getBlurLabel(px);
-    document.documentElement.style.setProperty('--wallpaper-blur', `${px}px`);
-  }
-  window.setThemeWpBlur = setThemeWpBlur;
 
   const wpBlurVal = theme.wallpaper_blur !== undefined ? Number(theme.wallpaper_blur) : 0;
   const wpBlurInput = document.getElementById('themeWpBlurInput');
