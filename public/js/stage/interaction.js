@@ -235,8 +235,24 @@
       const placementMap = this.stage.board.layout.placement || {};
       const itemPl = placementMap[id];
       if (!itemPl) return null;
-      if (itemPl[profile]) return itemPl[profile];
-      return itemPl['lg'] || itemPl['md'] || Object.values(itemPl)[0] || null;
+
+      let target = itemPl[profile];
+      if (target && target.inherit && itemPl[target.inherit]) {
+        target = { ...itemPl[target.inherit], ...target };
+      }
+
+      if (!target || target.w === undefined) {
+        const fallback = itemPl['lg'] || itemPl['md'] || Object.values(itemPl)[0] || null;
+        if (fallback) {
+          if (fallback.inherit && itemPl[fallback.inherit]) {
+            target = { ...itemPl[fallback.inherit], ...fallback, ...(target || {}) };
+          } else {
+            target = { ...fallback, ...(target || {}) };
+          }
+        }
+      }
+
+      return target ? { ...target } : null;
     }
 
     setItemPlacement(id, profileId, updates) {
@@ -248,11 +264,12 @@
       if (!this.stage.board.layout.placement[id]) {
         this.stage.board.layout.placement[id] = {};
       }
-      if (!this.stage.board.layout.placement[id][profile]) {
-        const fallback = this.getItemPlacement(id, profile) || { x: 0, y: 0, w: 100, h: 100 };
-        this.stage.board.layout.placement[id][profile] = { ...fallback };
+      const existing = this.getItemPlacement(id, profile) || { x: 0, y: 0, w: 100, h: 100 };
+      const merged = { ...existing, ...updates };
+      if (merged.inherit) {
+        delete merged.inherit;
       }
-      Object.assign(this.stage.board.layout.placement[id][profile], updates);
+      this.stage.board.layout.placement[id][profile] = merged;
     }
 
     getSelectedWorldRects() {
@@ -758,29 +775,36 @@
      * Resize Loop & Math
      * ------------------------------------------------------------- */
     static calculateResize(startRect, handle, dxWu, dyWu, modifiers = {}) {
-      let { x, y, w, h } = startRect;
-      const minW = 20;
-      const minH = 20;
+      const origW = Math.max(10, Number(startRect.w) || 100);
+      const origH = Math.max(10, Number(startRect.h) || 100);
+      const origX = Number(startRect.x) || 0;
+      const origY = Number(startRect.y) || 0;
+
+      const minW = modifiers.minW !== undefined ? modifiers.minW : 20;
+      const minH = modifiers.minH !== undefined ? modifiers.minH : 20;
 
       const keepAspect = !!modifiers.shiftKey;
       const fromCenter = !!modifiers.altKey;
-      const origAspect = startRect.w / startRect.h;
+      const origAspect = origW / Math.max(1, origH);
 
-      let dw = 0;
-      let dh = 0;
+      const dw = Number(dxWu) || 0;
+      const dh = Number(dyWu) || 0;
 
-      if (handle.includes('e')) dw = dxWu;
-      if (handle.includes('w')) dw = -dxWu;
-      if (handle.includes('s')) dh = dyWu;
-      if (handle.includes('n')) dh = -dyWu;
+      let deltaW = 0;
+      let deltaH = 0;
+
+      if (handle.includes('e')) deltaW = dw;
+      if (handle.includes('w')) deltaW = -dw;
+      if (handle.includes('s')) deltaH = dh;
+      if (handle.includes('n')) deltaH = -dh;
 
       if (fromCenter) {
-        dw *= 2;
-        dh *= 2;
+        deltaW *= 2;
+        deltaH *= 2;
       }
 
-      let newW = Math.max(minW, startRect.w + dw);
-      let newH = Math.max(minH, startRect.h + dh);
+      let newW = Math.max(minW, origW + deltaW);
+      let newH = Math.max(minH, origH + deltaH);
 
       if (keepAspect) {
         if (handle === 'e' || handle === 'w') {
@@ -789,26 +813,26 @@
           newW = Math.max(minW, newH * origAspect);
         } else {
           // Corner handles: fit to dominant dimension
-          const scaleW = newW / startRect.w;
-          const scaleH = newH / startRect.h;
+          const scaleW = newW / origW;
+          const scaleH = newH / origH;
           const scale = Math.max(scaleW, scaleH);
-          newW = Math.max(minW, startRect.w * scale);
-          newH = Math.max(minH, startRect.h * scale);
+          newW = Math.max(minW, origW * scale);
+          newH = Math.max(minH, origH * scale);
         }
       }
 
-      let newX = startRect.x;
-      let newY = startRect.y;
+      let newX = origX;
+      let newY = origY;
 
       if (fromCenter) {
-        newX = startRect.x - (newW - startRect.w) / 2;
-        newY = startRect.y - (newH - startRect.h) / 2;
+        newX = origX - (newW - origW) / 2;
+        newY = origY - (newH - origH) / 2;
       } else {
         if (handle.includes('w')) {
-          newX = startRect.x + (startRect.w - newW);
+          newX = origX + (origW - newW);
         }
         if (handle.includes('n')) {
-          newY = startRect.y + (startRect.h - newH);
+          newY = origY + (origH - newH);
         }
       }
 
@@ -828,6 +852,11 @@
       const dxWu = dxScreen / (wu * stageScale);
       const dyWu = dyScreen / (wu * stageScale);
 
+      const itemObj = this.stage.board?.config?.items?.find(it => it.id === this.session.itemId);
+      const isIsland = itemObj?.kind === 'island';
+      const minW = isIsland ? 180 : 80;
+      const minH = isIsland ? 100 : 44;
+
       const resized = InteractionController.calculateResize(
         this.session.startRect,
         this.session.handle,
@@ -835,7 +864,9 @@
         dyWu,
         {
           shiftKey: this.session.shiftKey,
-          altKey: this.session.altKey
+          altKey: this.session.altKey,
+          minW,
+          minH
         }
       );
 
@@ -1199,6 +1230,32 @@
           });
         }
 
+        const patches = [{
+          op: 'merge',
+          path: `/layout/placement/${id}/${profile}`,
+          value: { x: cr.x, y: cr.y, w: cr.w, h: cr.h }
+        }];
+        if (profile !== 'lg') {
+          patches.push({
+            op: 'merge',
+            path: `/layout/placement/${id}/lg`,
+            value: { x: cr.x, y: cr.y, w: cr.w, h: cr.h }
+          });
+        }
+
+        const inverses = [{
+          op: 'merge',
+          path: `/layout/placement/${id}/${profile}`,
+          value: { x: prevPlacement.x, y: prevPlacement.y, w: prevPlacement.w, h: prevPlacement.h }
+        }];
+        if (profile !== 'lg') {
+          inverses.push({
+            op: 'merge',
+            path: `/layout/placement/${id}/lg`,
+            value: { x: prevPlacement.x, y: prevPlacement.y, w: prevPlacement.w, h: prevPlacement.h }
+          });
+        }
+
         // Persist proportionally scaled children placements
         if (this.session.childrenStart && this.session.childrenStart.length > 0) {
           const origParentW = Math.max(10, Number(sr.w) || 100);
@@ -1275,32 +1332,6 @@
             y: worldY,
             w: cr.w,
             h: cr.h
-          });
-        }
-
-        const patches = [{
-          op: 'merge',
-          path: `/layout/placement/${id}/${profile}`,
-          value: { x: cr.x, y: cr.y, w: cr.w, h: cr.h }
-        }];
-        if (profile !== 'lg') {
-          patches.push({
-            op: 'merge',
-            path: `/layout/placement/${id}/lg`,
-            value: { x: cr.x, y: cr.y, w: cr.w, h: cr.h }
-          });
-        }
-
-        const inverses = [{
-          op: 'merge',
-          path: `/layout/placement/${id}/${profile}`,
-          value: { x: prevPlacement.x, y: prevPlacement.y, w: prevPlacement.w, h: prevPlacement.h }
-        }];
-        if (profile !== 'lg') {
-          inverses.push({
-            op: 'merge',
-            path: `/layout/placement/${id}/lg`,
-            value: { x: prevPlacement.x, y: prevPlacement.y, w: prevPlacement.w, h: prevPlacement.h }
           });
         }
 

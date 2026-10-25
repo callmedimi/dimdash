@@ -231,15 +231,36 @@
     // Resolve an item's base placement for profile (supporting inherit)
     function getBasePlacement(itemId, targetProfId) {
       const itemPlacements = placementMap[itemId] || {};
-      if (itemPlacements[targetProfId]) return { placement: itemPlacements[targetProfId], sourceProfileId: targetProfId };
+      let target = itemPlacements[targetProfId];
+      let sourceProfileId = targetProfId;
 
-      const profObj = profiles.find(p => p.id === targetProfId);
-      if (profObj && profObj.inherit && itemPlacements[profObj.inherit]) {
-        return { placement: itemPlacements[profObj.inherit], sourceProfileId: profObj.inherit };
+      if (!target) {
+        const profObj = profiles.find(p => p.id === targetProfId);
+        if (profObj && profObj.inherit && itemPlacements[profObj.inherit]) {
+          target = itemPlacements[profObj.inherit];
+          sourceProfileId = profObj.inherit;
+        }
       }
 
-      const fallbackProfId = itemPlacements['lg'] ? 'lg' : (itemPlacements['md'] ? 'md' : Object.keys(itemPlacements)[0]);
-      return { placement: itemPlacements[fallbackProfId] || null, sourceProfileId: fallbackProfId || 'lg' };
+      if (target && target.inherit && itemPlacements[target.inherit]) {
+        target = { ...itemPlacements[target.inherit], ...target };
+        sourceProfileId = target.inherit;
+      }
+
+      if (!target || target.w === undefined) {
+        const fallbackProfId = itemPlacements['lg'] ? 'lg' : (itemPlacements['md'] ? 'md' : Object.keys(itemPlacements)[0]);
+        const fallback = itemPlacements[fallbackProfId] || null;
+        if (fallback) {
+          if (fallback.inherit && itemPlacements[fallback.inherit]) {
+            target = { ...itemPlacements[fallback.inherit], ...fallback, ...(target || {}) };
+          } else {
+            target = { ...fallback, ...(target || {}) };
+          }
+          sourceProfileId = fallbackProfId || 'lg';
+        }
+      }
+
+      return { placement: target || null, sourceProfileId: sourceProfileId || 'lg' };
     }
 
     // 1. Solve top-level items first (items with no parent or parent === null)

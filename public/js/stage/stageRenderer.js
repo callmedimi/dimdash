@@ -342,7 +342,7 @@
       // Solve Mode (fit/flow/canvas) with flexible minScale and video wall support
       const isWallDisplay = this.isTenFoot || this.board.config?.settings?.display_class === 'wall';
       const modeResult = solver.solveMode(this.currentMode, relieved.rects, { w: vwWu, h: vhWu }, {
-        minScale: 0.25,
+        minScale: 0.8,
         isWall: isWallDisplay,
         maxScaleUp: 2.0
       });

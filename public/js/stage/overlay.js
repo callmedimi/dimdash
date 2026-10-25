@@ -250,6 +250,37 @@
       }
     }
 
+    renderProximityGrid(ctx, pointerPos, camera, wu = 1.0) {
+      if (!ctx || !pointerPos) return;
+      const step = (this.options?.dotGridStep || 32) * wu;
+      if (step < 8) return;
+
+      const px = pointerPos.screenX;
+      const py = pointerPos.screenY;
+      const radius = 96;
+      const radiusSq = radius * radius;
+
+      const startX = Math.floor((px - radius) / step) * step;
+      const endX = Math.ceil((px + radius) / step) * step;
+      const startY = Math.floor((py - radius) / step) * step;
+      const endY = Math.ceil((py + radius) / step) * step;
+
+      ctx.save();
+      for (let x = startX; x <= endX; x += step) {
+        for (let y = startY; y <= endY; y += step) {
+          const dx = x - px;
+          const dy = y - py;
+          const distSq = dx * dx + dy * dy;
+          if (distSq <= radiusSq) {
+            const alpha = (1 - Math.sqrt(distSq) / radius) * 0.25;
+            ctx.fillStyle = `rgba(56, 189, 248, ${alpha.toFixed(2)})`;
+            ctx.fillRect(x - 1, y - 1, 2, 2);
+          }
+        }
+      }
+      ctx.restore();
+    }
+
     renderDebugOverlay(ctx, items) {
       ctx.save();
       const diffs = [];

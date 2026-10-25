@@ -156,8 +156,10 @@
 .stage-tile-icon {
   width: var(--tile-icon-size, calc(36px * var(--wu)));
   height: var(--tile-icon-size, calc(36px * var(--wu)));
-  max-width: calc(100% - 10px);
-  max-height: calc(100% - 10px);
+  min-width: var(--tile-icon-size, calc(36px * var(--wu)));
+  min-height: var(--tile-icon-size, calc(36px * var(--wu)));
+  max-width: 100%;
+  max-height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -266,7 +268,7 @@
 
 /* L: Large — Resized card gets larger logo and typography */
 .stage-item[data-size="l"] {
-  --tile-icon-size: calc(46px * var(--wu));
+  --tile-icon-size: calc(50px * var(--wu));
   --tile-title-size: calc(1.15rem * var(--wu));
   --tile-subtitle-size: calc(0.88rem * var(--wu));
   --tile-gap: calc(16px * var(--wu));
@@ -282,7 +284,7 @@
 
 /* XL: Extra Large — Hero display size */
 .stage-item[data-size="xl"] {
-  --tile-icon-size: calc(56px * var(--wu));
+  --tile-icon-size: calc(64px * var(--wu));
   --tile-title-size: calc(1.35rem * var(--wu));
   --tile-subtitle-size: calc(1.0rem * var(--wu));
   --tile-gap: calc(20px * var(--wu));
@@ -322,13 +324,13 @@
 }
 
 .stage-item[data-card-layout="stacked"][data-size="l"] {
-  --tile-icon-size: calc(52px * var(--wu));
+  --tile-icon-size: calc(60px * var(--wu));
   --tile-title-size: calc(1.22rem * var(--wu));
   --tile-subtitle-size: calc(0.92rem * var(--wu));
 }
 
 .stage-item[data-card-layout="stacked"][data-size="xl"] {
-  --tile-icon-size: calc(64px * var(--wu));
+  --tile-icon-size: calc(76px * var(--wu));
   --tile-title-size: calc(1.45rem * var(--wu));
   --tile-subtitle-size: calc(1.05rem * var(--wu));
 }
