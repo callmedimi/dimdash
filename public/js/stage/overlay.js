@@ -2,6 +2,7 @@
  * DimDash Stage Overlay Renderer
  * High-performance 2D Canvas overlay for selection bounds, resize handles,
  * magnetic snap guidelines, distance badges, marquee lasso, and proximity dot-grid.
+ * Optimized with zero software shadowBlur for 60/120fps on Linux (Fedora Wayland/X11).
  * Universal module (Node.js & Browser)
  */
 (function (root, factory) {
@@ -26,18 +27,18 @@
       this.height = 0;
 
       this.theme = {
-        accent: options.accent || '#38bdf8', // Tailwind sky-400
+        accent: options.accent || '#38bdf8',
         accentDim: options.accentDim || 'rgba(56, 189, 248, 0.08)',
-        guideColor: options.guideColor || '#06b6d4', // cyan-500
+        guideColor: options.guideColor || '#06b6d4',
         handleFill: '#ffffff',
         handleStroke: '#0284c7',
-        handleSize: 10, // px
-        coarseHitRadius: 28, // px
-        fineHitRadius: 15, // px
-        borderTolerance: 9, // px
-        dotColor: 'rgba(255, 255, 255, 0.18)',
+        handleSize: 10,
+        coarseHitRadius: 28,
+        fineHitRadius: 15,
+        borderTolerance: 9,
+        dotColor: 'rgba(56, 189, 248, 0.22)',
         dotRadius: 1.2,
-        dotGridStep: 32 // wu
+        dotGridStep: 32
       };
     }
 
@@ -62,12 +63,7 @@
       this.ctx.clearRect(0, 0, this.width, this.height);
     }
 
-    /**
-     * Hit tests resize handles geometrically for a given item bounding box in screen space.
-     * Handles are not DOM elements.
-     */
     static getHandlePositions(bounds) {
-      // bounds: { x, y, w, h } in screen coordinates
       const { x, y, w, h } = bounds;
       const mx = x + w / 2;
       const my = y + h / 2;
@@ -83,21 +79,12 @@
       };
     }
 
-    /**
-     * Hit tests resize handles and continuous borders geometrically for a given item bounding box in screen space.
-     * Supports:
-     * - Generous corner handles (nw, ne, se, sw)
-     * - Midpoint handles (n, s, e, w)
-     * - Continuous border perimeter edges (top -> n, bottom -> s, left -> w, right -> e)
-     * - Safe interior zone (returns null so clicking interior moves/drags the item)
-     */
     static hitTestHandles(screenX, screenY, bounds, isCoarse = false) {
       if (!bounds || bounds.w <= 0 || bounds.h <= 0) return null;
       const { x, y, w, h } = bounds;
       const x2 = x + w;
       const y2 = y + h;
 
-      // 1. Direct Corner Handle check (highest priority with generous radius)
       const cornerHitRadius = isCoarse ? 28 : 15;
       const cornerRadiusSq = cornerHitRadius * cornerHitRadius;
 
@@ -116,7 +103,6 @@
         }
       }
 
-      // 2. Direct Midpoint Handle check
       const midHitRadius = isCoarse ? 24 : 13;
       const midRadiusSq = midHitRadius * midHitRadius;
       const midpoints = [
@@ -134,19 +120,16 @@
         }
       }
 
-      // 3. Continuous Border Hit Zone (Outer and Inner tolerance bands)
       const borderTolerance = isCoarse ? 18 : 9;
       const outerX1 = x - borderTolerance;
       const outerX2 = x2 + borderTolerance;
       const outerY1 = y - borderTolerance;
       const outerY2 = y2 + borderTolerance;
 
-      // Check if pointer is anywhere within outer bounding halo
       if (screenX < outerX1 || screenX > outerX2 || screenY < outerY1 || screenY > outerY2) {
         return null;
       }
 
-      // Check if pointer is inside inner safe interior (where clicking moves/drags the card)
       const innerX1 = x + borderTolerance;
       const innerX2 = x2 - borderTolerance;
       const innerY1 = y + borderTolerance;
@@ -154,16 +137,12 @@
 
       if (innerX1 < innerX2 && innerY1 < innerY2) {
         if (screenX > innerX1 && screenX < innerX2 && screenY > innerY1 && screenY < innerY2) {
-          // Inside safe interior -> allows moving/dragging the card
           return null;
         }
       }
 
-      // Pointer is on the border perimeter!
-      // Resolve corner regions vs edge regions
       const cornerZone = Math.min(28, Math.max(14, Math.min(w, h) * 0.28));
 
-      // Check if in corner zones of the border
       if (screenX <= x + cornerZone) {
         if (screenY <= y + cornerZone) return 'nw';
         if (screenY >= y2 - cornerZone) return 'sw';
@@ -173,7 +152,6 @@
         if (screenY >= y2 - cornerZone) return 'se';
       }
 
-      // Along the edges: find closest edge
       const dTop = Math.abs(screenY - y);
       const dBottom = Math.abs(screenY - y2);
       const dLeft = Math.abs(screenX - x);
@@ -190,9 +168,6 @@
       return 'e';
     }
 
-    /**
-     * Main Render Loop for overlay canvas
-     */
     render(state = {}) {
       if (!this.ctx) return;
       this.clear();
@@ -207,16 +182,14 @@
         pointerPos = null,
         activeHandle = null,
         hoverHandle = null,
-        sizingInfo = null,
-        debug = false,
-        debugItems = []
+        sizingInfo = null
       } = state;
 
       if (!isEditing) return;
 
       const ctx = this.ctx;
 
-      // 1. Proximity Dot-Grid around pointer
+      // 1. Batched Single-Call Proximity Dot-Grid around pointer
       if (pointerPos && pointerPos.screenX !== undefined) {
         this.renderProximityGrid(ctx, pointerPos, camera, wu);
       }
@@ -242,22 +215,14 @@
       if (sizingInfo && sizingInfo.rect) {
         this.renderSizeBadge(ctx, sizingInfo, camera, wu);
       }
-
-      // 6. Debug Overlay (STEP 0: ?debug=1)
-      const isDebug = debug || (typeof window !== 'undefined' && window.location.search.includes('debug=1'));
-      if (isDebug && debugItems && debugItems.length > 0) {
-        this.renderDebugOverlay(ctx, debugItems);
-      }
     }
 
     renderProximityGrid(ctx, pointerPos, camera, wu = 1.0) {
       if (!ctx || !pointerPos) return;
-      const step = (this.options?.dotGridStep || 32) * wu;
-      if (step < 8) return;
-
+      const step = Math.max(16, Math.round((this.options?.dotGridStep || 32) * wu));
       const px = pointerPos.screenX;
       const py = pointerPos.screenY;
-      const radius = 96;
+      const radius = 84;
       const radiusSq = radius * radius;
 
       const startX = Math.floor((px - radius) / step) * step;
@@ -266,82 +231,22 @@
       const endY = Math.ceil((py + radius) / step) * step;
 
       ctx.save();
+      ctx.fillStyle = this.theme.dotColor;
+      ctx.beginPath();
       for (let x = startX; x <= endX; x += step) {
         for (let y = startY; y <= endY; y += step) {
           const dx = x - px;
           const dy = y - py;
-          const distSq = dx * dx + dy * dy;
-          if (distSq <= radiusSq) {
-            const alpha = (1 - Math.sqrt(distSq) / radius) * 0.25;
-            ctx.fillStyle = `rgba(56, 189, 248, ${alpha.toFixed(2)})`;
-            ctx.fillRect(x - 1, y - 1, 2, 2);
+          if (dx * dx + dy * dy <= radiusSq) {
+            ctx.rect(x - 1, y - 1, 2, 2);
           }
         }
       }
+      ctx.fill();
       ctx.restore();
-    }
-
-    renderDebugOverlay(ctx, items) {
-      ctx.save();
-      const diffs = [];
-
-      for (const item of items) {
-        const { id, kind, modelRect, domRect } = item;
-
-        // Draw model rect in RED (dashed)
-        if (modelRect) {
-          ctx.strokeStyle = '#ef4444';
-          ctx.lineWidth = 1.5;
-          ctx.setLineDash([4, 2]);
-          ctx.strokeRect(modelRect.x, modelRect.y, modelRect.w, modelRect.h);
-
-          ctx.fillStyle = '#ef4444';
-          ctx.font = '10px monospace';
-          ctx.fillText(`[Model] ${id} (${kind})`, modelRect.x + 4, modelRect.y + 12);
-        }
-
-        // Draw real DOM rect in GREEN (solid)
-        if (domRect) {
-          ctx.strokeStyle = '#10b981';
-          ctx.lineWidth = 1.5;
-          ctx.setLineDash([]);
-          ctx.strokeRect(domRect.x, domRect.y, domRect.w, domRect.h);
-
-          ctx.fillStyle = '#10b981';
-          ctx.font = '10px monospace';
-          ctx.fillText(`[DOM] ${id}`, domRect.x + 4, domRect.y + domRect.h - 4);
-        }
-
-        // Compare
-        if (modelRect && domRect) {
-          const dx = Math.abs(modelRect.x - domRect.x);
-          const dy = Math.abs(modelRect.y - domRect.y);
-          const dw = Math.abs(modelRect.w - domRect.w);
-          const dh = Math.abs(modelRect.h - domRect.h);
-          if (dx > 1 || dy > 1 || dw > 1 || dh > 1) {
-            diffs.push({
-              id,
-              kind,
-              model: `${modelRect.x.toFixed(1)}, ${modelRect.y.toFixed(1)} [${modelRect.w.toFixed(1)}x${modelRect.h.toFixed(1)}]`,
-              dom: `${domRect.x.toFixed(1)}, ${domRect.y.toFixed(1)} [${domRect.w.toFixed(1)}x${domRect.h.toFixed(1)}]`,
-              delta: `dx:${dx.toFixed(1)}, dy:${dy.toFixed(1)}, dw:${dw.toFixed(1)}, dh:${dh.toFixed(1)}`
-            });
-          }
-        }
-      }
-
-      ctx.restore();
-
-      if (diffs.length > 0 && (!this._lastDiffLogTime || (Date.now() - this._lastDiffLogTime > 2000))) {
-        this._lastDiffLogTime = Date.now();
-        console.group('[DimDash Debug Overlay] Coordinate Mismatches (>1px)');
-        console.table(diffs);
-        console.groupEnd();
-      }
     }
 
     renderSelectionBounds(ctx, rect, camera, wu, activeHandle, hoverHandle) {
-      // Source of truth: prefer measured screen rect from DOM getBoundingClientRect
       const screenX = rect.screenX !== undefined ? rect.screenX : (rect.x * wu * camera.z + camera.x);
       const screenY = rect.screenY !== undefined ? rect.screenY : (rect.y * wu * camera.z + camera.y);
       const screenW = rect.screenW !== undefined ? rect.screenW : (rect.w * wu * camera.z);
@@ -358,14 +263,12 @@
       ctx.lineWidth = 1.5;
       ctx.strokeRect(screenX, screenY, screenW, screenH);
 
-      // Highlight active or hovered edge/border
+      // Highlight active or hovered edge/border (zero software shadowBlur for fast Linux rendering)
       const targetHandle = activeHandle || hoverHandle;
       if (targetHandle) {
         ctx.save();
         ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 2.5;
-        ctx.shadowColor = 'rgba(56, 189, 248, 0.8)';
-        ctx.shadowBlur = 8;
+        ctx.lineWidth = 3;
         ctx.beginPath();
         if (targetHandle === 'n') {
           ctx.moveTo(screenX, screenY);
@@ -401,20 +304,9 @@
         const hs = (isActive || isHovered) ? baseHs + 3 : baseHs;
         const half = hs / 2;
 
-        ctx.save();
-        if (isActive || isHovered) {
-          ctx.fillStyle = this.theme.accent;
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 2;
-          ctx.shadowColor = 'rgba(56, 189, 248, 0.7)';
-          ctx.shadowBlur = 6;
-        } else {
-          ctx.fillStyle = this.theme.handleFill;
-          ctx.strokeStyle = this.theme.handleStroke;
-          ctx.lineWidth = 1.5;
-          ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-          ctx.shadowBlur = 3;
-        }
+        ctx.fillStyle = (isActive || isHovered) ? this.theme.accent : this.theme.handleFill;
+        ctx.strokeStyle = (isActive || isHovered) ? '#ffffff' : this.theme.handleStroke;
+        ctx.lineWidth = (isActive || isHovered) ? 2 : 1.5;
 
         ctx.beginPath();
         if (typeof ctx.roundRect === 'function') {
@@ -424,7 +316,6 @@
         }
         ctx.fill();
         ctx.stroke();
-        ctx.restore();
       }
 
       ctx.restore();
@@ -446,7 +337,6 @@
           ctx.lineTo(sx, Math.min(this.height, sy2));
           ctx.stroke();
 
-          // Distance / Label badge if present
           if (g.label) {
             this.renderBadge(ctx, sx + 6, (sy1 + sy2) / 2, g.label);
           }
@@ -463,30 +353,7 @@
           }
         }
       }
-      ctx.restore();
-    }
 
-    renderBadge(ctx, x, y, text) {
-      ctx.save();
-      ctx.font = '10px ui-monospace, SFMono-Regular, Menlo, monospace';
-      const metrics = ctx.measureText(text);
-      const padding = 4;
-      const w = metrics.width + padding * 2;
-      const h = 16;
-
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-      ctx.strokeStyle = this.theme.guideColor;
-      ctx.lineWidth = 1;
-
-      ctx.beginPath();
-      ctx.roundRect(x, y - h / 2, w, h, 3);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = '#f8fafc';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(text, x + w / 2, y);
       ctx.restore();
     }
 
@@ -497,29 +364,45 @@
       const h = Math.abs(marquee.currentY - marquee.startY);
 
       ctx.save();
-      ctx.fillStyle = 'rgba(56, 189, 248, 0.15)';
-      ctx.fillRect(x, y, w, h);
-
-      ctx.strokeStyle = this.theme.accent;
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.12)';
+      ctx.strokeStyle = '#38bdf8';
       ctx.lineWidth = 1;
-      ctx.setLineDash([4, 3]);
+      ctx.fillRect(x, y, w, h);
       ctx.strokeRect(x, y, w, h);
       ctx.restore();
     }
 
     renderSizeBadge(ctx, sizingInfo, camera, wu) {
-      const { rect } = sizingInfo;
-      const screenX = (rect.x + rect.w / 2) * wu * camera.z + camera.x;
-      const screenY = (rect.y + rect.h) * wu * camera.z + camera.y + 16;
+      const r = sizingInfo.rect;
+      const sx = (r.x + r.w / 2) * wu * camera.z + camera.x;
+      const sy = (r.y + r.h) * wu * camera.z + camera.y + 18;
+      const label = `${Math.round(r.w)} × ${Math.round(r.h)} wu`;
+      this.renderBadge(ctx, sx, sy, label);
+    }
 
-      const wRounded = Math.round(rect.w);
-      const hRounded = Math.round(rect.h);
-      const gcd = (a, b) => (b === 0 ? a : gcd(b, a % b));
-      const g = gcd(wRounded, hRounded) || 1;
-      const aspect = `${Math.round(wRounded / g)}:${Math.round(hRounded / g)}`;
-      const text = `${wRounded} × ${hRounded} wu · ${aspect}`;
+    renderBadge(ctx, x, y, text) {
+      ctx.save();
+      ctx.font = '600 11px Inter, system-ui, sans-serif';
+      const metrics = ctx.measureText(text);
+      const padX = 6;
+      const bw = metrics.width + padX * 2;
+      const bh = 20;
+      const bx = x - bw / 2;
+      const by = y - bh / 2;
 
-      this.renderBadge(ctx, screenX - 40, screenY, text);
+      ctx.fillStyle = '#0284c7';
+      ctx.beginPath();
+      if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(bx, by, bw, bh, 4);
+      } else {
+        ctx.rect(bx, by, bw, bh);
+      }
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, bx + padX, y);
+      ctx.restore();
     }
   }
 

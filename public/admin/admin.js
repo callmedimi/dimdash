@@ -812,10 +812,17 @@ function setupEventListeners() {
     });
   }
 
-  // Filters
+  // Filters (debounced search for zero typing lag)
   document.getElementById('adminCatFilter')?.addEventListener('change', renderTilesTable);
   document.getElementById('adminStatusFilter')?.addEventListener('change', renderTilesTable);
-  document.getElementById('adminTileSearch')?.addEventListener('input', renderTilesTable);
+  let adminTileSearchRaf = null;
+  document.getElementById('adminTileSearch')?.addEventListener('input', () => {
+    if (adminTileSearchRaf) cancelAnimationFrame(adminTileSearchRaf);
+    adminTileSearchRaf = requestAnimationFrame(() => {
+      adminTileSearchRaf = null;
+      renderTilesTable();
+    });
+  });
 
   // Bulk delete button
   document.getElementById('btnBulkDelete')?.addEventListener('click', async () => {
@@ -1106,8 +1113,12 @@ function openTileEditModal(catId = null, tileId = null) {
   const searchInput = document.getElementById('adminTileIconSearch');
   if (searchInput) {
     searchInput.value = '';
+    let adminIconTimer = null;
     searchInput.oninput = () => {
-      renderAdminIconPicker(document.getElementById('adminTileIconValue').value);
+      if (adminIconTimer) clearTimeout(adminIconTimer);
+      adminIconTimer = setTimeout(() => {
+        renderAdminIconPicker(document.getElementById('adminTileIconValue').value);
+      }, 80);
     };
   }
 

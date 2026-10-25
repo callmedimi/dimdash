@@ -130,6 +130,11 @@ function setupClock() {
 }
 
 function updateClockWidgets() {
+  const stageVp = document.getElementById('stageViewport');
+  if (stageVp && (stageVp.classList.contains('is-interacting') || stageVp.classList.contains('is-resizing'))) {
+    return;
+  }
+
   const clockCards = document.querySelectorAll('.clock-widget-card');
   if (clockCards.length === 0) return;
 
@@ -153,17 +158,25 @@ function updateClockWidgets() {
     } else {
       timeStr = `${nowInfo.time.hours24}<span class="clock-colon">:</span>${nowInfo.time.minutes}<span class="clock-colon">:</span>${nowInfo.time.seconds}`;
     }
-    displayEl.innerHTML = `${timeStr} ${ampmHtml}`;
+    const nextDisplayHtml = `${timeStr} ${ampmHtml}`;
+    if (displayEl._lastHtml !== nextDisplayHtml) {
+      displayEl._lastHtml = nextDisplayHtml;
+      displayEl.innerHTML = nextDisplayHtml;
+    }
 
-    const shamsiHtml = `<span class="clock-date-chip chip-shamsi" title="تقویم خورشیدی / شمسی">☀️ ${nowInfo.shamsi.fullFa}</span>`;
-    const gregorianHtml = `<span class="clock-date-chip chip-gregorian" title="Gregorian Calendar">📅 ${nowInfo.gregorian.full}</span>`;
+    const dateCacheKey = `${mode}|${nowInfo.shamsi.fullFa}|${nowInfo.gregorian.full}`;
+    if (datesEl._lastDateKey !== dateCacheKey) {
+      datesEl._lastDateKey = dateCacheKey;
+      const shamsiHtml = `<span class="clock-date-chip chip-shamsi" title="تقویم خورشیدی / شمسی">☀️ ${nowInfo.shamsi.fullFa}</span>`;
+      const gregorianHtml = `<span class="clock-date-chip chip-gregorian" title="Gregorian Calendar">📅 ${nowInfo.gregorian.full}</span>`;
 
-    if (mode === 'shamsi') {
-      datesEl.innerHTML = shamsiHtml;
-    } else if (mode === 'gregorian') {
-      datesEl.innerHTML = gregorianHtml;
-    } else {
-      datesEl.innerHTML = `${shamsiHtml} ${gregorianHtml}`;
+      if (mode === 'shamsi') {
+        datesEl.innerHTML = shamsiHtml;
+      } else if (mode === 'gregorian') {
+        datesEl.innerHTML = gregorianHtml;
+      } else {
+        datesEl.innerHTML = `${shamsiHtml} ${gregorianHtml}`;
+      }
     }
   });
 }
@@ -317,6 +330,10 @@ function applyTheme(theme) {
 
   // Background Image or Gradient / Unset (Applied to dedicated wallpaperLayer for hardware-accelerated blur)
   const wpLayer = document.getElementById('wallpaperLayer');
+  if (wpLayer) {
+    wpLayer.style.filter = wpBlur > 0 ? `blur(${wpBlur}px)` : 'none';
+    wpLayer.style.webkitFilter = wpBlur > 0 ? `blur(${wpBlur}px)` : 'none';
+  }
   if (theme.background_type === 'image' && theme.background_value) {
     if (wpLayer) {
       wpLayer.style.backgroundImage = `url("${theme.background_value}")`;
@@ -1109,6 +1126,10 @@ function handleWidgetReorder(sourceWidgetId, targetWidgetId) {
 }
 
 function updateWidgetValues() {
+  const stageVp = document.getElementById('stageViewport');
+  if (stageVp && (stageVp.classList.contains('is-interacting') || stageVp.classList.contains('is-resizing'))) {
+    return; // Defer telemetry DOM writes while user is actively dragging/resizing
+  }
   if (typeof updateClockWidgets === 'function') {
     updateClockWidgets();
   }
@@ -1242,12 +1263,16 @@ function updateWidgetValues() {
         if (containers.length > 0) {
           miniListEl.style.display = 'flex';
           const topItems = containers.slice(0, 3);
-          miniListEl.innerHTML = topItems.map(c => `
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; font-size:calc(0.68rem * var(--wu));">
-              <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:140px;">${c.name}</span>
-              <span style="color:${c.state === 'running' ? '#10b981' : '#ef4444'}; font-size:0.6rem;">●</span>
+          const nextMiniHtml = topItems.map(c => `
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; font-size:calc(11px * var(--wu));">
+              <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:calc(140px * var(--wu));">${c.name}</span>
+              <span style="color:${c.state === 'running' ? '#10b981' : '#ef4444'}; font-size:calc(9.5px * var(--wu));">●</span>
             </div>
           `).join('');
+          if (miniListEl._lastHtml !== nextMiniHtml) {
+            miniListEl._lastHtml = nextMiniHtml;
+            miniListEl.innerHTML = nextMiniHtml;
+          }
         } else {
           miniListEl.style.display = 'none';
         }
@@ -2294,13 +2319,18 @@ async function saveConfigToServer(successMsg = 'Settings saved') {
 
 // Setup Event Listeners
 function setupEventListeners() {
-  // Search
+  // Search (debounced via requestAnimationFrame for zero input lag)
+  let searchRaf = null;
   elements.searchBar?.addEventListener('input', (e) => {
     AppState.searchQuery = e.target.value;
-    if (AppState.currentView !== 'apps') {
-      switchDashboardView('apps');
-    }
-    renderGrid();
+    if (searchRaf) cancelAnimationFrame(searchRaf);
+    searchRaf = requestAnimationFrame(() => {
+      searchRaf = null;
+      if (AppState.currentView !== 'apps') {
+        switchDashboardView('apps');
+      }
+      renderGrid();
+    });
   });
 
   // Spotlight Search open / close
@@ -2800,7 +2830,12 @@ function openTileModal(catId = null, tileId = null) {
   if (iconSearchInput) {
     iconSearchInput.placeholder = 'Search 680+ Heimdall & system icons...';
     iconSearchInput.value = '';
-    iconSearchInput.oninput = (e) => renderIconGrid(e.target.value);
+    let iconSearchTimer = null;
+    iconSearchInput.oninput = (e) => {
+      const val = e.target.value;
+      if (iconSearchTimer) clearTimeout(iconSearchTimer);
+      iconSearchTimer = setTimeout(() => renderIconGrid(val), 80);
+    };
   }
 
   // Custom icon file upload with auto-transparent background removal

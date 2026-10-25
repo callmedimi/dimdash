@@ -1,6 +1,6 @@
 /**
  * DimDash Stage Renderer
- * Renders spatial items and islands from layout.yaml onto a continuous physical canvas.
+ * Renders spatial items and islands from layout.yaml onto a continuous pixel-responsive canvas.
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -20,23 +20,26 @@
       this.currentProfile = null;
       this.currentMode = 'fit';
       this.metrics = null;
+      this.userScaleParam = 1.0;
 
       this.itemElements = new Map(); // id -> DOM element
       this.resizeObserver = null;
-      this.sizeObserver = null;
 
       this.idleTimer = null;
       this.isTenFoot = false;
 
-      this.lastVwWu = 0;
-      this.lastVhWu = 0;
+      this.lastVwPx = 0;
+      this.lastVhPx = 0;
       this.isRendering = false;
+      this.relayoutRaf = null;
 
       this.camera = null;
       this.spatialIndex = null;
       this.overlayRenderer = null;
       this.interaction = null;
       this.stageScale = 1.0;
+      this.centerTxPx = 0;
+      this.centerTyPx = 0;
 
       this.initDom();
       this.initDisplayScale();
@@ -118,7 +121,7 @@
         });
       }
 
-      // STEP 4: Delegated capture listener for broken icon images
+      // Delegated capture listener for broken icon images
       if (this.viewportEl) {
         this.viewportEl.addEventListener('error', (e) => {
           if (e.target && e.target.tagName === 'IMG' && e.target.closest('.stage-service-tile')) {
@@ -137,101 +140,47 @@
 
     initDisplayScale() {
       const urlParams = new URLSearchParams(window.location.search);
-      const userScaleParam = parseFloat(urlParams.get('scale')) || 1.0;
-      const displayParam = urlParams.get('display');
+      this.userScaleParam = parseFloat(urlParams.get('scale')) || 1.0;
 
-      let savedDisplay = {};
-      try {
-        savedDisplay = JSON.parse(localStorage.getItem('dimdash_display_profile') || '{}');
-      } catch (e) {}
+      const vwPx = this.viewportEl?.clientWidth || window.innerWidth || 1920;
+      const vhPx = this.viewportEl?.clientHeight || (window.innerHeight - 70) || 1000;
+      this.updatePixelScale(vwPx, vhPx, 1840, 920);
+    }
 
-      // Stabilize display scale against browser tab zoom using hardware screen bounds
-      const screenW = (typeof window !== 'undefined' && window.screen && window.screen.width) ? window.screen.width : (window.innerWidth || 1920);
-      const screenH = (typeof window !== 'undefined' && window.screen && window.screen.height) ? window.screen.height : (window.innerHeight || 1080);
-
-      const guessed = window.DimDashScale
-        ? window.DimDashScale.guessDisplayProfile(screenW, screenH, window.devicePixelRatio)
-        : { diagonal_in: 27, distance_m: 0.7, preset: 'desk' };
-
-      const diagIn = parseFloat(urlParams.get('diag')) || savedDisplay.diagonal_in || guessed.diagonal_in;
-      const distM = parseFloat(urlParams.get('dist')) || savedDisplay.distance_m || guessed.distance_m;
-      const preset = displayParam || savedDisplay.preset || guessed.preset;
-
-      if (window.DimDashScale) {
-        this.metrics = window.DimDashScale.computeDisplayScale({
-          diagonal_in: diagIn,
-          distance_m: distM,
-          width_px: screenW,
-          height_px: screenH,
-          dpr: window.devicePixelRatio || 1,
-          preset,
-          user_scale: userScaleParam,
-          is_coarse: window.matchMedia && window.matchMedia('(pointer: coarse)').matches
+    updatePixelScale(vwPx, vhPx, refW = 1840, refH = 920) {
+      const isCoarse = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+      if (window.DimDashScale && typeof window.DimDashScale.computePixelScale === 'function') {
+        this.metrics = window.DimDashScale.computePixelScale({
+          width_px: vwPx,
+          height_px: vhPx,
+          ref_w: refW,
+          ref_h: refH,
+          user_scale: this.userScaleParam,
+          is_coarse: isCoarse
         });
-
         window.DimDashScale.applyToRoot(this.metrics);
+        if (this.viewportEl) {
+          this.viewportEl.style.setProperty('--wu', this.metrics.wu);
+        }
       } else {
-        this.metrics = { wu: 1.0, vw_wu: window.innerWidth, vh_wu: window.innerHeight };
+        const wu = Math.min(vwPx / refW, vhPx / refH) * this.userScaleParam;
+        this.metrics = { wu: Number(wu.toFixed(4)), vw_wu: Math.round(vwPx / wu), vh_wu: Math.round(vhPx / wu) };
+        if (document.documentElement) {
+          document.documentElement.style.setProperty('--wu', this.metrics.wu);
+        }
       }
     }
 
     initObservers() {
       if (typeof ResizeObserver === 'undefined') return;
 
-      // 1. Viewport resize observer
+      // Viewport resize observer
       this.resizeObserver = new ResizeObserver(entries => {
         if (!entries || !entries[0]) return;
         const cr = entries[0].contentRect;
         this.onViewportResize(cr.width, cr.height);
       });
       if (this.viewportEl) this.resizeObserver.observe(this.viewportEl);
-
-      // 2. Shared item size class observer
-      this.sizeObserver = new ResizeObserver(entries => {
-        for (const entry of entries) {
-          const target = entry.target;
-          if (target.classList.contains('stage-island')) continue;
-
-          const w = entry.contentRect.width;
-          const h = entry.contentRect.height;
-          const wu = this.metrics ? this.metrics.wu : 1.0;
-          const wWu = w / wu;
-          const hWu = h / wu;
-
-          const currentSize = target.getAttribute('data-size') || 'm';
-          let sizeClass = currentSize;
-
-          if (currentSize === 'xs') {
-            if (wWu > 140 && hWu > 55) sizeClass = 's';
-          } else if (currentSize === 's') {
-            if (wWu < 110 || hWu < 45) sizeClass = 'xs';
-            else if (wWu > 255 && hWu > 105) sizeClass = 'm';
-          } else if (currentSize === 'm') {
-            if (wWu < 225 || hWu < 85) sizeClass = 's';
-            else if (wWu > 380 && hWu > 160) sizeClass = 'l';
-          } else if (currentSize === 'l') {
-            if (wWu < 340 || hWu < 135) sizeClass = 'm';
-            else if (wWu > 560 && hWu > 230) sizeClass = 'xl';
-          } else if (currentSize === 'xl') {
-            if (wWu < 520 || hWu < 200) sizeClass = 'l';
-          } else {
-            if (wWu < 120 || hWu < 48) sizeClass = 'xs';
-            else if (wWu < 240 && hWu < 95) sizeClass = 's';
-            else if (wWu < 360 && hWu < 150) sizeClass = 'm';
-            else if (wWu < 540 && hWu < 220) sizeClass = 'l';
-            else sizeClass = 'xl';
-          }
-
-          const isCard = hWu >= 130 && (hWu / Math.max(1, wWu) >= 0.40);
-          if (target.getAttribute('data-size') !== sizeClass) {
-            target.setAttribute('data-size', sizeClass);
-          }
-          const layoutVal = isCard ? 'stacked' : 'row';
-          if (target.getAttribute('data-card-layout') !== layoutVal) {
-            target.setAttribute('data-card-layout', layoutVal);
-          }
-        }
-      });
     }
 
     initIdleHandler() {
@@ -250,6 +199,8 @@
     }
 
     onViewportResize(widthPx, heightPx) {
+      if (widthPx <= 0 || heightPx <= 0) return;
+
       if (this.camera) this.camera.setViewportSize(widthPx, heightPx);
       if (this.overlayRenderer) {
         this.overlayRenderer.resize(widthPx, heightPx, window.devicePixelRatio || 1);
@@ -258,24 +209,54 @@
 
       if (!this.board || this.isRendering) return;
 
-      const wu = this.metrics ? this.metrics.wu : 1.0;
-      const vwWu = Math.round(widthPx / wu);
-      const vhWu = Math.round(heightPx / wu);
-
-      // Skip tiny jitter less than 0.5 wu
-      if (Math.abs(vwWu - this.lastVwWu) < 1 && Math.abs(vhWu - this.lastVhWu) < 1) {
+      // Skip sub-pixel jitter
+      if (Math.abs(widthPx - this.lastVwPx) < 2 && Math.abs(heightPx - this.lastVhPx) < 2) {
         return;
       }
 
-      this.lastVwWu = vwWu;
-      this.lastVhWu = vhWu;
+      this.lastVwPx = widthPx;
+      this.lastVhPx = heightPx;
 
-      requestAnimationFrame(() => this.relayout());
+      if (this.relayoutRaf) cancelAnimationFrame(this.relayoutRaf);
+      this.relayoutRaf = requestAnimationFrame(() => {
+        this.relayoutRaf = null;
+        this.relayout();
+      });
     }
 
     setBoard(board) {
       this.board = board;
       this.render();
+    }
+
+    static applyItemResponsiveMetrics(el, item, wWu, hWu) {
+      if (!el) return;
+      const w = Number(wWu) || 100;
+      const h = Number(hWu) || 100;
+
+      let sizeClass = 'm';
+      if (w < 130 || h < 52) sizeClass = 'xs';
+      else if (w < 240 && h < 95) sizeClass = 's';
+      else if (w < 360 && h < 140) sizeClass = 'm';
+      else if (w < 540 && h < 220) sizeClass = 'l';
+      else sizeClass = 'xl';
+
+      const isCard = h >= 130 && (h / Math.max(1, w) >= 0.40);
+      const layoutVal = isCard ? 'stacked' : 'row';
+
+      if (el.getAttribute('data-size') !== sizeClass) {
+        el.setAttribute('data-size', sizeClass);
+      }
+      if (el.getAttribute('data-card-layout') !== layoutVal) {
+        el.setAttribute('data-card-layout', layoutVal);
+      }
+
+      if (!item || item.kind === 'widget' || el.classList.contains('stage-kind-widget')) {
+        const scaleW = w / 220;
+        const scaleH = h / 175;
+        const itemScale = Math.min(Math.max(Math.min(scaleW, scaleH), 0.62), 2.8);
+        el.style.setProperty('--item-scale', itemScale.toFixed(3));
+      }
     }
 
     render() {
@@ -285,30 +266,27 @@
       const items = this.board.config?.items || [];
       const layout = this.board.layout || {};
 
-      const vwPx = this.viewportEl.clientWidth || window.innerWidth;
-      const vhPx = this.viewportEl.clientHeight || window.innerHeight;
-      const wu = this.metrics ? this.metrics.wu : 1.0;
-      const vwWu = Math.round(vwPx / wu);
-      const vhWu = Math.round(vhPx / wu);
+      const vwPx = this.viewportEl.clientWidth || window.innerWidth || 1920;
+      const vhPx = this.viewportEl.clientHeight || (window.innerHeight - 70) || 960;
 
-      // 1. Resolve Profile
+      // 1. Resolve Profile based on viewport pixel width
+      // Mobile flow mode ONLY on narrow screens (<= 640px).
+      // All monitors, laptops, ultrawides, and video walls use the canonical 'lg' (1920x1080) layout
+      // scaled proportionally by --wu so items NEVER jump profiles or scramble positions!
       const urlParams = new URLSearchParams(window.location.search);
       const overrideProf = urlParams.get('profile');
-      const isCoarse = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+      const profiles = layout.profiles || (window.DimDashSolver ? window.DimDashSolver.DEFAULT_PROFILES : []);
 
-      let profile = window.DimDashSolver
-        ? window.DimDashSolver.resolveProfile(vwWu, vhWu, {
-            profiles: layout.profiles,
-            currentProfileId: this.currentProfile?.id,
-            overrideProfile: overrideProf,
-            displayClass: this.board.config?.settings?.display_class
-          })
-        : { id: 'lg', mode: 'fit' };
-
-      // On desktop / non-coarse pointer, avoid collapsing to mobile flow mode (xs) on window resize/zoom
-      if (!isCoarse && !overrideProf && profile.id === 'xs') {
-        const desktopProfile = (layout.profiles || []).find(p => p.id === 'sm' || p.id === 'md') || { id: 'sm', mode: 'fit' };
-        profile = { ...desktopProfile, mode: 'fit' };
+      let profile = null;
+      if (overrideProf) {
+        profile = profiles.find(p => p.id === overrideProf);
+      }
+      if (!profile) {
+        if (vwPx <= 640) {
+          profile = profiles.find(p => p.id === 'xs') || { id: 'xs', mode: 'flow', design: [390, 844] };
+        } else {
+          profile = profiles.find(p => p.id === 'lg') || { id: 'lg', mode: 'fit', design: [1920, 1080] };
+        }
       }
 
       this.currentProfile = profile;
@@ -317,63 +295,99 @@
       this.viewportEl.setAttribute('data-profile', profile.id);
       this.viewportEl.setAttribute('data-mode', this.currentMode);
 
-      this.isTenFoot = profile.ui === 'tenfoot' || profile.id === 'wall';
+      this.isTenFoot = profile.ui === 'tenfoot' || profile.id === 'wall' || vwPx >= 3200;
       if (this.isTenFoot) {
         this.viewportEl.setAttribute('data-ui', 'tenfoot');
       } else {
         this.viewportEl.removeAttribute('data-ui');
       }
 
-      // 2. Solve Layout
+      // 2. Solve Layout in canonical reference space
       const solver = window.DimDashSolver;
       if (!solver) {
         this.isRendering = false;
         return;
       }
 
-      const solved = solver.solveStageLayout(items, layout, { w: vwWu, h: vhWu }, profile.id, {
+      const designW = profile.design ? profile.design[0] : 1920;
+      const designH = profile.design ? profile.design[1] : 1080;
+
+      const solved = solver.solveStageLayout(items, layout, { w: designW, h: designH }, profile.id, {
         isRtl: document.documentElement.dir === 'rtl',
         mirrorLayoutInRtl: !!this.board.config?.settings?.mirror_layout_in_rtl
       });
 
-      // Relieve Collisions
-      const relieved = solver.relieveCollisions(solved.rects, { w: vwWu, h: vhWu });
+      // Only run collision relief when NOT actively editing in Blueprint Mode
+      const activeRects = (this.interaction && this.interaction.isEditing)
+        ? solved.rects
+        : solver.relieveCollisions(solved.rects, { w: designW, h: designH }).rects;
 
-      // Solve Mode (fit/flow/canvas) with flexible minScale and video wall support
-      const isWallDisplay = this.isTenFoot || this.board.config?.settings?.display_class === 'wall';
-      const modeResult = solver.solveMode(this.currentMode, relieved.rects, { w: vwWu, h: vhWu }, {
-        minScale: 0.8,
-        isWall: isWallDisplay,
-        maxScaleUp: 2.0
-      });
+      let finalRects = activeRects;
 
-      if (this.currentMode === 'fit') {
-        const stageScale = modeResult.scale || 1.0;
-        this.stageScale = stageScale;
-        this.canvasEl.style.setProperty('--stage-scale', stageScale);
-
-        // Center stage layout horizontally for curved ultrawide and large displays
-        const contentWidth = modeResult.contentWidth || 1920;
-        const effectiveContentWidth = contentWidth * stageScale;
-
-        if (vwWu > effectiveContentWidth) {
-          // CSS transform: scale(s) translate3d(tx, ty, 0)
-          // Visual px offset = tx * s => tx = (vwWu / stageScale - contentWidth) / 2
-          const centerTx = Math.max(0, Math.round((vwWu / stageScale - contentWidth) / 2));
-          this.canvasEl.style.setProperty('--stage-tx', `${centerTx}px`);
-        } else {
-          this.canvasEl.style.setProperty('--stage-tx', '0px');
-        }
-        this.canvasEl.style.setProperty('--stage-ty', '0px');
-      } else {
+      if (this.currentMode === 'flow') {
+        this.updatePixelScale(vwPx, vhPx, 390, 844);
+        const wu = this.metrics ? this.metrics.wu : 1.0;
+        const flowResult = solver.solveMode('flow', activeRects, {
+          w: Math.round(vwPx / wu),
+          h: Math.round(vhPx / wu)
+        }, {
+          isRtl: document.documentElement.dir === 'rtl'
+        });
+        finalRects = flowResult.rects;
         this.stageScale = 1.0;
-        this.canvasEl.style.setProperty('--stage-scale', 1.0);
+        this.centerTxPx = 0;
+        this.centerTyPx = 0;
+        this.canvasEl.style.setProperty('--stage-scale', '1');
         this.canvasEl.style.setProperty('--stage-tx', '0px');
         this.canvasEl.style.setProperty('--stage-ty', '0px');
+      } else {
+        // Compute content bounding box in logical design units (wu)
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = 0;
+        let maxY = 0;
+
+        for (const r of activeRects) {
+          if (r.pinned) continue;
+          if (r.x < minX) minX = r.x;
+          if (r.y < minY) minY = r.y;
+          if (r.x + r.w > maxX) maxX = r.x + r.w;
+          if (r.y + r.h > maxY) maxY = r.y + r.h;
+        }
+
+        if (!isFinite(minX)) minX = 40;
+        if (!isFinite(minY)) minY = 40;
+        if (maxX <= 0) maxX = 1760;
+        if (maxY <= 0) maxY = 600;
+
+        const padX = Math.max(24, Math.min(minX, 60));
+        const padY = Math.max(24, Math.min(minY, 60));
+        const contentRefW = Math.max(1800, maxX + padX);
+        const contentRefH = Math.max(640, maxY + padY);
+
+        // Lock scale and centering offset while user is actively dragging/resizing in Blueprint Mode
+        const isActivelyDragging = !!(this.interaction && this.interaction.session);
+        if (!isActivelyDragging || !this.metrics) {
+          this.updatePixelScale(vwPx, vhPx, contentRefW, contentRefH);
+        }
+
+        const wu = this.metrics ? this.metrics.wu : 1.0;
+        this.stageScale = 1.0;
+        this.canvasEl.style.setProperty('--stage-scale', '1');
+
+        if (!isActivelyDragging) {
+          const visualSpanW = (maxX + minX) * wu;
+          const centerTxPx = vwPx > visualSpanW
+            ? Math.max(0, Math.round((vwPx - visualSpanW) / 2))
+            : 0;
+          this.centerTxPx = centerTxPx;
+          this.canvasEl.style.setProperty('--stage-tx', `${centerTxPx}px`);
+          this.canvasEl.style.setProperty('--stage-ty', '0px');
+        }
       }
 
       // 3. Render or Update DOM Nodes (Node Re-use)
-      this.mountItems(modeResult.rects, items);
+      this.mountItems(finalRects, items);
 
       if (typeof window.updateWidgetValues === 'function') {
         window.updateWidgetValues();
@@ -391,15 +405,11 @@
       const itemsById = new Map();
       items.forEach(it => itemsById.set(it.id, it));
 
-      const rectsById = new Map();
-      rects.forEach(r => rectsById.set(r.id, r));
-
       const activeIds = new Set(rects.map(r => r.id));
 
       // Remove nodes no longer in active layout
       for (const [id, el] of this.itemElements.entries()) {
         if (!activeIds.has(id)) {
-          if (this.sizeObserver) this.sizeObserver.unobserve(el);
           el.remove();
           this.itemElements.delete(id);
         }
@@ -424,10 +434,16 @@
           } else {
             this.canvasEl.appendChild(el);
           }
-          if (this.sizeObserver) this.sizeObserver.observe(el);
-        } else {
-          // Re-render shaped islands or chips if dimensions changed
-          if (item.kind === 'island') {
+        } else if (item.kind === 'island') {
+          // Only re-render island innerHTML if collapse state changed or custom clip shape dimensions changed
+          const shape = item.props?.shape || 'rounded';
+          const prevW = parseFloat(el.style.getPropertyValue('--w'));
+          const prevH = parseFloat(el.style.getPropertyValue('--h'));
+          const autoBelow = item.props?.collapse?.auto_below || [120, 80];
+          const shouldBeChip = item.props?.collapse?.state === 'chip' || (rect.w < autoBelow[0] || rect.h < autoBelow[1]);
+          const wasChip = el.classList.contains('is-chip');
+
+          if (shouldBeChip !== wasChip || (shape !== 'rounded' && shape !== 'rect' && (prevW !== rect.w || prevH !== rect.h))) {
             this.renderItemContent(el, item, rect);
           }
         }
@@ -439,18 +455,7 @@
         el.style.setProperty('--h', rect.h);
         el.style.setProperty('--z', rect.z || 1);
 
-        const wWu = Number(rect.w) || 100;
-        const hWu = Number(rect.h) || 100;
-        let sizeClass = 'm';
-        if (wWu < 130 || hWu < 52) sizeClass = 'xs';
-        else if (wWu < 240 && hWu < 95) sizeClass = 's';
-        else if (wWu < 360 && hWu < 140) sizeClass = 'm';
-        else if (wWu < 540 && hWu < 220) sizeClass = 'l';
-        else sizeClass = 'xl';
-
-        const isCard = hWu >= 130 && (hWu / Math.max(1, wWu) >= 0.40);
-        el.setAttribute('data-size', sizeClass);
-        el.setAttribute('data-card-layout', isCard ? 'stacked' : 'row');
+        StageRenderer.applyItemResponsiveMetrics(el, item, rect.w, rect.h);
 
         if (rect.parent) {
           el.setAttribute('data-parent', rect.parent);
@@ -471,7 +476,7 @@
             el.innerHTML = '';
           } else if (isVisible && el.classList.contains('virtual-shell')) {
             el.classList.remove('virtual-shell');
-            this.renderItemContent(el, item);
+            this.renderItemContent(el, item, rect);
           }
         }
       }
@@ -553,7 +558,7 @@
         let svgBorderHtml = '';
         let padStyle = '';
 
-        if (window.DimDashShapes && shape !== 'rect') {
+        if (window.DimDashShapes && shape !== 'rect' && shape !== 'rounded') {
           const clipStr = window.DimDashShapes.getClipPath(shape, itemW, itemH, shapeParams);
           if (clipStr) {
             clipStyle = `clip-path: ${clipStr}; -webkit-clip-path: ${clipStr};`;
@@ -572,8 +577,8 @@
           }
         }
 
-        const headerStyle = item.props?.header?.style || 'bar';
-        const layoutMode = item.props?.layout || 'free';
+        const headerStyle = item.props?.header?.style || item.props?.headerStyle || 'bar';
+        const layoutMode = item.props?.layout || item.props?.layoutMode || 'free';
         const overflowMode = item.props?.overflow || 'clip';
         const tint = item.props?.tint ? `style="--card-bg: ${item.props.tint};"` : '';
 
@@ -640,7 +645,7 @@
               ${item.subtitle ? `<span class="stage-tile-subtitle" dir="auto">${item.subtitle}</span>` : ''}
             </div>
             <div class="tile-status-indicator">
-              <span class="pilot-light ${isOnline ? 'pilot-active' : ''}" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${statusColor}; box-shadow:0 0 8px ${statusColor};"></span>
+              <span class="pilot-light ${isOnline ? 'pilot-active' : ''}" style="display:inline-block; border-radius:50%; background:${statusColor}; box-shadow:0 0 6px ${statusColor};"></span>
             </div>
           </a>
         `;
@@ -664,6 +669,9 @@
       const color = props.color || '#38bdf8';
       const C = 213.6;
 
+      // Pure pixel-based scaling formula: calc(<px> * var(--wu) * var(--item-scale, 1))
+      const u = 'calc(var(--wu, 1) * var(--item-scale, 1))';
+
       if (type === 'clock_widget') {
         const nowInfo = (window.DimDashCalendar ? window.DimDashCalendar.getNowInfo() : null);
         let timeStr = '--:--:--';
@@ -675,11 +683,11 @@
           gregorianHtml = `<span class="clock-date-chip chip-gregorian" title="Gregorian Calendar">📅 ${nowInfo.gregorian.full}</span>`;
         }
         el.innerHTML = `
-          <div class="widget-card clock-widget-card" id="widget-card-${wId}" data-widget-id="${wId}" style="--widget-accent: ${color}; width:100%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; box-sizing:border-box; padding:12px; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
-            <div class="clock-time-display" id="clock-display-${wId}" data-time-format="24h" style="font-size:calc(1.8rem * var(--wu)); font-weight:700; letter-spacing:1px; color:#f8fafc; font-variant-numeric:tabular-nums;">
+          <div class="widget-card clock-widget-card stage-widget" id="widget-card-${wId}" data-widget-id="${wId}" style="--widget-accent: ${color}; width:100%; height:100%; min-width:0; min-height:0; display:flex; flex-direction:column; justify-content:center; align-items:center; box-sizing:border-box; padding:calc(10px * ${u}); background:rgba(15,23,42,0.78); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
+            <div class="clock-time-display" id="clock-display-${wId}" data-time-format="24h" style="font-size:calc(27px * ${u}); font-weight:800; letter-spacing:0.04em; color:#f8fafc; font-variant-numeric:tabular-nums; line-height:1.1;">
               ${timeStr}
             </div>
-            <div class="clock-dates-container" id="clock-dates-${wId}" data-calendar-mode="both" style="display:flex; flex-direction:column; align-items:center; gap:4px; margin-top:8px; font-size:calc(0.72rem * var(--wu));">
+            <div class="clock-dates-container" id="clock-dates-${wId}" data-calendar-mode="both" style="display:flex; flex-direction:column; align-items:center; gap:calc(4px * ${u}); margin-top:calc(6px * ${u}); font-size:calc(11.5px * ${u}); width:100%;">
               ${shamsiHtml}
               ${gregorianHtml}
             </div>
@@ -690,22 +698,22 @@
 
       if (type === 'cpu_gauge') {
         el.innerHTML = `
-          <div class="widget-card stage-widget" id="widget-card-${wId}" style="--widget-accent: ${color}; width:100%; height:100%; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; padding:12px; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
-            <div style="display:flex; align-items:center; justify-content:space-between;">
-              <span style="font-size:calc(0.85rem * var(--wu)); font-weight:600; color:#f8fafc;">⚡ ${title}</span>
-              <span id="metric-cores-${wId}" style="font-size:calc(0.7rem * var(--wu)); color:#94a3b8;">- Cores</span>
+          <div class="widget-card stage-widget" id="widget-card-${wId}" style="--widget-accent: ${color}; width:100%; height:100%; min-width:0; min-height:0; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; padding:calc(12px * ${u}); background:rgba(15,23,42,0.78); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:calc(6px * ${u});">
+              <span style="font-size:calc(13.5px * ${u}); font-weight:600; color:#f8fafc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">⚡ ${title}</span>
+              <span id="metric-cores-${wId}" style="font-size:calc(11px * ${u}); color:#94a3b8; white-space:nowrap; flex-shrink:0;">- Cores</span>
             </div>
-            <div style="display:flex; align-items:center; gap:12px; margin:auto 0;">
-              <div class="radial-gauge-box" style="position:relative; width:calc(64px * var(--wu)); height:calc(64px * var(--wu)); flex-shrink:0;">
+            <div style="display:flex; align-items:center; gap:calc(12px * ${u}); margin:auto 0; min-width:0;">
+              <div class="radial-gauge-box" style="position:relative; width:calc(62px * ${u}); height:calc(62px * ${u}); min-width:calc(62px * ${u}); min-height:calc(62px * ${u}); flex-shrink:0;">
                 <svg class="radial-gauge-svg" viewBox="0 0 80 80" style="width:100%; height:100%; transform:rotate(-90deg);">
                   <circle class="radial-gauge-bg" cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8" />
-                  <circle class="radial-gauge-progress" id="gauge-arc-${wId}" cx="40" cy="40" r="34" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}" style="transition:stroke-dashoffset 0.5s ease;" />
+                  <circle class="radial-gauge-progress" id="gauge-arc-${wId}" cx="40" cy="40" r="34" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}" />
                 </svg>
-                <div class="radial-gauge-val" id="gauge-val-${wId}" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:calc(0.95rem * var(--wu)); font-weight:700; color:#f8fafc;">0<span class="radial-gauge-unit">%</span></div>
+                <div class="radial-gauge-val" id="gauge-val-${wId}" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:calc(14.5px * ${u}); font-weight:700; color:#f8fafc;">0<span class="radial-gauge-unit" style="font-size:calc(10px * ${u});">%</span></div>
               </div>
-              <div style="display:flex; flex-direction:column; gap:4px; font-size:calc(0.72rem * var(--wu)); color:#94a3b8; overflow:hidden;">
-                <div>Load: <span id="metric-load-${wId}" style="color:#f8fafc; font-weight:600;">-</span></div>
-                <div id="metric-model-${wId}" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:110px;">CPU</div>
+              <div style="display:flex; flex-direction:column; gap:calc(4px * ${u}); font-size:calc(11.5px * ${u}); color:#94a3b8; overflow:hidden; min-width:0; flex:1;">
+                <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Load: <span id="metric-load-${wId}" style="color:#f8fafc; font-weight:600;">-</span></div>
+                <div id="metric-model-${wId}" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%;">CPU</div>
               </div>
             </div>
           </div>
@@ -715,21 +723,21 @@
 
       if (type === 'ram_gauge') {
         el.innerHTML = `
-          <div class="widget-card stage-widget" id="widget-card-${wId}" style="--widget-accent: ${color}; width:100%; height:100%; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; padding:12px; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
+          <div class="widget-card stage-widget" id="widget-card-${wId}" style="--widget-accent: ${color}; width:100%; height:100%; min-width:0; min-height:0; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; padding:calc(12px * ${u}); background:rgba(15,23,42,0.78); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
             <div style="display:flex; align-items:center; justify-content:space-between;">
-              <span style="font-size:calc(0.85rem * var(--wu)); font-weight:600; color:#f8fafc;">🧠 ${title}</span>
+              <span style="font-size:calc(13.5px * ${u}); font-weight:600; color:#f8fafc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🧠 ${title}</span>
             </div>
-            <div style="display:flex; align-items:center; gap:12px; margin:auto 0;">
-              <div class="radial-gauge-box" style="position:relative; width:calc(64px * var(--wu)); height:calc(64px * var(--wu)); flex-shrink:0;">
+            <div style="display:flex; align-items:center; gap:calc(12px * ${u}); margin:auto 0; min-width:0;">
+              <div class="radial-gauge-box" style="position:relative; width:calc(62px * ${u}); height:calc(62px * ${u}); min-width:calc(62px * ${u}); min-height:calc(62px * ${u}); flex-shrink:0;">
                 <svg class="radial-gauge-svg" viewBox="0 0 80 80" style="width:100%; height:100%; transform:rotate(-90deg);">
                   <circle class="radial-gauge-bg" cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8" />
-                  <circle class="radial-gauge-progress" id="gauge-arc-${wId}" cx="40" cy="40" r="34" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}" style="transition:stroke-dashoffset 0.5s ease;" />
+                  <circle class="radial-gauge-progress" id="gauge-arc-${wId}" cx="40" cy="40" r="34" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}" />
                 </svg>
-                <div class="radial-gauge-val" id="gauge-val-${wId}" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:calc(0.95rem * var(--wu)); font-weight:700; color:#f8fafc;">0<span class="radial-gauge-unit">%</span></div>
+                <div class="radial-gauge-val" id="gauge-val-${wId}" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:calc(14.5px * ${u}); font-weight:700; color:#f8fafc;">0<span class="radial-gauge-unit" style="font-size:calc(10px * ${u});">%</span></div>
               </div>
-              <div style="display:flex; flex-direction:column; gap:4px; font-size:calc(0.72rem * var(--wu)); color:#94a3b8;">
-                <div>Used: <span id="metric-ram-used-${wId}" style="color:#f8fafc; font-weight:600;">0 GB</span></div>
-                <div>Total: <span id="metric-ram-total-${wId}" style="color:#f8fafc; font-weight:600;">0 GB</span></div>
+              <div style="display:flex; flex-direction:column; gap:calc(4px * ${u}); font-size:calc(11.5px * ${u}); color:#94a3b8; overflow:hidden; min-width:0; flex:1;">
+                <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Used: <span id="metric-ram-used-${wId}" style="color:#f8fafc; font-weight:600;">0 GB</span></div>
+                <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Total: <span id="metric-ram-total-${wId}" style="color:#f8fafc; font-weight:600;">0 GB</span></div>
               </div>
             </div>
           </div>
@@ -739,21 +747,21 @@
 
       if (type === 'disk_gauge') {
         el.innerHTML = `
-          <div class="widget-card stage-widget" id="widget-card-${wId}" style="--widget-accent: ${color}; width:100%; height:100%; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; padding:12px; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
+          <div class="widget-card stage-widget" id="widget-card-${wId}" style="--widget-accent: ${color}; width:100%; height:100%; min-width:0; min-height:0; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; padding:calc(12px * ${u}); background:rgba(15,23,42,0.78); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
             <div style="display:flex; align-items:center; justify-content:space-between;">
-              <span style="font-size:calc(0.85rem * var(--wu)); font-weight:600; color:#f8fafc;">💾 ${title}</span>
+              <span style="font-size:calc(13.5px * ${u}); font-weight:600; color:#f8fafc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">💾 ${title}</span>
             </div>
-            <div style="display:flex; align-items:center; gap:12px; margin:auto 0;">
-              <div class="radial-gauge-box" style="position:relative; width:calc(64px * var(--wu)); height:calc(64px * var(--wu)); flex-shrink:0;">
+            <div style="display:flex; align-items:center; gap:calc(12px * ${u}); margin:auto 0; min-width:0;">
+              <div class="radial-gauge-box" style="position:relative; width:calc(62px * ${u}); height:calc(62px * ${u}); min-width:calc(62px * ${u}); min-height:calc(62px * ${u}); flex-shrink:0;">
                 <svg class="radial-gauge-svg" viewBox="0 0 80 80" style="width:100%; height:100%; transform:rotate(-90deg);">
                   <circle class="radial-gauge-bg" cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8" />
-                  <circle class="radial-gauge-progress" id="gauge-arc-${wId}" cx="40" cy="40" r="34" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}" style="transition:stroke-dashoffset 0.5s ease;" />
+                  <circle class="radial-gauge-progress" id="gauge-arc-${wId}" cx="40" cy="40" r="34" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}" />
                 </svg>
-                <div class="radial-gauge-val" id="gauge-val-${wId}" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:calc(0.95rem * var(--wu)); font-weight:700; color:#f8fafc;">0<span class="radial-gauge-unit">%</span></div>
+                <div class="radial-gauge-val" id="gauge-val-${wId}" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:calc(14.5px * ${u}); font-weight:700; color:#f8fafc;">0<span class="radial-gauge-unit" style="font-size:calc(10px * ${u});">%</span></div>
               </div>
-              <div style="display:flex; flex-direction:column; gap:4px; font-size:calc(0.72rem * var(--wu)); color:#94a3b8;">
-                <div>Used: <span id="metric-disk-used-${wId}" style="color:#f8fafc; font-weight:600;">0 GB</span></div>
-                <div>Free: <span id="metric-disk-free-${wId}" style="color:#f8fafc; font-weight:600;">0 GB</span></div>
+              <div style="display:flex; flex-direction:column; gap:calc(4px * ${u}); font-size:calc(11.5px * ${u}); color:#94a3b8; overflow:hidden; min-width:0; flex:1;">
+                <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Used: <span id="metric-disk-used-${wId}" style="color:#f8fafc; font-weight:600;">0 GB</span></div>
+                <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Free: <span id="metric-disk-free-${wId}" style="color:#f8fafc; font-weight:600;">0 GB</span></div>
               </div>
             </div>
           </div>
@@ -763,20 +771,20 @@
 
       if (type === 'network_traffic') {
         el.innerHTML = `
-          <div class="widget-card stage-widget" id="widget-card-${wId}" style="--widget-accent: ${color}; width:100%; height:100%; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; padding:12px; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
+          <div class="widget-card stage-widget" id="widget-card-${wId}" style="--widget-accent: ${color}; width:100%; height:100%; min-width:0; min-height:0; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; padding:calc(12px * ${u}); background:rgba(15,23,42,0.78); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
             <div style="display:flex; align-items:center; justify-content:space-between;">
-              <span style="font-size:calc(0.85rem * var(--wu)); font-weight:600; color:#f8fafc;">🌐 ${title}</span>
+              <span style="font-size:calc(13.5px * ${u}); font-weight:600; color:#f8fafc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🌐 ${title}</span>
             </div>
-            <div style="display:flex; flex-direction:column; justify-content:center; gap:6px; margin:auto 0; font-size:calc(0.75rem * var(--wu));">
-              <div style="display:flex; justify-content:space-between; color:#94a3b8;">
+            <div style="display:flex; flex-direction:column; justify-content:center; gap:calc(6px * ${u}); margin:auto 0; font-size:calc(12px * ${u}); min-width:0;">
+              <div style="display:flex; justify-content:space-between; gap:calc(4px * ${u}); color:#94a3b8; white-space:nowrap;">
                 <span>⬇️ RX Rate:</span>
                 <span id="net-rx-speed-${wId}" style="color:#38bdf8; font-weight:700;">0 KB/s</span>
               </div>
-              <div style="display:flex; justify-content:space-between; color:#94a3b8;">
+              <div style="display:flex; justify-content:space-between; gap:calc(4px * ${u}); color:#94a3b8; white-space:nowrap;">
                 <span>⬆️ TX Rate:</span>
                 <span id="net-tx-speed-${wId}" style="color:#10b981; font-weight:700;">0 KB/s</span>
               </div>
-              <div id="net-total-io-${wId}" style="font-size:calc(0.68rem * var(--wu)); color:#64748b; text-align:center; margin-top:4px;">
+              <div id="net-total-io-${wId}" style="font-size:calc(10.8px * ${u}); color:#64748b; text-align:center; margin-top:calc(4px * ${u}); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                 ⬇️ 0 MB | ⬆️ 0 MB
               </div>
             </div>
@@ -795,26 +803,26 @@
         const dashOffset = C - (pct / 100) * C;
 
         el.innerHTML = `
-          <div class="widget-card stage-widget docker-widget-card" id="widget-card-${wId}" onclick="if(!document.getElementById('stageViewport')?.classList.contains('is-resizing') && !document.getElementById('stageViewport')?.classList.contains('is-interacting') && window.openDockerContainersModal) window.openDockerContainersModal();" title="${isFa ? 'مشاهده لیست کامل کانتینرها (برای مشاهده کلیک کنید)' : 'Click to view containers'}" style="--widget-accent: ${color}; width:100%; height:100%; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; padding:12px; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu)); cursor:pointer; transition:border-color 0.2s, transform 0.15s;">
-            <div style="display:flex; align-items:center; justify-content:space-between;">
-              <span style="font-size:calc(0.85rem * var(--wu)); font-weight:600; color:#f8fafc;">🐳 ${title}</span>
-              <span style="font-size:calc(0.68rem * var(--wu)); color:#38bdf8; opacity:0.85; font-weight:500;">🔍 ${isFa ? 'جزئیات' : 'Details'}</span>
+          <div class="widget-card stage-widget docker-widget-card" id="widget-card-${wId}" onclick="if(!document.getElementById('stageViewport')?.classList.contains('is-resizing') && !document.getElementById('stageViewport')?.classList.contains('is-interacting') && window.openDockerContainersModal) window.openDockerContainersModal();" title="${isFa ? 'مشاهده لیست کامل کانتینرها (برای مشاهده کلیک کنید)' : 'Click to view containers'}" style="--widget-accent: ${color}; width:100%; height:100%; min-width:0; min-height:0; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; padding:calc(12px * ${u}); background:rgba(15,23,42,0.78); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu)); cursor:pointer;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:calc(4px * ${u});">
+              <span style="font-size:calc(13.5px * ${u}); font-weight:600; color:#f8fafc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🐳 ${title}</span>
+              <span style="font-size:calc(10.8px * ${u}); color:#38bdf8; opacity:0.85; font-weight:500; white-space:nowrap; flex-shrink:0;">🔍 ${isFa ? 'جزئیات' : 'Details'}</span>
             </div>
-            <div style="display:flex; align-items:center; gap:12px; margin:auto 0;">
-              <div class="radial-gauge-box" style="position:relative; width:calc(64px * var(--wu)); height:calc(64px * var(--wu)); flex-shrink:0;">
+            <div style="display:flex; align-items:center; gap:calc(12px * ${u}); margin:auto 0; min-width:0;">
+              <div class="radial-gauge-box" style="position:relative; width:calc(62px * ${u}); height:calc(62px * ${u}); min-width:calc(62px * ${u}); min-height:calc(62px * ${u}); flex-shrink:0;">
                 <svg class="radial-gauge-svg" viewBox="0 0 80 80" style="width:100%; height:100%; transform:rotate(-90deg);">
                   <circle class="radial-gauge-bg" cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8" />
-                  <circle class="radial-gauge-progress" id="gauge-arc-${wId}" cx="40" cy="40" r="34" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${dashOffset}" style="transition:stroke-dashoffset 0.5s ease;" />
+                  <circle class="radial-gauge-progress" id="gauge-arc-${wId}" cx="40" cy="40" r="34" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${dashOffset}" />
                 </svg>
-                <div class="radial-gauge-val" id="gauge-val-${wId}" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:calc(0.95rem * var(--wu)); font-weight:700; color:#f8fafc;">${running}<span class="radial-gauge-unit">${isFa ? 'فعال' : 'Up'}</span></div>
+                <div class="radial-gauge-val" id="gauge-val-${wId}" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:calc(14.5px * ${u}); font-weight:700; color:#f8fafc;">${running}<span class="radial-gauge-unit" style="font-size:calc(10px * ${u});">${isFa ? 'فعال' : 'Up'}</span></div>
               </div>
-              <div style="display:flex; flex-direction:column; gap:3px; font-size:calc(0.72rem * var(--wu)); color:#94a3b8;">
-                <div id="docker-running-${wId}" style="color:#10b981; font-weight:600;">${running} ${isFa ? 'در حال اجرا' : 'Containers'}</div>
-                <div id="docker-stopped-${wId}" style="color:#94a3b8; font-size:calc(0.68rem * var(--wu));">${stopped} ${isFa ? 'متوقف' : 'Containers'}</div>
-                <div id="docker-total-${wId}">${total} ${isFa ? 'کل کانتینرها' : 'Total'}</div>
+              <div style="display:flex; flex-direction:column; gap:calc(3px * ${u}); font-size:calc(11.5px * ${u}); color:#94a3b8; overflow:hidden; min-width:0; flex:1;">
+                <div id="docker-running-${wId}" style="color:#10b981; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${running} ${isFa ? 'در حال اجرا' : 'Containers'}</div>
+                <div id="docker-stopped-${wId}" style="color:#94a3b8; font-size:calc(10.8px * ${u}); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${stopped} ${isFa ? 'متوقف' : 'Containers'}</div>
+                <div id="docker-total-${wId}" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${total} ${isFa ? 'کل کانتینرها' : 'Total'}</div>
               </div>
             </div>
-            <div class="docker-mini-list" id="docker-mini-list-${wId}" style="display:none; flex-direction:column; gap:3px; border-top:1px solid rgba(255,255,255,0.07); padding-top:6px; font-size:calc(0.68rem * var(--wu)); color:#cbd5e1; overflow:hidden;"></div>
+            <div class="docker-mini-list" id="docker-mini-list-${wId}" style="display:none; flex-direction:column; gap:calc(3px * ${u}); border-top:1px solid rgba(255,255,255,0.07); padding-top:calc(6px * ${u}); font-size:calc(10.8px * ${u}); color:#cbd5e1; overflow:hidden;"></div>
           </div>
         `;
         return;
@@ -822,15 +830,15 @@
 
       if (type === 'host_info') {
         el.innerHTML = `
-          <div class="widget-card stage-widget" id="widget-card-${wId}" style="--widget-accent: ${color}; width:100%; height:100%; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; padding:12px; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
+          <div class="widget-card stage-widget" id="widget-card-${wId}" style="--widget-accent: ${color}; width:100%; height:100%; min-width:0; min-height:0; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; padding:calc(12px * ${u}); background:rgba(15,23,42,0.78); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
             <div style="display:flex; align-items:center; justify-content:space-between;">
-              <span style="font-size:calc(0.85rem * var(--wu)); font-weight:600; color:#f8fafc;">🖥️ ${title}</span>
+              <span style="font-size:calc(13.5px * ${u}); font-weight:600; color:#f8fafc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🖥️ ${title}</span>
             </div>
-            <div style="display:flex; flex-direction:column; justify-content:center; gap:5px; margin:auto 0; font-size:calc(0.72rem * var(--wu));">
-              <div>Host: <span id="host-hostname-${wId}" style="color:#f8fafc; font-weight:600;">-</span></div>
-              <div>OS: <span id="host-os-${wId}" style="color:#94a3b8;">-</span></div>
-              <div>Uptime: <span id="host-uptime-${wId}" style="color:#f8fafc; font-weight:600;">-</span></div>
-              <div id="host-status-${wId}" style="color:#10b981; font-weight:600; margin-top:2px;">🛡️ Online</div>
+            <div style="display:flex; flex-direction:column; justify-content:center; gap:calc(5px * ${u}); margin:auto 0; font-size:calc(11.5px * ${u}); min-width:0; overflow:hidden;">
+              <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Host: <span id="host-hostname-${wId}" style="color:#f8fafc; font-weight:600;">-</span></div>
+              <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">OS: <span id="host-os-${wId}" style="color:#94a3b8;">-</span></div>
+              <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Uptime: <span id="host-uptime-${wId}" style="color:#f8fafc; font-weight:600;">-</span></div>
+              <div id="host-status-${wId}" style="color:#10b981; font-weight:600; margin-top:calc(2px * ${u}); white-space:nowrap;">🛡️ Online</div>
             </div>
           </div>
         `;
@@ -839,7 +847,7 @@
 
       // Default generic widget
       el.innerHTML = `
-        <div class="widget-card stage-widget" id="widget-card-${wId}" style="width:100%; height:100%; padding:12px; box-sizing:border-box; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
+        <div class="widget-card stage-widget" id="widget-card-${wId}" style="width:100%; height:100%; min-width:0; min-height:0; padding:calc(12px * ${u}); box-sizing:border-box; background:rgba(15,23,42,0.78); border:1px solid rgba(255,255,255,0.08); border-radius:calc(14px * var(--wu));">
           <span class="stage-tile-title">${title}</span>
         </div>
       `;
@@ -888,6 +896,7 @@
 
         // 2. Spatial Arrow Navigation
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+          if (this.interaction && this.interaction.isEditing) return;
           const items = Array.from(this.itemElements.values());
           if (items.length === 0) return;
 
@@ -941,6 +950,7 @@
 
         // 3. Enter key
         if (e.key === 'Enter') {
+          if (this.interaction && this.interaction.isEditing) return;
           const activeEl = document.activeElement;
           if (activeEl && this.itemElements.has(activeEl.getAttribute('data-id'))) {
             const link = activeEl.querySelector('.stage-service-tile');
@@ -977,9 +987,9 @@
     destroy() {
       if (this._keyboardHandler) window.removeEventListener('keydown', this._keyboardHandler);
       if (this.announcementTimer) clearTimeout(this.announcementTimer);
+      if (this.relayoutRaf) cancelAnimationFrame(this.relayoutRaf);
       if (this.interaction) this.interaction.destroy();
       if (this.resizeObserver) this.resizeObserver.disconnect();
-      if (this.sizeObserver) this.sizeObserver.disconnect();
       clearTimeout(this.idleTimer);
       if (this.container) this.container.innerHTML = '';
     }

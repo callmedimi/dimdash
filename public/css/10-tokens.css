@@ -7,15 +7,15 @@
   /* ------------------------------------------------------------------------
      1. Base World Unit & Spatial Rhythm (Rooted in P03 Scale Math)
      ------------------------------------------------------------------------ */
-  --wu: 4px; /* World unit: 1wu = 4px on standard 1080p desktop */
-  --space-1: calc(1 * var(--wu));   /* 4px */
-  --space-2: calc(2 * var(--wu));   /* 8px */
-  --space-3: calc(3 * var(--wu));   /* 12px */
-  --space-4: calc(4 * var(--wu));   /* 16px */
-  --space-6: calc(6 * var(--wu));   /* 24px */
-  --space-8: calc(8 * var(--wu));   /* 32px */
-  --space-12: calc(12 * var(--wu)); /* 48px */
-  --space-16: calc(16 * var(--wu)); /* 64px */
+  --wu: 1; /* Unitless pixel scale multiplier: 1.0 on 1920x1080 reference */
+  --space-1: calc(4px * var(--wu));   /* 4px */
+  --space-2: calc(8px * var(--wu));   /* 8px */
+  --space-3: calc(12px * var(--wu));  /* 12px */
+  --space-4: calc(16px * var(--wu));  /* 16px */
+  --space-6: calc(24px * var(--wu));  /* 24px */
+  --space-8: calc(32px * var(--wu));  /* 32px */
+  --space-12: calc(48px * var(--wu)); /* 48px */
+  --space-16: calc(64px * var(--wu)); /* 64px */
 
   /* ------------------------------------------------------------------------
      2. Role-Based Radii Tokens

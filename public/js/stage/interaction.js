@@ -2,6 +2,7 @@
  * DimDash Interaction Engine & State Machine
  * WYSIWYG, in-place direct manipulation on the Stage:
  * Move, Resize, Pan, Marquee Lasso, Carry Mode, Magnetic Snap, and Optimistic Patch Commits.
+ * Optimized for zero layout-thrashing and 60/120fps on Linux (Fedora Wayland/X11).
  * Universal module (Node.js & Browser)
  */
 (function (root, factory) {
@@ -99,12 +100,16 @@
       this.state = STATES.IDLE;
       this.selectedIds = new Set();
       this.activeHandle = null;
+      this.hoverHandle = null;
 
       this.history = new HistoryController(options.maxUndo || 200);
 
       // Captured drag/interaction session
       this.session = null;
       this.rafPending = false;
+      this.hoverRafPending = false;
+      this.overlayRafPending = false;
+      this.pendingOverlayExtra = {};
       this.promoteTimer = null;
 
       // Clipboard for copy/paste
@@ -170,7 +175,7 @@
       if (!el) return;
 
       el.addEventListener('pointerdown', this.boundPointerDown);
-      el.addEventListener('pointermove', this.boundPointerMove);
+      el.addEventListener('pointermove', this.boundPointerMove, { passive: true });
       el.addEventListener('pointerup', this.boundPointerUp);
       el.addEventListener('pointercancel', this.boundPointerCancel);
       el.addEventListener('pointerleave', this.boundPointerLeave);
@@ -294,9 +299,69 @@
       return rects;
     }
 
+    /**
+     * Computes screen rects without triggering Forced Synchronous Layout during active MOVE/RESIZE loops.
+     */
     getSelectedScreenRects() {
       if (!this.stage?.viewportEl) return [];
+
+      // Fast path during MOVE: compute mathematically from session start rects + delta
+      if (this.state === STATES.MOVE && this.session?.dragItems) {
+        const wu = this.stage.metrics ? this.stage.metrics.wu : 1.0;
+        const stageScale = this.stage.stageScale || 1.0;
+        const dxPx = (this.session.currentDxWu || 0) * wu * stageScale;
+        const dyPx = (this.session.currentDyWu || 0) * wu * stageScale;
+        const rects = [];
+        for (const it of this.session.dragItems) {
+          if (it.startScreenRect) {
+            const sx = it.startScreenRect.screenX + dxPx;
+            const sy = it.startScreenRect.screenY + dyPx;
+            rects.push({
+              id: it.id,
+              screenX: sx,
+              screenY: sy,
+              screenW: it.startScreenRect.screenW,
+              screenH: it.startScreenRect.screenH,
+              x: sx,
+              y: sy,
+              w: it.startScreenRect.screenW,
+              h: it.startScreenRect.screenH
+            });
+          }
+        }
+        if (rects.length > 0) return rects;
+      }
+
+      // Fast path during RESIZE: compute mathematically from session startScreenRect + resized delta
+      if (this.state === STATES.RESIZE && this.session?.currentRect && this.session?.startScreenRect) {
+        const wu = this.stage.metrics ? this.stage.metrics.wu : 1.0;
+        const stageScale = this.stage.stageScale || 1.0;
+        const factor = wu * stageScale;
+        const sr = this.session.startRect;
+        const cr = this.session.currentRect;
+        const ssr = this.session.startScreenRect;
+
+        const sx = ssr.screenX + (cr.x - sr.x) * factor;
+        const sy = ssr.screenY + (cr.y - sr.y) * factor;
+        const sw = cr.w * factor;
+        const sh = cr.h * factor;
+
+        return [{
+          id: this.session.itemId,
+          screenX: sx,
+          screenY: sy,
+          screenW: sw,
+          screenH: sh,
+          x: sx,
+          y: sy,
+          w: sw,
+          h: sh
+        }];
+      }
+
+      // Idle / selection measurement path
       const vpRect = this.stage.viewportEl.getBoundingClientRect();
+      this.cachedViewportRect = vpRect;
       const rects = [];
 
       for (const id of this.selectedIds) {
@@ -326,8 +391,6 @@
       if (!this.isEditing) return;
 
       const viewportEl = this.stage.viewportEl;
-      const camera = this.stage.camera || { x: 0, y: 0, z: 1 };
-      const wu = this.stage.metrics ? this.stage.metrics.wu : 1.0;
       const isCoarse = e.pointerType === 'touch' || window.matchMedia?.('(pointer: coarse)').matches;
 
       const rect = viewportEl.getBoundingClientRect();
@@ -335,17 +398,7 @@
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
 
-      // STEP 0: Hit-test probe behind ?debug=1
-      if (window.location.search.includes('debug=1')) {
-        const elements = document.elementsFromPoint(e.clientX, e.clientY);
-        console.log('[DEBUG Hit-Test Probe]', {
-          point: { clientX: e.clientX, clientY: e.clientY, screenX, screenY },
-          elementsUnderPoint: elements.map(el => el.id || el.getAttribute('data-id') || el.className),
-          topOverlay: elements[0]?.className
-        });
-      }
-
-      // 1. Check Handle Hit Test on currently selected items (Source of truth: measured screen bounds)
+      // 1. Check Handle Hit Test on currently selected items
       const selectedScreenRects = this.getSelectedScreenRects();
       let hitHandle = null;
       let handleItemId = null;
@@ -368,11 +421,10 @@
         // Direct border grab on unselected item
         const itemEl = e.target.closest('.stage-item');
         if (itemEl && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
-          const vpRect = viewportEl.getBoundingClientRect();
           const r = itemEl.getBoundingClientRect();
           const screenBounds = {
-            x: r.left - vpRect.left,
-            y: r.top - vpRect.top,
+            x: r.left - rect.left,
+            y: r.top - rect.top,
             w: r.width,
             h: r.height
           };
@@ -425,6 +477,7 @@
           if (pId === handleItemId) {
             childrenStart.push({
               id: it.id,
+              item: it,
               x: Number(itemPl?.x) || 0,
               y: Number(itemPl?.y) || 0,
               w: Math.max(10, Number(itemPl?.w) || 100),
@@ -445,6 +498,7 @@
           startX: screenX,
           startY: screenY,
           startRect: { ...p },
+          currentRect: { ...p },
           startScreenRect: targetScreenRect || { ...selectedScreenRects[0] },
           shiftKey: e.shiftKey,
           altKey: e.altKey,
@@ -467,7 +521,7 @@
           this.selectItem(id, false);
         }
 
-        // Measure once before move loop starts
+        // Measure once before move loop starts (zero DOM reads inside move loop)
         const profile = this.stage.currentProfile?.id || 'lg';
         const dragItems = [];
 
@@ -475,6 +529,7 @@
           const p = this.getItemPlacement(selId, profile);
           const el = this.stage.itemElements.get(selId);
           if (p && el) {
+            const elRect = el.getBoundingClientRect();
             const itemObj = this.stage.board.config?.items?.find(it => it.id === selId);
             const childElements = [];
 
@@ -498,6 +553,12 @@
               origY: Number(p.y) || 0,
               w: Number(p.w) || 100,
               h: Number(p.h) || 100,
+              startScreenRect: {
+                screenX: elRect.left - rect.left,
+                screenY: elRect.top - rect.top,
+                screenW: elRect.width,
+                screenH: elRect.height
+              },
               childElements
             });
           }
@@ -507,6 +568,8 @@
           pointerId: e.pointerId,
           startX: screenX,
           startY: screenY,
+          currentDxWu: 0,
+          currentDyWu: 0,
           dragItems,
           snapGuides: [],
           shiftKey: e.shiftKey,
@@ -526,7 +589,7 @@
           startX: screenX,
           startY: screenY
         });
-        viewportEl.setPointerCapture(e.pointerId);
+        try { viewportEl.setPointerCapture(e.pointerId); } catch (_) {}
         e.preventDefault();
         return;
       }
@@ -543,15 +606,15 @@
         currentX: screenX,
         currentY: screenY
       });
-      viewportEl.setPointerCapture(e.pointerId);
+      try { viewportEl.setPointerCapture(e.pointerId); } catch (_) {}
     }
 
     onPointerMove(e) {
       if (!this.isEditing) return;
 
       const viewportEl = this.stage.viewportEl;
-      const rect = (this.session && this.cachedViewportRect) ? this.cachedViewportRect : viewportEl.getBoundingClientRect();
-      if (!this.session) {
+      const rect = this.cachedViewportRect || viewportEl.getBoundingClientRect();
+      if (!this.cachedViewportRect) {
         this.cachedViewportRect = rect;
       }
       const screenX = e.clientX - rect.left;
@@ -560,10 +623,19 @@
       const camera = this.stage.camera || { x: 0, y: 0, z: 1 };
       const wu = this.stage.metrics ? this.stage.metrics.wu : 1.0;
 
-      // Update hover handle cursor if idle
+      // Throttle hover handle cursor and grid redraw in IDLE to 1 per animation frame
       if (this.state === STATES.IDLE) {
-        this.updateHoverCursor(screenX, screenY, camera, wu);
-        this.requestOverlayRedraw({ pointerPos: { screenX, screenY } });
+        this._lastHoverPoint = { screenX, screenY, clientX: e.clientX, clientY: e.clientY };
+        if (!this.hoverRafPending) {
+          this.hoverRafPending = true;
+          requestAnimationFrame(() => {
+            this.hoverRafPending = false;
+            if (this.state !== STATES.IDLE || !this._lastHoverPoint) return;
+            const pt = this._lastHoverPoint;
+            this.updateHoverCursor(pt.screenX, pt.screenY, camera, wu, pt.clientX, pt.clientY);
+            this.requestOverlayRedraw({ pointerPos: { screenX: pt.screenX, screenY: pt.screenY } });
+          });
+        }
         return;
       }
 
@@ -638,14 +710,15 @@
       this.transitionTo(STATES.IDLE);
     }
 
-    onPointerLeave(e) {
+    onPointerLeave() {
       if (this.state === STATES.IDLE) {
         this.hoverHandle = null;
+        this.cachedViewportRect = null;
         if (this.stage?.viewportEl) {
           this.stage.viewportEl.style.cursor = '';
           this.stage.viewportEl.removeAttribute('data-hover-handle');
         }
-        this.requestOverlayRedraw({ hoverHandle: null });
+        this.requestOverlayRedraw({ hoverHandle: null, pointerPos: null });
       }
     }
 
@@ -662,12 +735,10 @@
       const cursorY = e.clientY - rect.top;
 
       if (e.ctrlKey || e.metaKey || Math.abs(e.deltaZ) > 0) {
-        // Zoom
         const zoomDelta = -e.deltaY * 0.002;
         const zoomFactor = Math.exp(zoomDelta);
         camera.zoomAt(zoomFactor, cursorX, cursorY);
       } else {
-        // Pan
         camera.pan(-e.deltaX, -e.deltaY);
       }
 
@@ -698,7 +769,7 @@
       const primary = this.session.dragItems[0];
       if (!primary) return;
 
-      let candidateRect = {
+      const candidateRect = {
         x: primary.origX + dxWu,
         y: primary.origY + dyWu,
         w: primary.w,
@@ -739,13 +810,14 @@
       this.session.currentDxWu = dxWu;
       this.session.currentDyWu = dyWu;
       this.session.snapGuides = snapGuides;
+      this.session.lastScreenX = screenX;
+      this.session.lastScreenY = screenY;
 
-      // Pure number computation; schedule single transform write
       if (!this.rafPending) {
         this.rafPending = true;
         requestAnimationFrame(() => {
           this.rafPending = false;
-          if (this.state !== STATES.MOVE) return;
+          if (this.state !== STATES.MOVE || !this.session) return;
 
           const pxDx = this.session.currentDxWu * wu;
           const pxDy = this.session.currentDyWu * wu;
@@ -754,7 +826,6 @@
             item.el.style.transform = `translate3d(calc((var(--x, 0) * var(--wu) + ${pxDx.toFixed(1)}) * 1px), calc((var(--y, 0) * var(--wu) + ${pxDy.toFixed(1)}) * 1px), 0)`;
             item.el.style.zIndex = '999';
 
-            // Also move children if item is an island
             if (item.childElements && item.childElements.length > 0) {
               for (const child of item.childElements) {
                 child.el.style.transform = `translate3d(calc((var(--x, 0) * var(--wu) + ${pxDx.toFixed(1)}) * 1px), calc((var(--y, 0) * var(--wu) + ${pxDy.toFixed(1)}) * 1px), 0)`;
@@ -763,9 +834,9 @@
             }
           }
 
-          this.requestOverlayRedraw({
+          this.flushOverlayRedraw({
             snapGuides: this.session.snapGuides,
-            pointerPos: { screenX, screenY }
+            pointerPos: { screenX: this.session.lastScreenX, screenY: this.session.lastScreenY }
           });
         });
       }
@@ -812,7 +883,6 @@
         } else if (handle === 'n' || handle === 's') {
           newW = Math.max(minW, newH * origAspect);
         } else {
-          // Corner handles: fit to dominant dimension
           const scaleW = newW / origW;
           const scaleH = newH / origH;
           const scale = Math.max(scaleW, scaleH);
@@ -871,6 +941,8 @@
       );
 
       this.session.currentRect = resized;
+      this.session.lastScreenX = screenX;
+      this.session.lastScreenY = screenY;
 
       // Scale child items proportionally if resizing a group / island container
       if (this.session.childrenStart && this.session.childrenStart.length > 0) {
@@ -892,57 +964,52 @@
         this.rafPending = true;
         requestAnimationFrame(() => {
           this.rafPending = false;
-          if (this.state !== STATES.RESIZE) return;
+          if (this.state !== STATES.RESIZE || !this.session) return;
 
+          const cur = this.session.currentRect;
           const el = this.stage.itemElements.get(this.session.itemId);
           if (el) {
-            const worldX = (this.session.parentWorldX || 0) + resized.x;
-            const worldY = (this.session.parentWorldY || 0) + resized.y;
+            const worldX = (this.session.parentWorldX || 0) + cur.x;
+            const worldY = (this.session.parentWorldY || 0) + cur.y;
 
             el.style.setProperty('--x', worldX);
             el.style.setProperty('--y', worldY);
-            el.style.setProperty('--w', resized.w);
-            el.style.setProperty('--h', resized.h);
+            el.style.setProperty('--w', cur.w);
+            el.style.setProperty('--h', cur.h);
 
-            const wWu = Number(resized.w) || 100;
-            const hWu = Number(resized.h) || 100;
-            let sizeClass = 'm';
-            if (wWu < 130 || hWu < 52) sizeClass = 'xs';
-            else if (wWu < 240 && hWu < 95) sizeClass = 's';
-            else if (wWu < 360 && hWu < 140) sizeClass = 'm';
-            else if (wWu < 540 && hWu < 220) sizeClass = 'l';
-            else sizeClass = 'xl';
-
-            const isCard = hWu >= 130 && (hWu / Math.max(1, wWu) >= 0.40);
-            el.setAttribute('data-size', sizeClass);
-            el.setAttribute('data-card-layout', isCard ? 'stacked' : 'row');
+            if (window.DimDashStage && window.DimDashStage.StageRenderer) {
+              window.DimDashStage.StageRenderer.applyItemResponsiveMetrics(el, itemObj, cur.w, cur.h);
+            }
           }
 
-          // Live update child elements inside group
+          // Live update child elements inside group (including their responsive font/icon size classes!)
           if (this.session.childrenStart && this.session.childrenStart.length > 0) {
-            const parentWorldX = (this.session.parentWorldX || 0) + resized.x;
-            const parentWorldY = (this.session.parentWorldY || 0) + resized.y;
+            const parentWorldX = (this.session.parentWorldX || 0) + cur.x;
+            const parentWorldY = (this.session.parentWorldY || 0) + cur.y;
             for (const child of this.session.childrenStart) {
               if (child.el && child.current) {
                 child.el.style.setProperty('--x', parentWorldX + child.current.x);
                 child.el.style.setProperty('--y', parentWorldY + child.current.y);
                 child.el.style.setProperty('--w', child.current.w);
                 child.el.style.setProperty('--h', child.current.h);
+                if (window.DimDashStage && window.DimDashStage.StageRenderer) {
+                  window.DimDashStage.StageRenderer.applyItemResponsiveMetrics(child.el, child.item, child.current.w, child.current.h);
+                }
               }
             }
           }
 
           const worldRect = {
-            x: (this.session.parentWorldX || 0) + resized.x,
-            y: (this.session.parentWorldY || 0) + resized.y,
-            w: resized.w,
-            h: resized.h
+            x: (this.session.parentWorldX || 0) + cur.x,
+            y: (this.session.parentWorldY || 0) + cur.y,
+            w: cur.w,
+            h: cur.h
           };
 
-          this.requestOverlayRedraw({
+          this.flushOverlayRedraw({
             activeHandle: this.session.handle,
             sizingInfo: { rect: worldRect },
-            pointerPos: { screenX, screenY }
+            pointerPos: { screenX: this.session.lastScreenX, screenY: this.session.lastScreenY }
           });
         });
       }
@@ -987,6 +1054,7 @@
       } else if (newState === STATES.IDLE) {
         this.session = null;
         this.activeHandle = null;
+        this.cachedViewportRect = null;
         if (this.stage?.viewportEl) {
           this.stage.viewportEl.classList.remove('is-resizing');
           this.stage.viewportEl.removeAttribute('data-hover-handle');
@@ -997,16 +1065,18 @@
     }
 
     promoteLayers() {
+      clearTimeout(this.promoteTimer);
+      if (this.stage?.qualityManager) {
+        this.stage.qualityManager.setInteracting(true);
+      }
       if (this.stage?.viewportEl) {
         this.stage.viewportEl.classList.add('is-interacting');
       }
       if (this.session?.dragItems) {
         for (const it of this.session.dragItems) {
-          it.el.style.willChange = 'transform';
           it.el.classList.add('is-dragging');
           if (it.childElements) {
             for (const child of it.childElements) {
-              child.el.style.willChange = 'transform';
               child.el.classList.add('is-dragging');
             }
           }
@@ -1017,6 +1087,9 @@
     demoteLayers() {
       clearTimeout(this.promoteTimer);
       this.promoteTimer = setTimeout(() => {
+        if (this.stage?.qualityManager) {
+          this.stage.qualityManager.setInteracting(false);
+        }
         if (this.stage?.viewportEl) {
           this.stage.viewportEl.classList.remove('is-interacting');
           this.stage.viewportEl.classList.remove('is-resizing');
@@ -1028,13 +1101,20 @@
             el.classList.remove('is-dragging');
           }
         }
-      }, 150);
+      }, 100);
     }
 
     rollbackSessionTransforms() {
       if (this.session?.dragItems) {
         for (const it of this.session.dragItems) {
           it.el.style.transform = '';
+          it.el.style.zIndex = '';
+          if (it.childElements) {
+            for (const child of it.childElements) {
+              child.el.style.transform = '';
+              child.el.style.zIndex = '';
+            }
+          }
         }
       }
       if (this.session?.itemId && this.session?.startRect) {
@@ -1062,7 +1142,6 @@
       const inverses = [];
       const dxWu = this.session.currentDxWu || 0;
       const dyWu = this.session.currentDyWu || 0;
-      // Clean up temporary DOM transforms and zIndex
       for (const it of this.session.dragItems) {
         it.el.style.transform = '';
         it.el.style.zIndex = '';
@@ -1074,7 +1153,6 @@
         }
       }
 
-      // Check if distance > 1wu so tiny clicks are not treated as moves
       const movedDist = Math.hypot(dxWu, dyWu);
       if (movedDist < 1) {
         return;
@@ -1085,7 +1163,6 @@
         let finalY = Math.round(it.origY + dyWu);
         let newParent = it.parent;
 
-        // If this is a child tile/widget (not an island), check if dropped into an island or onto empty board
         if (it.kind !== 'island') {
           let globalX = finalX;
           let globalY = finalY;
@@ -1105,7 +1182,7 @@
             if (potentialIsland.kind === 'island' && potentialIsland.id !== it.id) {
               const islEl = this.stage.itemElements?.get(potentialIsland.id);
               const islP = this.getItemPlacement(potentialIsland.id, profile);
-              
+
               let ix = Number(islP?.x) || 0;
               let iy = Number(islP?.y) || 0;
               let iw = Number(islP?.w) || 200;
@@ -1159,7 +1236,6 @@
           confItem.parent = newParent;
         }
 
-        // Update spatial index
         if (this.stage.spatialIndex) {
           this.stage.spatialIndex.update({
             id: it.id,
@@ -1366,7 +1442,6 @@
       .then(data => {
         if (!data.ok) {
           console.warn('[DimDashInteraction] Patch rejected by server:', data);
-          // Rollback if conflict
           if (data.status === 409) {
             this.stage.render();
           }
@@ -1383,12 +1458,10 @@
      * Keyboard Navigation & Parity
      * ------------------------------------------------------------- */
     onKeyDown(e) {
-      // Don't intercept if user is typing in an input/textarea
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
         return;
       }
 
-      // E key (or Persian layout 'ث'): toggle edit mode
       if (e.code === 'KeyE' || e.key === 'e' || e.key === 'E' || e.key === 'ث') {
         if (!e.ctrlKey && !e.metaKey && !e.altKey) {
           e.preventDefault();
@@ -1399,7 +1472,6 @@
 
       if (!this.isEditing) return;
 
-      // Esc: clear selection, cancel carry mode, or exit edit mode
       if (e.key === 'Escape') {
         e.preventDefault();
         if (this.selectedIds.size > 0 || this.carryActive) {
@@ -1411,14 +1483,12 @@
         return;
       }
 
-      // Ctrl+Z: Undo
       if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z') && !e.shiftKey) {
         e.preventDefault();
         this.undo();
         return;
       }
 
-      // Ctrl+Shift+Z or Ctrl+Y: Redo
       if (
         ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z')) ||
         ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y'))
@@ -1428,14 +1498,12 @@
         return;
       }
 
-      // Tab / Shift+Tab: cycle selection
       if (e.key === 'Tab') {
         e.preventDefault();
         this.cycleSelection(e.shiftKey);
         return;
       }
 
-      // Enter / Space: toggle keyboard carry mode
       if ((e.key === 'Enter' || e.key === ' ') && this.selectedIds.size > 0) {
         e.preventDefault();
         this.carryActive = !this.carryActive;
@@ -1443,7 +1511,6 @@
         return;
       }
 
-      // Arrow keys: move selected items
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         if (this.selectedIds.size > 0) {
           e.preventDefault();
@@ -1459,7 +1526,6 @@
         return;
       }
 
-      // Delete / Backspace: remove item
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (this.selectedIds.size > 0) {
           e.preventDefault();
@@ -1468,7 +1534,6 @@
         return;
       }
 
-      // Ctrl+D: duplicate item
       if ((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D')) {
         if (this.selectedIds.size > 0) {
           e.preventDefault();
@@ -1477,7 +1542,6 @@
         return;
       }
 
-      // Ctrl+C / Ctrl+V: Copy/Paste
       if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
         this.copySelected();
       }
@@ -1738,7 +1802,7 @@
     }
 
     /* -------------------------------------------------------------
-     * Pure Alignment & Sizing Actions (STEP 3)
+     * Pure Alignment & Sizing Actions
      * ------------------------------------------------------------- */
     alignSelected(alignment = 'left') {
       if (this.selectedIds.size <= 1 || !window.DimDashAutoLayout) return;
@@ -1873,10 +1937,12 @@
       const y1 = Math.min(s.startY, s.currentY);
       const y2 = Math.max(s.startY, s.currentY);
 
-      // Convert marquee to world rect
+      const tx = this.stage.centerTxPx || 0;
+      const ty = this.stage.centerTyPx || 0;
+
       const worldBox = {
-        x: (x1 - camera.x) / (wu * camera.z),
-        y: (y1 - camera.y) / (wu * camera.z),
+        x: (x1 - tx - camera.x) / (wu * camera.z),
+        y: (y1 - ty - camera.y) / (wu * camera.z),
         w: (x2 - x1) / (wu * camera.z),
         h: (y2 - y1) / (wu * camera.z)
       };
@@ -1889,7 +1955,7 @@
       }
     }
 
-    updateHoverCursor(screenX, screenY, camera, wu) {
+    updateHoverCursor(screenX, screenY, camera, wu, clientX, clientY) {
       if (!this.stage?.viewportEl) return;
       const selectedScreenRects = this.getSelectedScreenRects();
       let handle = null;
@@ -1904,10 +1970,10 @@
         };
         handle = window.DimDashOverlay.StageOverlay.hitTestHandles(screenX, screenY, screenBounds, false);
       } else if (selectedScreenRects.length === 0 && window.DimDashOverlay && this.stage.viewportEl) {
-        const vpRect = this.stage.viewportEl.getBoundingClientRect();
-        const clientX = vpRect.left + screenX;
-        const clientY = vpRect.top + screenY;
-        const targetEl = document.elementFromPoint(clientX, clientY);
+        const vpRect = this.cachedViewportRect || this.stage.viewportEl.getBoundingClientRect();
+        const cx = clientX !== undefined ? clientX : vpRect.left + screenX;
+        const cy = clientY !== undefined ? clientY : vpRect.top + screenY;
+        const targetEl = document.elementFromPoint(cx, cy);
         const itemEl = targetEl ? targetEl.closest('.stage-item') : null;
         if (itemEl) {
           const r = itemEl.getBoundingClientRect();
@@ -1921,6 +1987,7 @@
         }
       }
 
+      if (this.hoverHandle === (handle || null)) return;
       this.hoverHandle = handle || null;
 
       if (!handle) {
@@ -1945,54 +2012,31 @@
 
     requestOverlayRedraw(extra = {}) {
       if (!this.stage?.overlayRenderer) return;
+      Object.assign(this.pendingOverlayExtra, extra);
+
+      if (typeof requestAnimationFrame === 'undefined') {
+        this.flushOverlayRedraw(this.pendingOverlayExtra);
+        this.pendingOverlayExtra = {};
+        return;
+      }
+
+      if (!this.overlayRafPending) {
+        this.overlayRafPending = true;
+        requestAnimationFrame(() => {
+          this.overlayRafPending = false;
+          const payload = this.pendingOverlayExtra;
+          this.pendingOverlayExtra = {};
+          this.flushOverlayRedraw(payload);
+        });
+      }
+    }
+
+    flushOverlayRedraw(extra = {}) {
+      if (!this.stage?.overlayRenderer) return;
 
       const wu = this.stage.metrics ? this.stage.metrics.wu : 1.0;
       const camera = this.stage.camera || { x: 0, y: 0, z: 1 };
       const selectedRects = this.getSelectedScreenRects();
-
-      // Collect debug items if ?debug=1
-      let debugItems = [];
-      const isDebug = window.location.search.includes('debug=1');
-      if (isDebug && this.stage.itemElements) {
-        const vpRect = this.stage.viewportEl?.getBoundingClientRect();
-        const profile = this.stage.currentProfile?.id || 'lg';
-        const stageScale = this.stage.stageScale || 1.0;
-
-        for (const [id, el] of this.stage.itemElements.entries()) {
-          const elRect = el.getBoundingClientRect();
-          const p = this.getItemPlacement(id, profile);
-          const item = this.stage.board.config?.items?.find(it => it.id === id);
-
-          const domRect = vpRect ? {
-            x: elRect.left - vpRect.left,
-            y: elRect.top - vpRect.top,
-            w: elRect.width,
-            h: elRect.height
-          } : null;
-
-          const numX = parseFloat(el.style.getPropertyValue('--x')) || (p ? Number(p.x) : 0);
-          const numY = parseFloat(el.style.getPropertyValue('--y')) || (p ? Number(p.y) : 0);
-          const numW = parseFloat(el.style.getPropertyValue('--w')) || (p ? Number(p.w) : 100);
-          const numH = parseFloat(el.style.getPropertyValue('--h')) || (p ? Number(p.h) : 100);
-
-          const stageTx = parseFloat(this.stage.canvasEl?.style.getPropertyValue('--stage-tx')) || 0;
-          const stageTy = parseFloat(this.stage.canvasEl?.style.getPropertyValue('--stage-ty')) || 0;
-
-          const modelRect = {
-            x: (numX + stageTx) * wu * stageScale,
-            y: (numY + stageTy) * wu * stageScale,
-            w: numW * wu * stageScale,
-            h: numH * wu * stageScale
-          };
-
-          debugItems.push({
-            id,
-            kind: item?.kind || el.getAttribute('data-kind') || 'item',
-            modelRect,
-            domRect
-          });
-        }
-      }
 
       this.stage.overlayRenderer.render({
         isEditing: this.isEditing,
@@ -2001,7 +2045,6 @@
         selectedRects,
         activeHandle: this.activeHandle || null,
         hoverHandle: this.hoverHandle || null,
-        debugItems,
         ...extra
       });
     }

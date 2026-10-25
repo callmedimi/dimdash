@@ -70,24 +70,24 @@
   
   --glass-blur: 16px;
   --glass-opacity: 0.8;
-  --card-radius: 16px;
+  --card-radius: calc(16px * var(--wu, 1));
   --wallpaper-blur: 0px;
   --wallpaper-dim: 0.45;
-  --transition-smooth: all 0.24s cubic-bezier(0.16, 1, 0.3, 1);
-  --sidebar-width: 68px;
+  --transition-smooth: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  --sidebar-width: calc(68px * var(--wu, 1));
   
   --tile-gap: 1.25rem;
-  --tile-min-width: 270px;
+  --tile-min-width: calc(270px * var(--wu, 1));
 }
 
 /* Density variations */
 body.density-compact {
   --tile-gap: 0.85rem;
-  --tile-min-width: 220px;
+  --tile-min-width: calc(220px * var(--wu, 1));
 }
 body.density-expanded {
   --tile-gap: 1.6rem;
-  --tile-min-width: 310px;
+  --tile-min-width: calc(310px * var(--wu, 1));
 }
 
 *, *::before, *::after {
@@ -112,13 +112,11 @@ body.density-expanded {
 body {
   font-family: var(--font-family);
   background: var(--bg-primary);
-  background-attachment: fixed;
   color: var(--text-main);
   min-height: 100vh;
   line-height: 1.5;
   overflow-x: hidden;
   position: relative;
-  transition: background 0.3s ease;
 }
 
 /* Background Space Mesh Glow */
@@ -171,9 +169,7 @@ body::before {
   right: 0; /* In RTL, sidebar is right */
   width: var(--sidebar-width);
   height: 100vh;
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(15, 23, 42, 0.94);
   border-left: 1px solid var(--border-glass);
   display: flex;
   flex-direction: column;
@@ -185,9 +181,9 @@ body::before {
 }
 
 .sidebar-logo {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: calc(44px * var(--wu, 1));
+  height: calc(44px * var(--wu, 1));
+  border-radius: calc(12px * var(--wu, 1));
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(16, 185, 129, 0.2));
   border: 1px solid rgba(255, 255, 255, 0.15);
   display: flex;
@@ -197,6 +193,10 @@ body::before {
   cursor: pointer;
   box-shadow: 0 0 15px var(--accent-glow);
   transition: var(--transition-smooth);
+}
+.sidebar-logo svg {
+  width: calc(24px * var(--wu, 1));
+  height: calc(24px * var(--wu, 1));
 }
 .sidebar-logo:hover {
   transform: scale(1.08);
@@ -212,9 +212,9 @@ body::before {
 }
 
 .sidebar-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: calc(44px * var(--wu, 1));
+  height: calc(44px * var(--wu, 1));
+  border-radius: calc(12px * var(--wu, 1));
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-muted);
@@ -225,6 +225,10 @@ body::before {
   position: relative;
   transition: var(--transition-smooth);
   text-decoration: none;
+}
+.sidebar-btn svg {
+  width: calc(20px * var(--wu, 1));
+  height: calc(20px * var(--wu, 1));
 }
 .sidebar-btn:hover {
   color: #fff;
@@ -242,7 +246,7 @@ body::before {
 .sidebar-btn::after {
   content: attr(data-tooltip);
   position: absolute;
-  right: 56px; /* Tooltip pops out to left in RTL */
+  right: calc(56px * var(--wu, 1)); /* Tooltip pops out to left in RTL */
   background: #1e293b;
   color: #f8fafc;
   padding: 0.35rem 0.65rem;
@@ -831,9 +835,7 @@ body::before {
   margin: 1.25rem auto 0.75rem auto;
   width: fit-content;
   max-width: calc(100% - 3rem);
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  background: rgba(15, 23, 42, 0.90);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 9999px;
   padding: 0.35rem 0.85rem;
@@ -842,7 +844,7 @@ body::before {
   justify-content: center;
   gap: 1.1rem;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  transition: all 0.25s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease;
   z-index: 40;
 }
 
@@ -1039,7 +1041,7 @@ body::before {
   gap: 1.35rem;
   align-items: start;
   width: 100%;
-  max-width: 1920px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 1.25rem 2rem 3rem 2rem;
   box-sizing: border-box;
@@ -1106,9 +1108,9 @@ body.page-view-apps .widgets-grid {
 }
 
 body.page-view-apps .widgets-grid .widget-card {
-  min-width: 300px;
-  max-width: 440px;
-  flex: 0 1 380px;
+  min-width: min(100%, calc(300px * var(--wu, 1)));
+  max-width: calc(440px * var(--wu, 1));
+  flex: 0 1 calc(380px * var(--wu, 1));
 }
 
 /* --------------------------------------------------------------------------
@@ -1116,11 +1118,9 @@ body.page-view-apps .widgets-grid .widget-card {
    -------------------------------------------------------------------------- */
 .category-section {
   position: relative;
-  background: rgba(18, 24, 38, 0.82) !important;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(18, 24, 38, 0.90) !important;
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
-  border-radius: 16px !important;
+  border-radius: calc(16px * var(--wu, 1)) !important;
   padding: 1.15rem 1.05rem !important;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
   transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
@@ -1129,7 +1129,6 @@ body.page-view-apps .widgets-grid .widget-card {
   display: flex !important;
   flex-direction: column !important;
   contain: layout style;
-  transform: translateZ(0);
 }
 
 .category-section:hover {
@@ -1340,21 +1339,21 @@ body.page-view-apps .widgets-grid .widget-card {
 .category-section.cat-style-grid.cat-size-large .tile-grid,
 .category-section:not(.cat-style-pill).cat-size-large .tile-grid,
 .category-section:not(.cat-style-pill):not(.cat-size-medium):not(.cat-size-compact) .tile-grid {
-  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)) !important;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(136px * var(--wu, 1))), 1fr)) !important;
   gap: 1.1rem !important;
 }
 
 /* Size: Medium (Balanced islands with 48px icons) */
 .category-section.cat-style-grid.cat-size-medium .tile-grid,
 .category-section:not(.cat-style-pill).cat-size-medium .tile-grid {
-  grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)) !important;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(116px * var(--wu, 1))), 1fr)) !important;
   gap: 0.85rem !important;
 }
 
 /* Size: Compact (Dense islands with 38px icons) */
 .category-section.cat-style-grid.cat-size-compact .tile-grid,
 .category-section:not(.cat-style-pill).cat-size-compact .tile-grid {
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)) !important;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(96px * var(--wu, 1))), 1fr)) !important;
   gap: 0.65rem !important;
 }
 
@@ -1687,8 +1686,8 @@ body.page-view-apps .widgets-grid .widget-card {
 .category-section.cat-style-grid.cat-size-large .tile-card,
 .category-section:not(.cat-style-pill).cat-size-large .tile-card,
 .category-section:not(.cat-style-pill):not(.cat-size-medium):not(.cat-size-compact) .tile-card {
-  min-height: 148px !important;
-  border-radius: 18px !important;
+  min-height: calc(148px * var(--wu, 1)) !important;
+  border-radius: calc(18px * var(--wu, 1)) !important;
 }
 .category-section.cat-style-grid.cat-size-large .tile-main-link,
 .category-section:not(.cat-style-pill).cat-size-large .tile-main-link,
@@ -1699,11 +1698,11 @@ body.page-view-apps .widgets-grid .widget-card {
 .category-section.cat-style-grid.cat-size-large .tile-icon-box,
 .category-section:not(.cat-style-pill).cat-size-large .tile-icon-box,
 .category-section:not(.cat-style-pill):not(.cat-size-medium):not(.cat-size-compact) .tile-icon-box {
-  width: 64px !important;
-  height: 64px !important;
-  min-width: 64px !important;
-  border-radius: 18px !important;
-  padding: 7px !important;
+  width: calc(64px * var(--wu, 1)) !important;
+  height: calc(64px * var(--wu, 1)) !important;
+  min-width: calc(64px * var(--wu, 1)) !important;
+  border-radius: calc(18px * var(--wu, 1)) !important;
+  padding: calc(7px * var(--wu, 1)) !important;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
 }
 .category-section.cat-style-grid.cat-size-large .tile-icon-box svg,
@@ -1712,8 +1711,8 @@ body.page-view-apps .widgets-grid .widget-card {
 .category-section:not(.cat-style-pill).cat-size-large .tile-icon-box img,
 .category-section:not(.cat-style-pill):not(.cat-size-medium):not(.cat-size-compact) .tile-icon-box svg,
 .category-section:not(.cat-style-pill):not(.cat-size-medium):not(.cat-size-compact) .tile-icon-box img {
-  width: 50px !important;
-  height: 50px !important;
+  width: calc(50px * var(--wu, 1)) !important;
+  height: calc(50px * var(--wu, 1)) !important;
   object-fit: contain !important;
 }
 .category-section.cat-style-grid.cat-size-large .tile-title,
@@ -2269,14 +2268,13 @@ body.admin-mode .tile-card:hover .tile-admin-bar {
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  filter: blur(var(--wallpaper-blur, 0px));
-  -webkit-filter: blur(var(--wallpaper-blur, 0px));
+  filter: none;
+  -webkit-filter: none;
   transform: translate3d(0, 0, 0);
-  will-change: filter, transform;
   pointer-events: none;
   z-index: -2;
   opacity: 0;
-  transition: opacity 0.35s ease, filter 0.15s ease;
+  transition: opacity 0.35s ease;
 }
 
 body.has-wallpaper .wallpaper-layer {
@@ -2860,12 +2858,12 @@ body.arrange-mode-active .tile-card {
    Modular Live Monitoring & Gauges Widgets Architecture
    -------------------------------------------------------------------------- */
 .widgets-section {
-  max-width: 1920px;
+  max-width: 100%;
   margin: 0.5rem auto 1rem auto;
   padding: 0 2rem;
   box-sizing: border-box;
   width: 100%;
-  transition: all 0.3s ease;
+  transition: opacity 0.25s ease;
 }
 
 .widgets-section.collapsed .widgets-grid {
@@ -2926,7 +2924,7 @@ body.arrange-mode-active .tile-card {
 /* Widgets Grid */
 .widgets-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(285px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(285px * var(--wu, 1))), 1fr));
   gap: 1.15rem;
   width: 100%;
   align-items: stretch;
@@ -2935,11 +2933,9 @@ body.arrange-mode-active .tile-card {
 /* Widget Card: Glass Capsule Panel */
 .widget-card {
   position: relative;
-  background: rgba(18, 24, 38, 0.82) !important;
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(18, 24, 38, 0.90) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  border-radius: 14px;
+  border-radius: calc(14px * var(--wu, 1));
   padding: 1rem 1.1rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   display: flex;
@@ -2948,6 +2944,7 @@ body.arrange-mode-active .tile-card {
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   box-sizing: border-box;
   overflow: hidden;
+  contain: layout style;
 }
 
 .widget-card:hover {
@@ -3025,9 +3022,9 @@ body.arrange-mode-active .tile-card {
 /* Circular Arc Gauge SVG */
 .radial-gauge-box {
   position: relative;
-  width: 82px;
-  height: 82px;
-  min-width: 82px;
+  width: calc(82px * var(--wu, 1));
+  height: calc(82px * var(--wu, 1));
+  min-width: calc(82px * var(--wu, 1));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3050,8 +3047,7 @@ body.arrange-mode-active .tile-card {
   stroke: var(--widget-accent, #6366f1);
   stroke-width: 7;
   stroke-linecap: round;
-  transition: stroke-dashoffset 0.6s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.3s ease;
-  filter: drop-shadow(0 0 6px var(--widget-accent, #6366f1));
+  transition: stroke-dashoffset 0.5s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.3s ease;
 }
 
 .radial-gauge-val {
@@ -3414,12 +3410,12 @@ body.arrange-mode-active .tile-card {
 
 /* Server Monitor Viewport Container */
 .server-monitor-view {
-  max-width: 1920px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 0.5rem 2rem 3rem 2rem;
   box-sizing: border-box;
   width: 100%;
-  animation: fadeIn 0.3s ease;
+  animation: fadeIn 0.25s ease;
 }
 
 /* Top Control Bar */
@@ -3429,10 +3425,9 @@ body.arrange-mode-active .tile-card {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 1rem;
-  background: rgba(18, 21, 32, 0.85);
-  backdrop-filter: blur(14px);
+  background: rgba(18, 21, 32, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  border-radius: calc(12px * var(--wu, 1));
   padding: 0.65rem 1rem;
   margin-bottom: 1.25rem;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
@@ -3568,9 +3563,8 @@ body.arrange-mode-active .tile-card {
 
 /* Individual Chart Card */
 .sm-chart-card {
-  background: rgba(18, 21, 32, 0.88);
-  backdrop-filter: blur(14px);
-  border-radius: 12px;
+  background: rgba(18, 21, 32, 0.92);
+  border-radius: calc(12px * var(--wu, 1));
   border: 1px solid rgba(255, 255, 255, 0.08);
   position: relative;
   overflow: hidden;
@@ -3578,6 +3572,7 @@ body.arrange-mode-active .tile-card {
   transition: border-color 0.2s, transform 0.2s;
   display: flex;
   flex-direction: column;
+  contain: layout style;
 }
 
 .sm-chart-card:hover {
@@ -3748,7 +3743,7 @@ body.arrange-mode-active .tile-card {
 .sm-canvas-wrapper {
   position: relative;
   width: 100%;
-  height: 210px;
+  height: calc(210px * var(--wu, 1));
   padding: 0 0.5rem 0.5rem 0.5rem;
   box-sizing: border-box;
 }
@@ -3969,16 +3964,15 @@ body:not(.admin-mode) .category-section {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 140px;
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(var(--glass-blur, 16px));
-  -webkit-backdrop-filter: blur(var(--glass-blur, 16px));
+  min-height: calc(140px * var(--wu, 1));
+  background: rgba(15, 23, 42, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--card-radius, 14px);
   padding: 1rem 1.15rem;
   position: relative;
   overflow: hidden;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  contain: layout style;
 }
 .clock-widget-card:hover {
   border-color: var(--widget-accent, #38bdf8);
@@ -4023,9 +4017,9 @@ body.page-view-apps .widgets-grid .clock-widget-card.clock-align-full {
   width: 100% !important;
 }
 body.page-view-apps .widgets-grid .clock-widget-card {
-  min-width: 320px !important;
-  max-width: 480px !important;
-  flex: 0 1 450px !important;
+  min-width: min(100%, calc(320px * var(--wu, 1))) !important;
+  max-width: calc(480px * var(--wu, 1)) !important;
+  flex: 0 1 calc(450px * var(--wu, 1)) !important;
 }
 
 .clock-widget-header {
@@ -4166,11 +4160,20 @@ body.page-view-apps .widgets-grid .clock-widget-card {
 }
 .chart-widget-canvas {
   width: 100%;
-  height: 90px;
+  height: calc(90px * var(--wu, 1));
   display: block;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--wu, 1));
   background: rgba(0, 0, 0, 0.2);
 }
+
+/* Global Zero-Lag Compositor Guard for Medium / Low Quality Tiers & Linux */
+html:not([data-quality="high"]) *,
+html:not([data-quality="high"]) *::before,
+html:not([data-quality="high"]) *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 
 
 

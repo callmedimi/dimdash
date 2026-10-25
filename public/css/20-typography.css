@@ -11,9 +11,9 @@
   --font-persian: 'Vazirmatn', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", "SF Mono", Consolas, Menlo, monospace;
 
-  /* Global fluid scale rooted in rem */
-  --text-hero: clamp(2.0rem, 5vw, 3.25rem);
-  --text-display: clamp(1.4rem, 3vw, 2.0rem);
+  /* Global pixel-responsive scale rooted in rem (1rem = 16px * var(--wu)) */
+  --text-hero: 2.25rem;
+  --text-display: 1.55rem;
   --text-title: 1.15rem;
   --text-body: 0.90rem;
   --text-caption: 0.78rem;

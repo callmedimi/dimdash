@@ -1,8 +1,29 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert');
-const { computeDisplayScale, guessDisplayProfile, THETA_PRESETS } = require('../public/js/stage/scale');
+const { computeDisplayScale, computePixelScale, guessDisplayProfile, THETA_PRESETS } = require('../public/js/stage/scale');
 
 describe('Physical Display Scale & --wu Engine', () => {
+  test('computePixelScale scales strictly proportionally to viewport pixel dimensions across all screens and video walls', () => {
+    const fhd = computePixelScale({ width_px: 1920, height_px: 1080 });
+    assert.strictEqual(fhd.wu, 1.0);
+    assert.strictEqual(fhd.vw_wu, 1920);
+
+    const laptop125 = computePixelScale({ width_px: 1536, height_px: 864 });
+    assert.strictEqual(laptop125.wu, 0.8);
+    assert.strictEqual(laptop125.vw_wu, 1920);
+
+    const qhd = computePixelScale({ width_px: 2560, height_px: 1440 });
+    assert(Math.abs(qhd.wu - 1.333) < 0.01);
+    assert.strictEqual(qhd.vw_wu, 1920);
+
+    const uhd4k = computePixelScale({ width_px: 3840, height_px: 2160 });
+    assert.strictEqual(uhd4k.wu, 2.0);
+    assert.strictEqual(uhd4k.vw_wu, 1920);
+
+    const wall8k = computePixelScale({ width_px: 7680, height_px: 4320 });
+    assert.strictEqual(wall8k.wu, 4.0);
+    assert.strictEqual(wall8k.vw_wu, 1920);
+  });
   test('preset angles are defined and strictly increasing with distance', () => {
     assert.strictEqual(THETA_PRESETS.handheld, 0.22);
     assert.strictEqual(THETA_PRESETS.desk, 0.25);

@@ -41,9 +41,9 @@
   --font-mono: "JetBrains Mono", Consolas, monospace;
   
   --bg-admin: #040816;
-  --bg-sidebar: rgba(11, 17, 32, 0.88);
-  --bg-card: rgba(15, 23, 42, 0.72);
-  --bg-card-hover: rgba(30, 41, 59, 0.82);
+  --bg-sidebar: rgba(11, 17, 32, 0.95);
+  --bg-card: rgba(15, 23, 42, 0.90);
+  --bg-card-hover: rgba(30, 41, 59, 0.95);
   
   --border-subtle: rgba(255, 255, 255, 0.08);
   --border-accent: rgba(99, 102, 241, 0.45);
@@ -60,8 +60,8 @@
   --status-warning: #f59e0b;
   --status-offline: #ef4444;
   
-  --sidebar-width: 260px;
-  --transition-smooth: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  --sidebar-width: calc(260px * var(--wu, 1));
+  --transition-smooth: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
 *, *::before, *::after {
@@ -104,8 +104,6 @@ body::before {
   width: var(--sidebar-width);
   height: 100vh;
   background: var(--bg-sidebar);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border-right: 1px solid var(--border-subtle);
   border-left: none;
   position: fixed;
@@ -131,9 +129,9 @@ body::before {
 }
 
 .admin-logo-box {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
+  width: calc(42px * var(--wu, 1));
+  height: calc(42px * var(--wu, 1));
+  border-radius: calc(12px * var(--wu, 1));
   background: linear-gradient(135deg, #6366f1, #38bdf8);
   display: flex;
   align-items: center;
@@ -229,7 +227,7 @@ body::before {
   padding: 2.2rem 2.8rem;
   position: relative;
   z-index: 1;
-  max-width: 1680px;
+  max-width: 100%;
   width: calc(100% - var(--sidebar-width));
 }
 
@@ -283,23 +281,22 @@ body::before {
    -------------------------------------------------------------------------- */
 .stats-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(230px * var(--wu, 1))), 1fr));
   gap: 1.25rem;
   margin-bottom: 2rem;
 }
 
 .metric-card {
   background: var(--bg-card);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border-subtle);
-  border-radius: 16px;
+  border-radius: calc(16px * var(--wu, 1));
   padding: 1.35rem;
   display: flex;
   align-items: center;
   gap: 1.1rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   transition: var(--transition-smooth);
+  contain: layout style;
 }
 .metric-card:hover {
   transform: translateY(-2px);
@@ -308,9 +305,9 @@ body::before {
 }
 
 .metric-icon-box {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
+  width: calc(52px * var(--wu, 1));
+  height: calc(52px * var(--wu, 1));
+  border-radius: calc(14px * var(--wu, 1));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -344,10 +341,8 @@ body::before {
 
 .glass-box {
   background: var(--bg-card);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border-subtle);
-  border-radius: 16px;
+  border-radius: calc(16px * var(--wu, 1));
   padding: 1.5rem;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3);
 }
@@ -433,10 +428,8 @@ body::before {
 
 .table-container {
   background: var(--bg-card);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border-subtle);
-  border-radius: 16px;
+  border-radius: calc(16px * var(--wu, 1));
   overflow-x: auto;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
 }

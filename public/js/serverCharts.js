@@ -36,12 +36,16 @@ class MicroCanvasChart {
 
   setupRetina() {
     if (!this.canvas) return;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const wu = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--wu')) || 1;
+    this.wu = wu;
+    const parentEl = this.canvas.parentElement;
     const rect = this.canvas.getBoundingClientRect();
-    this.width = rect.width || this.canvas.parentElement?.clientWidth || 500;
-    this.height = 200; // standard chart height
-    this.canvas.width = this.width * dpr;
-    this.canvas.height = this.height * dpr;
+    this.width = rect.width || parentEl?.clientWidth || Math.round(500 * wu);
+    const isFullscreen = this.canvas.closest('.chart-fullscreen');
+    this.height = isFullscreen ? (parentEl?.clientHeight || Math.round(450 * wu)) : Math.round(200 * wu);
+    this.canvas.width = Math.round(this.width * dpr);
+    this.canvas.height = Math.round(this.height * dpr);
     this.canvas.style.width = `${this.width}px`;
     this.canvas.style.height = `${this.height}px`;
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -50,26 +54,49 @@ class MicroCanvasChart {
 
   setupEvents() {
     if (!this.canvas) return;
+    this._moveRaf = null;
+    this._resizeRaf = null;
+
     this.canvas.addEventListener('mousemove', (e) => {
-      const rect = this.canvas.getBoundingClientRect();
-      this.cursorX = e.clientX - rect.left;
-      this.cursorY = e.clientY - rect.top;
-      this.updateHoverIndex();
-      this.draw();
-    });
+      const clientX = e.clientX;
+      const clientY = e.clientY;
+      if (this._moveRaf) return;
+      this._moveRaf = requestAnimationFrame(() => {
+        this._moveRaf = null;
+        const rect = this.canvas.getBoundingClientRect();
+        this.cursorX = clientX - rect.left;
+        this.cursorY = clientY - rect.top;
+        const prevIdx = this.hoverIndex;
+        this.updateHoverIndex();
+        if (this.hoverIndex !== prevIdx) {
+          this.draw();
+        }
+      });
+    }, { passive: true });
 
     this.canvas.addEventListener('mouseleave', () => {
-      this.hoverIndex = -1;
-      this.cursorX = -1;
-      this.cursorY = -1;
-      this.draw();
+      if (this._moveRaf) {
+        cancelAnimationFrame(this._moveRaf);
+        this._moveRaf = null;
+      }
+      if (this.hoverIndex !== -1) {
+        this.hoverIndex = -1;
+        this.cursorX = -1;
+        this.cursorY = -1;
+        this.draw();
+      }
       this.hideTooltip();
-    });
+    }, { passive: true });
 
     window.addEventListener('resize', () => {
-      this.setupRetina();
-      this.draw();
-    });
+      if (this._resizeRaf) return;
+      this._resizeRaf = requestAnimationFrame(() => {
+        this._resizeRaf = null;
+        if (window.AppState && window.AppState.currentView !== 'server-monitor') return;
+        this.setupRetina();
+        this.draw();
+      });
+    }, { passive: true });
   }
 
   updateHoverIndex() {
@@ -79,7 +106,8 @@ class MicroCanvasChart {
       return;
     }
 
-    const padding = { top: 20, right: 25, bottom: 30, left: 45 };
+    const wu = this.wu || 1;
+    const padding = { top: Math.round(20 * wu), right: Math.round(25 * wu), bottom: Math.round(30 * wu), left: Math.round(48 * wu) };
     const chartW = this.width - padding.left - padding.right;
 
     if (this.cursorX < padding.left || this.cursorX > this.width - padding.right) {
@@ -98,16 +126,17 @@ class MicroCanvasChart {
     const ctx = this.ctx;
     const w = this.width;
     const h = this.height;
+    const wu = this.wu || 1;
 
     ctx.clearRect(0, 0, w, h);
 
-    const padding = { top: 20, right: 25, bottom: 30, left: 45 };
+    const padding = { top: Math.round(20 * wu), right: Math.round(25 * wu), bottom: Math.round(30 * wu), left: Math.round(48 * wu) };
     const chartW = w - padding.left - padding.right;
     const chartH = h - padding.top - padding.bottom;
 
     if (!data || data.length < 2) {
       ctx.fillStyle = '#64748b';
-      ctx.font = '12px Inter, sans-serif';
+      ctx.font = `${Math.max(10, Math.round(12 * wu))}px Inter, sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillText('Loading telemetry data...', w / 2, h / 2);
       return;
@@ -131,10 +160,10 @@ class MicroCanvasChart {
     if (minVal === maxVal) maxVal = minVal + 1;
 
     // Draw Grid Lines & Y labels
-    ctx.lineWidth = 1;
+    ctx.lineWidth = Math.max(1, wu * 0.8);
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
     ctx.fillStyle = '#64748b';
-    ctx.font = '10px Inter, Vazirmatn, sans-serif';
+    ctx.font = `${Math.max(9, Math.round(10 * wu))}px Inter, Vazirmatn, sans-serif`;
     ctx.textAlign = 'right';
 
     const yTicks = 4;
@@ -148,7 +177,7 @@ class MicroCanvasChart {
       ctx.stroke();
 
       const label = (yVal >= 10 || Number.isInteger(yVal)) ? Math.round(yVal) : yVal.toFixed(1);
-      ctx.fillText(`${label}${this.yUnit}`, padding.left - 6, yPos + 3);
+      ctx.fillText(`${label}${this.yUnit}`, padding.left - Math.round(6 * wu), yPos + Math.round(3 * wu));
     }
 
     // Draw X Grid & Time labels
@@ -178,7 +207,7 @@ class MicroCanvasChart {
       } else {
         timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       }
-      ctx.fillText(timeStr, xPos, h - 8);
+      ctx.fillText(timeStr, xPos, h - Math.round(8 * wu));
     }
 
     // Helper: calculate point coordinates
@@ -189,7 +218,7 @@ class MicroCanvasChart {
       return { x, y, val };
     };
 
-    // Draw Series Lines and Gradient Fills
+    // Draw Series Lines and Gradient Fills (Zero shadowBlur for hardware-accelerated 60fps on Linux/Fedora)
     this.series.forEach(s => {
       const color = s.color || '#6366f1';
       const pts = [];
@@ -219,7 +248,7 @@ class MicroCanvasChart {
       ctx.fillStyle = grad;
       ctx.fill();
 
-      // Draw Curve Stroke
+      // Draw Curve Stroke without CPU-heavy shadowBlur
       ctx.beginPath();
       ctx.moveTo(pts[0].x, pts[0].y);
       if (ServerMonitorState.smoothing === 'none') {
@@ -231,11 +260,8 @@ class MicroCanvasChart {
       }
 
       ctx.strokeStyle = color;
-      ctx.lineWidth = 2.2;
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 6;
+      ctx.lineWidth = Math.max(1.8, 2.2 * wu);
       ctx.stroke();
-      ctx.shadowBlur = 0; // reset
     });
 
     // Draw Crosshair and Hover Dots
@@ -247,8 +273,8 @@ class MicroCanvasChart {
       ctx.moveTo(hoverX, padding.top);
       ctx.lineTo(hoverX, padding.top + chartH);
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([3, 3]);
+      ctx.lineWidth = Math.max(1, wu);
+      ctx.setLineDash([3 * wu, 3 * wu]);
       ctx.stroke();
       ctx.setLineDash([]);
 
@@ -256,10 +282,10 @@ class MicroCanvasChart {
       this.series.forEach(s => {
         const pt = getPoint(this.hoverIndex, s);
         ctx.beginPath();
-        ctx.arc(pt.x, pt.y, 4.5, 0, Math.PI * 2);
+        ctx.arc(pt.x, pt.y, Math.max(3.5, 4.5 * wu), 0, Math.PI * 2);
         ctx.fillStyle = s.color || '#6366f1';
         ctx.fill();
-        ctx.lineWidth = 2;
+        ctx.lineWidth = Math.max(1.5, 2 * wu);
         ctx.strokeStyle = '#0f172a';
         ctx.stroke();
       });
@@ -456,9 +482,10 @@ function initServerCharts() {
   setupServerMonitorControls();
   fetchServerMonitorMetrics();
 
-  // Setup periodic refresh
+  // Setup periodic refresh (only polls when server-monitor view is active)
   if (ServerMonitorState.autoRefreshTimer) clearInterval(ServerMonitorState.autoRefreshTimer);
   ServerMonitorState.autoRefreshTimer = setInterval(() => {
+    if (window.AppState && window.AppState.currentView !== 'server-monitor') return;
     fetchServerMonitorMetrics(true);
   }, ServerMonitorState.autoRefreshInterval * 1000);
 }
@@ -475,11 +502,15 @@ async function fetchServerMonitorMetrics(silent = false) {
 
     updateChartBadges(data);
 
-    // Redraw all 7 charts
-    Object.values(ServerMonitorState.charts).forEach(c => {
-      c.setupRetina();
-      c.draw();
-    });
+    // Only redraw all 7 canvases if Server Monitor view is currently visible
+    if (!window.AppState || window.AppState.currentView === 'server-monitor') {
+      requestAnimationFrame(() => {
+        Object.values(ServerMonitorState.charts).forEach(c => {
+          c.setupRetina();
+          c.draw();
+        });
+      });
+    }
   } catch (_) {}
 }
 

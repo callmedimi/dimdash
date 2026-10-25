@@ -102,7 +102,7 @@ const staticCacheOptions = {
   etag: true,
   lastModified: true,
   setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.html') || filePath.endsWith('.js')) {
+    if (filePath.endsWith('.html') || filePath.endsWith('.js') || filePath.endsWith('.css')) {
       res.setHeader('Cache-Control', 'no-cache, must-revalidate');
     }
   }
@@ -187,8 +187,7 @@ setInterval(() => {
     prevTelemetryJson = currentJson;
     lastFullPushTime = now;
   } else if (currentJson !== prevTelemetryJson) {
-    // Send immediate update
-    broadcastSSE('telemetry_delta', currentTelemetry);
+    // Send immediate update (single event to prevent duplicate JSON.parse & DOM passes on client)
     broadcastSSE('system_telemetry', currentTelemetry);
     prevTelemetryJson = currentJson;
   }

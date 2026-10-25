@@ -1,6 +1,7 @@
 /**
- * DimDash Physical Display Scale Engine
- * Computes angularly constant World Unit (--wu) and touch targets across 10" to 150" displays.
+ * DimDash Physical & Pixel Display Scale Engine
+ * Computes responsive World Unit (--wu) based on screen pixel dimensions,
+ * plus physical display scale helpers across 10" to 150" displays.
  * Universal module (Node.js & Browser)
  */
 (function (root, factory) {
@@ -38,16 +39,65 @@
   };
 
   /**
-   * Compute physical display metrics and --wu
+   * Compute pure pixel-proportional scale (--wu and --font-scale) directly from viewport pixel size.
+   * Ensures 100% consistent proportions across normal monitors (720p/1080p/1440p) and huge 4K/8K video walls.
    * @param {Object} options
-   *   - diagonal_in: Screen diagonal in inches
-   *   - distance_m: Viewer distance in meters
-   *   - width_px: Viewport or screen width in CSS px
-   *   - height_px: Viewport or screen height in CSS px
-   *   - dpr: Device pixel ratio (default: 1)
-   *   - preset: 'handheld' | 'desk' | 'wall' | 'tv' | 'far'
+   *   - width_px: Viewport width in CSS px
+   *   - height_px: Viewport height in CSS px
+   *   - ref_w: Reference design canvas width in px (default: 1840)
+   *   - ref_h: Reference design canvas height in px (default: 920)
    *   - user_scale: Manual multiplier (default: 1)
    *   - is_coarse: Boolean indicating touch / coarse pointer
+   * @returns {Object} pixel scale metrics
+   */
+  function computePixelScale(options = {}) {
+    const userScale = Math.max(0.2, Number(options.user_scale) || 1.0);
+    const widthCss = Math.max(200, Number(options.width_px) || 1920);
+    const heightCss = Math.max(200, Number(options.height_px) || 1080);
+    const refW = Math.max(320, Number(options.ref_w || options.ref_width_px) || 1920);
+    const refH = Math.max(320, Number(options.ref_h || options.ref_height_px) || 1080);
+    const isCoarse = !!options.is_coarse;
+
+    let autoScale = 1.0;
+    let presetName = 'desk';
+
+    if (widthCss <= 640) {
+      // Mobile flow viewport: scale relative to 390px mobile baseline
+      autoScale = Math.min(Math.max(widthCss / 390, 0.78), 1.25);
+      presetName = 'handheld';
+    } else {
+      // Desktop monitors, laptops, ultrawides, and video walls:
+      // Scale strictly by pixel ratio against reference canvas bounds so nothing overflows or jumbles
+      const scaleX = widthCss / refW;
+      const scaleY = heightCss / refH;
+      autoScale = Math.min(scaleX, scaleY);
+      autoScale = Math.min(Math.max(autoScale, 0.45), 8.0);
+      presetName = widthCss >= 3200 ? 'wall' : 'desk';
+    }
+
+    const wu = Number((autoScale * userScale).toFixed(4));
+    const fontScale = Number(Math.min(Math.max((widthCss / 1920) * userScale, 0.75), 5.0).toFixed(4));
+    const tapMinPx = Math.max(32, Math.round((isCoarse ? 44 : 36) * Math.min(Math.max(wu, 0.8), 2.5)));
+
+    return {
+      wu,
+      font_scale: fontScale,
+      auto_scale: Number(autoScale.toFixed(4)),
+      user_scale: userScale,
+      em_css_px: Number((16 * wu).toFixed(2)),
+      tap_min_px: tapMinPx,
+      preset: presetName,
+      is_coarse: isCoarse,
+      width_px: widthCss,
+      height_px: heightCss,
+      vw_wu: Math.round(widthCss / wu),
+      vh_wu: Math.round(heightCss / wu)
+    };
+  }
+
+  /**
+   * Compute physical display metrics and --wu
+   * @param {Object} options
    * @returns {Object} scale metrics
    */
   function computeDisplayScale(options = {}) {
@@ -161,15 +211,56 @@
     const el = rootElement || (typeof document !== 'undefined' ? document.documentElement : null);
     if (!el || !el.style) return;
 
-    el.style.setProperty('--wu', metrics.wu);
-    el.style.setProperty('--tap-min', `${metrics.tap_min_px}px`);
-    el.style.fontSize = `calc(16px * var(--wu))`;
-    el.setAttribute('data-preset', metrics.preset);
+    const wu = Number(metrics.wu) || 1.0;
+    const fontScale = Number(metrics.font_scale) || wu;
+    el.style.setProperty('--wu', wu);
+    el.style.setProperty('--font-scale', fontScale);
+    el.style.setProperty('--tap-min', `${metrics.tap_min_px || 40}px`);
+    // Root font-size scales proportionally to viewport pixel size (--wu) for all rem-based UI,
+    // while stage items use pure px * var(--wu) so nothing ever double-scales.
+    const rootFontPx = Math.min(Math.max(16 * wu, 11), 64);
+    el.style.fontSize = `${rootFontPx.toFixed(2)}px`;
+    if (metrics.preset) {
+      el.setAttribute('data-preset', metrics.preset);
+    }
+  }
+
+  // Auto-initialize pixel-based root scale in browser environments (Dashboard, Server Monitor, Admin Studio)
+  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    let scaleRaf = null;
+    const syncGlobalViewportScale = () => {
+      scaleRaf = null;
+      // If StageRenderer is actively managing a visible stage viewport, let StageRenderer drive it
+      const stageVp = document.getElementById('stageViewport');
+      if (stageVp && stageVp.style.display !== 'none' && window.StageRenderer && window.StageRenderer.viewport) {
+        return;
+      }
+      const vw = Math.max(window.innerWidth || 1920, 200);
+      const vh = Math.max(window.innerHeight || 1080, 200);
+      const isCoarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+      const metrics = computePixelScale({
+        width_px: vw,
+        height_px: vh,
+        ref_w: 1920,
+        ref_h: 1080,
+        user_scale: 1.0,
+        is_coarse: isCoarse
+      });
+      applyToRoot(metrics, document.documentElement);
+    };
+
+    syncGlobalViewportScale();
+    window.addEventListener('resize', () => {
+      if (!scaleRaf) {
+        scaleRaf = window.requestAnimationFrame(syncGlobalViewportScale);
+      }
+    }, { passive: true });
   }
 
   return {
     THETA_PRESETS,
     DISPLAY_PRESETS,
+    computePixelScale,
     computeDisplayScale,
     guessDisplayProfile,
     applyToRoot

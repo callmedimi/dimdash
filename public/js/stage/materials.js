@@ -1,10 +1,7 @@
 /**
- * DimDash Materials & Quality Tier Manager
- * Eliminates GPU backdrop-filter stalls through intelligent quality tiers:
- * - High: Real hardware backdrop-filter blur on <= 8 visible islands
- * - Medium ("Static Glass"): Offscreen pre-blurred wallpaper with aligned coordinate offsets
- * - Low: Flat translucent instrument materials with 1px highlight, zero GPU blur
- * - Auto: Dynamic hardware capability detection & automatic step-down under thermal/frame pressure
+ * DimDash Materials & GPU Quality Tier Manager
+ * Manages High / Medium / Low rendering tiers, static glass caching,
+ * Linux/Fedora compositor optimization, and automatic step-down on frame drops.
  * Universal module (Node.js & Browser)
  */
 (function (root, factory) {
@@ -17,10 +14,10 @@
   'use strict';
 
   const TIERS = {
+    AUTO: 'auto',
     HIGH: 'high',
     MEDIUM: 'medium',
-    LOW: 'low',
-    AUTO: 'auto'
+    LOW: 'low'
   };
 
   class QualityManager {
@@ -39,6 +36,7 @@
       this.staticGlassUrl = null;
 
       this.resolveTier();
+      this.applyToDom();
     }
 
     setTier(tier) {
@@ -61,17 +59,21 @@
         return this.resolvedTier;
       }
 
+      const ua = navigator.userAgent || '';
+      const platform = navigator.platform || '';
       const cores = navigator.hardwareConcurrency || 4;
       const mem = navigator.deviceMemory || 4;
       const dpr = window.devicePixelRatio || 1;
       const area = window.innerWidth * window.innerHeight * dpr * dpr;
 
       // Low tier: single/dual core, <= 2GB memory, or Raspberry Pi user-agent
-      const isPiOrKiosk = /arm|aarch64|raspberry/i.test(navigator.userAgent || '');
+      const isPiOrKiosk = /arm|aarch64|raspberry/i.test(ua);
+      // Linux desktop (Fedora / Wayland / X11) benefits enormously from MEDIUM tier (zero per-frame backdrop-filter stalls)
+      const isLinuxDesktop = (/Linux|X11/i.test(ua) || /Linux/i.test(platform)) && !/Android/i.test(ua);
+
       if (cores <= 2 || mem <= 2 || isPiOrKiosk) {
         this.resolvedTier = TIERS.LOW;
-      } else if (area > 3840 * 2160 || cores <= 4 || mem <= 4) {
-        // Medium tier: 4K+ displays with mid-range cores
+      } else if (isLinuxDesktop || area > 2560 * 1440 || cores <= 4 || mem <= 4) {
         this.resolvedTier = TIERS.MEDIUM;
       } else {
         this.resolvedTier = TIERS.HIGH;
@@ -81,7 +83,7 @@
     }
 
     applyToDom() {
-      if (typeof document === 'undefined') return;
+      if (typeof document === 'undefined' || !document.documentElement) return;
       const root = document.documentElement;
       const effectiveTier = this.isInteracting && this.resolvedTier === TIERS.HIGH
         ? TIERS.MEDIUM
