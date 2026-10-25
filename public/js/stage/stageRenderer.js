@@ -580,10 +580,19 @@
         const headerStyle = item.props?.header?.style || item.props?.headerStyle || 'bar';
         const layoutMode = item.props?.layout || item.props?.layoutMode || 'free';
         const overflowMode = item.props?.overflow || 'clip';
-        const tint = item.props?.tint ? `style="--card-bg: ${item.props.tint};"` : '';
+        const bgStyle = item.props?.bgStyle || item.props?.bg_style || 'glass';
+        const iconPlate = item.props?.iconPlate || item.props?.icon_plate || 'none';
+        const tint = (item.props?.tint && bgStyle !== 'transparent' && bgStyle !== 'ghost' && bgStyle !== 'light')
+          ? `style="--card-bg: ${item.props.tint};"`
+          : '';
+
+        const bgClass = bgStyle === 'transparent' ? 'cat-transparent'
+                      : bgStyle === 'ghost' ? 'cat-ghost'
+                      : bgStyle === 'light' ? 'cat-light'
+                      : 'cat-glass';
 
         el.innerHTML = `
-          <div class="stage-island" ${tint} data-shape="${shape}" data-header="${headerStyle}" data-layout="${layoutMode}" data-overflow="${overflowMode}" style="${clipStyle}">
+          <div class="stage-island ${bgClass}" ${tint} data-shape="${shape}" data-header="${headerStyle}" data-layout="${layoutMode}" data-overflow="${overflowMode}" data-bg-style="${bgStyle}" data-icon-plate="${iconPlate}" style="${clipStyle}">
             ${svgBorderHtml}
             <header class="stage-island-header">
               <span class="stage-island-title">
@@ -591,12 +600,24 @@
                 <span>${item.title || 'Island'}</span>
               </span>
               <div class="stage-island-actions">
-                <button class="stage-island-btn" id="btnCollapse_${item.id}" title="Collapse to Chip">−</button>
+                <button type="button" class="stage-island-btn admin-only" id="btnCatEdit_${item.id}" title="تنظیمات دسته‌بندی و شفافیت">⚙️</button>
+                <button type="button" class="stage-island-btn" id="btnCollapse_${item.id}" title="Collapse">−</button>
               </div>
             </header>
             <div class="stage-island-body" id="body_${item.id}" style="${padStyle}"></div>
           </div>
         `;
+
+        const editBtn = el.querySelector(`#btnCatEdit_${item.id}`);
+        if (editBtn) {
+          editBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (window.openCategoryModal) {
+              window.openCategoryModal(item.id);
+            }
+          });
+        }
 
         const collapseBtn = el.querySelector(`#btnCollapse_${item.id}`);
         if (collapseBtn) {
@@ -618,6 +639,18 @@
         const iconType = item.props?.icon_type || (iconVal.startsWith('/') || iconVal.startsWith('http') ? 'image' : 'builtin');
         const initialChar = ((item.title || 'S').trim().charAt(0) || '?').toUpperCase();
 
+        const parentId = rect?.parent || el.getAttribute('data-parent') || this.board?.layout?.placement?.[item.id]?.lg?.parent || '';
+        const parentIsl = (parentId && this.board?.config?.items)
+          ? this.board.config.items.find(i => i.id === parentId)
+          : null;
+        const catIconPlate = parentIsl?.props?.iconPlate || parentIsl?.props?.icon_plate || 'none';
+
+        const tileBgClass = (catIconPlate === 'cards-transparent') ? 'card-transparent' : '';
+        const iconPlateClass = (catIconPlate === 'icon-transparent' || catIconPlate === 'cards-transparent') ? 'plate-transparent'
+                             : (catIconPlate === 'light') ? 'plate-light'
+                             : (catIconPlate === 'invert') ? 'filter-invert'
+                             : '';
+
         let iconMarkup = '';
         if (window.IconCatalog && typeof window.IconCatalog.render === 'function') {
           iconMarkup = window.IconCatalog.render(iconType, iconVal);
@@ -636,8 +669,8 @@
         const ariaLabel = `${item.title || 'Service'} — ${statusText}${item.subtitle ? ', ' + item.subtitle : ''}`;
 
         el.innerHTML = `
-          <a class="stage-service-tile tile-main-link" href="${targetUrl}" target="${openInNew}" rel="noreferrer" title="${item.subtitle || item.title}" aria-label="${ariaLabel}" draggable="false">
-            <div class="stage-tile-icon tile-icon-box">
+          <a class="stage-service-tile tile-main-link ${tileBgClass}" href="${targetUrl}" target="${openInNew}" rel="noreferrer" title="${item.subtitle || item.title}" aria-label="${ariaLabel}" draggable="false">
+            <div class="stage-tile-icon tile-icon-box ${iconPlateClass}">
               ${iconMarkup}
             </div>
             <div class="stage-tile-info">

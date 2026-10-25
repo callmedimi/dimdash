@@ -107,6 +107,79 @@
   color: var(--text-main, #f8fafc);
 }
 
+.stage-island-actions {
+  display: flex;
+  align-items: center;
+  gap: calc(6px * var(--wu));
+  flex-shrink: 0;
+}
+
+.stage-island-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(4px * var(--wu));
+  padding: calc(3px * var(--wu)) calc(8px * var(--wu));
+  font-size: calc(11.5px * var(--wu));
+  font-weight: 600;
+  font-family: inherit;
+  color: rgba(248, 250, 252, 0.82);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: calc(8px * var(--wu));
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.stage-island-btn:hover {
+  background: rgba(56, 189, 248, 0.18);
+  border-color: rgba(56, 189, 248, 0.45);
+  color: #ffffff;
+}
+
+/* Category (Island) Transparency & Surface Modes */
+.stage-island.cat-transparent {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.stage-island.cat-transparent .stage-island-header {
+  background: transparent !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.stage-island.cat-ghost {
+  background: rgba(15, 23, 42, 0.08) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px dashed rgba(255, 255, 255, 0.24) !important;
+  box-shadow: none !important;
+}
+
+.stage-island.cat-ghost .stage-island-header {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+.stage-island.cat-light {
+  background: rgba(248, 250, 252, 0.88) !important;
+  border-color: rgba(15, 23, 42, 0.15) !important;
+  color: #0f172a !important;
+}
+
+.stage-island.cat-light .stage-island-title {
+  color: #0f172a !important;
+}
+
+.stage-island.cat-light .stage-island-btn {
+  color: #1e293b;
+  background: rgba(15, 23, 42, 0.08);
+  border-color: rgba(15, 23, 42, 0.16);
+}
+
 .stage-island-body {
   position: relative;
   flex: 1;
@@ -171,6 +244,67 @@
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+}
+
+/* Service Tile & Icon Transparency / Contrast Plate Modes */
+.stage-service-tile.card-transparent {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.stage-service-tile.card-transparent:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(56, 189, 248, 0.32) !important;
+}
+
+.stage-service-tile.card-ghost {
+  background: transparent !important;
+  border: 1px dashed rgba(255, 255, 255, 0.22) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.stage-service-tile.card-light {
+  background: rgba(248, 250, 252, 0.92) !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  color: #0f172a !important;
+}
+
+.stage-service-tile.card-light .stage-tile-title {
+  color: #0f172a !important;
+}
+
+.stage-service-tile.card-light .stage-tile-subtitle {
+  color: #475569 !important;
+}
+
+.stage-tile-icon.plate-transparent {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.stage-tile-icon.plate-transparent .tile-fallback-plate {
+  background: transparent !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+.stage-tile-icon.plate-light {
+  background: rgba(248, 250, 252, 0.92) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18) !important;
+  padding: calc(4px * var(--wu)) !important;
+  box-sizing: border-box;
+}
+
+.stage-tile-icon.filter-invert img,
+.stage-tile-icon.filter-invert svg {
+  filter: invert(1) hue-rotate(180deg) brightness(1.15);
 }
 
 .stage-tile-info {
@@ -458,13 +592,17 @@ body.tenfoot-idle * {
   animation: none !important;
 }
 
-.stage-viewport.editing .stage-island,
+.stage-viewport.editing .stage-island:not(.cat-transparent):not(.cat-ghost):not(.cat-light),
 .stage-viewport.editing .widget-card,
-.stage-viewport.is-interacting .stage-island,
+.stage-viewport.is-interacting .stage-island:not(.cat-transparent):not(.cat-ghost):not(.cat-light),
 .stage-viewport.is-interacting .widget-card {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   background: rgba(18, 23, 38, 0.92) !important;
+}
+
+.stage-viewport.editing .stage-island.cat-transparent {
+  border: 1px dashed rgba(56, 189, 248, 0.35) !important;
 }
 
 .stage-viewport.editing .radial-gauge-progress,

@@ -81,6 +81,9 @@
         visibility: s.acl?.visibility === 'user' ? 'pin_protected' : 'public',
         icon_type: s.props?.icon_type || 'image',
         icon_value: s.props?.icon_value || '',
+        icon_plate: s.props?.icon_plate || s.props?.iconPlate || undefined,
+        bg_style: s.props?.bg_style || s.props?.bgStyle || undefined,
+        bg_color: s.props?.bg_color || s.props?.bgColor || undefined,
         probe: s.probe || { type: 'none' }
       }));
 
@@ -94,7 +97,8 @@
         is_collapsed: !!isl.props?.isCollapsed,
         tile_size: isl.props?.tileSize || 'medium',
         tile_style: isl.props?.tileStyle || 'grid',
-        bg_style: isl.props?.bgStyle || 'transparent',
+        bg_style: isl.props?.bgStyle || isl.props?.bg_style || 'transparent',
+        icon_plate: isl.props?.iconPlate || isl.props?.icon_plate || undefined,
         col_start: isl.props?.colStart || '1',
         tiles
       });

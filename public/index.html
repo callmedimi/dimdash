@@ -686,26 +686,6 @@
           <input type="hidden" id="selectedIconValue" value="server">
         </div>
 
-        <!-- Icon Contrast & Visibility on Dark Backgrounds -->
-        <div class="form-row" style="margin-bottom: 0.85rem;">
-          <div class="form-group" style="flex:1;">
-            <label class="form-label">Icon Contrast Plate (بستر آیکون)</label>
-            <select id="tileIconPlateSelect" class="form-select">
-              <option value="none">استاندارد / بدون پلاک (Standard)</option>
-              <option value="light">💡 بستر سفید روشن (Light Plate — حل مشکل لوگو و متون مشکی)</option>
-              <option value="invert">🔄 معکوس‌سازی رنگ (Invert Black to White)</option>
-            </select>
-          </div>
-          <div class="form-group" style="flex:1;">
-            <label class="form-label">Card Background (پس‌زمینه تایل)</label>
-            <select id="tileBgStyleSelect" class="form-select">
-              <option value="default">پیش‌فرض گروه (Inherit from Group)</option>
-              <option value="transparent">کاملاً شفاف (Transparent Card)</option>
-              <option value="light">کارت روشن کنتراست بالا (Light Card)</option>
-            </select>
-          </div>
-        </div>
-
         <!-- Generic Probe / Monitoring Engine Config -->
         <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1rem;">
           <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem; color: #a5b4fc;">Live Health Probe & Monitoring Engine</h4>
@@ -815,21 +795,22 @@
 
         <div class="form-row">
           <div class="form-group" style="flex:1;">
-            <label class="form-label">Group Transparency (شفافیت گروه)</label>
+            <label class="form-label">Group Transparency (شفافیت دسته‌بندی)</label>
             <select id="catBgStyleSelect" class="form-input">
-              <option value="glass">شیشه‌ای مات استاندارد (Glassmorphic)</option>
-              <option value="transparent">🫥 کاملاً شفاف (100% Transparent — بدون رنگ تیره)</option>
-              <option value="ghost">فریم سبک (Subtle Ghost Border)</option>
-              <option value="light">کنتراست روشن (Light Island Plate)</option>
+              <option value="glass">🫧 شیشه‌ای مات استاندارد (Glassmorphic)</option>
+              <option value="transparent">🫥 کاملاً شفاف (100% Transparent — بدون پس‌زمینه)</option>
+              <option value="ghost">🔲 فریم سبک نیمه‌شفاف (Subtle Ghost Border)</option>
+              <option value="light">☀️ کنتراست روشن (Light Island Plate)</option>
             </select>
           </div>
           <div class="form-group" style="flex:1;">
-            <label class="form-label">Icon Contrast Plate (کنتراست آیکون‌ها)</label>
+            <label class="form-label">Icons & Tiles Transparency (شفافیت و بستر آیکون‌ها)</label>
             <select id="catIconPlateSelect" class="form-input">
               <option value="none">عادی (Standard Dark)</option>
+              <option value="icon-transparent">🫥 آیکون‌های کاملاً شفاف بدون کادر (Transparent Icons)</option>
+              <option value="cards-transparent">🫥 تایل‌ها و آیکون‌های کاملاً شفاف (Transparent Cards & Icons)</option>
               <option value="light">💡 بستر سفید برای همه آیکون‌ها (حل مشکل لوگوی مشکی)</option>
-              <option value="invert">🔄 معکوس‌سازی رنگ آیکون‌ها</option>
-              <option value="cards-transparent">کارت‌های شفاف (Transparent Cards)</option>
+              <option value="invert">🔄 معکوس‌سازی رنگ آیکون‌ها (Invert Dark Icons)</option>
             </select>
           </div>
         </div>
@@ -953,9 +934,16 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Glass Blur Effect: <span id="themeBlurVal">16px</span></label>
-            <input type="range" id="themeBlurInput" min="4" max="32" step="2" class="form-input" style="padding:0;">
+            <label class="form-label">Glass & Card Opacity (شفافیت کارت‌ها و گروه‌ها): <span id="themeOpacityVal">75%</span></label>
+            <input type="range" id="themeOpacityInput" min="0" max="100" step="5" value="75" class="form-input" style="padding:0;">
           </div>
+          <div class="form-group">
+            <label class="form-label">Glass Blur Effect: <span id="themeBlurVal">16px</span></label>
+            <input type="range" id="themeBlurInput" min="0" max="32" step="2" class="form-input" style="padding:0;">
+          </div>
+        </div>
+
+        <div class="form-row">
           <div class="form-group">
             <label class="form-label">Display Density</label>
             <select id="themeDensitySelect" class="form-select">

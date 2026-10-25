@@ -297,9 +297,36 @@ class BoardManager extends EventEmitter {
    * Compatibility method for saving v1 format
    */
   saveConfig(v1Config) {
+    const prevPlacement = (this.state.layout && this.state.layout.placement) ? safeClone(this.state.layout.placement) : {};
+    const prevItemsMap = new Map();
+    if (this.state.config && Array.isArray(this.state.config.items)) {
+      this.state.config.items.forEach(it => prevItemsMap.set(it.id, it));
+    }
+
     const migrated = migrateV1toV2(v1Config);
+
+    // Preserve extra v2 item props (like shape, collapse, custom props) when saving via v1 config modal
+    if (migrated.config && Array.isArray(migrated.config.items)) {
+      migrated.config.items.forEach(item => {
+        const prev = prevItemsMap.get(item.id);
+        if (prev && prev.props) {
+          item.props = { ...prev.props, ...item.props };
+        }
+      });
+    }
+
     this.state.config = migrated.config;
     if (migrated.layout && migrated.layout.placement) {
+      // Preserve custom Blueprint positions/sizes for existing items while updating parent if moved
+      for (const [id, newPl] of Object.entries(migrated.layout.placement)) {
+        if (prevPlacement[id]) {
+          const mergedPl = safeClone(prevPlacement[id]);
+          if (mergedPl.lg && newPl.lg && newPl.lg.parent !== undefined) {
+            mergedPl.lg.parent = newPl.lg.parent;
+          }
+          migrated.layout.placement[id] = mergedPl;
+        }
+      }
       this.state.layout = migrated.layout;
     }
     if (migrated.secrets) {

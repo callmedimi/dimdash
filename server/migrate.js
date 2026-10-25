@@ -172,6 +172,7 @@ function migrateV1toV2(v1Data) {
         tileSize: cat.tile_size || 'medium',
         tileStyle: cat.tile_style || 'grid',
         bgStyle: cat.bg_style || 'transparent',
+        iconPlate: cat.icon_plate || 'none',
         colStart: cat.col_start || '1'
       },
       acl: { visibility: 'public' },
@@ -212,7 +213,10 @@ function migrateV1toV2(v1Data) {
           target_url: t.target_url || '',
           open_in_new_tab: t.open_in_new_tab !== false,
           icon_type: t.icon_type || 'image',
-          icon_value: t.icon_value || ''
+          icon_value: t.icon_value || '',
+          icon_plate: t.icon_plate || undefined,
+          bg_style: t.bg_style || undefined,
+          bg_color: t.bg_color || undefined
         },
         bind: t.probe ? { status: `probe:${tileId}` } : {},
         probe: t.probe ? JSON.parse(JSON.stringify(t.probe)) : { type: 'none' },
@@ -321,6 +325,9 @@ function migrateV2toV1({ config, layout, secrets = {} }) {
       visibility: t.acl?.visibility === 'user' ? 'pin_protected' : 'public',
       icon_type: t.props?.icon_type || 'image',
       icon_value: t.props?.icon_value || '',
+      icon_plate: t.props?.icon_plate || t.props?.iconPlate || undefined,
+      bg_style: t.props?.bg_style || t.props?.bgStyle || undefined,
+      bg_color: t.props?.bg_color || t.props?.bgColor || undefined,
       probe: t.probe || { type: 'none' }
     }));
 
@@ -334,7 +341,8 @@ function migrateV2toV1({ config, layout, secrets = {} }) {
       is_collapsed: !!isl.props?.isCollapsed,
       tile_size: isl.props?.tileSize || 'medium',
       tile_style: isl.props?.tileStyle || 'grid',
-      bg_style: isl.props?.bgStyle || 'transparent',
+      bg_style: isl.props?.bgStyle || isl.props?.bg_style || 'transparent',
+      icon_plate: isl.props?.iconPlate || isl.props?.icon_plate || undefined,
       col_start: isl.props?.colStart || '1',
       tiles
     });

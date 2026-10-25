@@ -157,6 +157,7 @@ boardManager.on('reload', (data) => {
 
 boardManager.on('change', (cfg) => {
   broadcastSSE('config', sanitizeConfig(cfg));
+  broadcastSSE('board', boardManager.getSanitizedBoard('admin'));
 });
 
 // 15s Heartbeat comment to keep connections alive through proxies and firewalls
@@ -336,7 +337,7 @@ app.post('/api/config', (req, res) => {
   const result = boardManager.saveConfig(config);
   if (result.success) {
     prober.runCycle();
-    res.json({ success: true });
+    res.json({ success: true, board: boardManager.getSanitizedBoard('admin') });
   } else {
     res.status(500).json({ error: result.error });
   }

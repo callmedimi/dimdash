@@ -389,6 +389,9 @@
      * ------------------------------------------------------------- */
     onPointerDown(e) {
       if (!this.isEditing) return;
+      if (e.target && e.target.closest && e.target.closest('.stage-island-actions, button')) {
+        return;
+      }
 
       const viewportEl = this.stage.viewportEl;
       const isCoarse = e.pointerType === 'touch' || window.matchMedia?.('(pointer: coarse)').matches;

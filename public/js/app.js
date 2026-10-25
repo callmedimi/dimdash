@@ -299,8 +299,9 @@ function applyTheme(theme) {
     root.style.setProperty('--accent-color', theme.accent_color);
     root.style.setProperty('--accent-glow', `${theme.accent_color}40`);
   }
-  if (theme.glass_opacity) {
+  if (theme.glass_opacity !== undefined) {
     root.style.setProperty('--glass-opacity', theme.glass_opacity);
+    root.style.setProperty('--card-bg', `rgba(20, 24, 38, ${theme.glass_opacity})`);
   }
   if (theme.glass_blur) {
     root.style.setProperty('--glass-blur', `${theme.glass_blur}px`);
@@ -413,6 +414,21 @@ function setupSSE() {
       AppState.config = JSON.parse(e.data);
       applyTheme(AppState.config.settings?.theme);
       renderDashboard();
+    } catch (_) {}
+  });
+
+  evtSource.addEventListener('board', (e) => {
+    try {
+      sseActive = true;
+      const newBoard = JSON.parse(e.data);
+      if (newBoard && newBoard.config) {
+        AppState.board = newBoard;
+        const compat = window.DimDashCompat || window.CompatV1;
+        if (compat) {
+          AppState.config = compat.deriveV1FromV2(newBoard);
+        }
+        renderDashboard();
+      }
     } catch (_) {}
   });
 
@@ -2311,11 +2327,19 @@ async function saveConfigToServer(successMsg = 'Settings saved') {
       const err = await res.json();
       throw new Error(err.error || 'Failed to save');
     }
+    const data = await res.json();
+    if (data && data.board) {
+      AppState.board = data.board;
+      if (AppState.stageRenderer) {
+        AppState.stageRenderer.setBoard(AppState.board);
+      }
+    }
     showToast(successMsg, 'success');
   } catch (err) {
     showToast('Error saving: ' + err.message, 'error');
   }
 }
+window.saveConfigToServer = saveConfigToServer;
 
 // Setup Event Listeners
 function setupEventListeners() {
@@ -2884,12 +2908,6 @@ function openTileModal(catId = null, tileId = null) {
   if (document.getElementById('tileVisibilitySelect')) {
     document.getElementById('tileVisibilitySelect').value = existing?.visibility || 'public';
   }
-  if (document.getElementById('tileIconPlateSelect')) {
-    document.getElementById('tileIconPlateSelect').value = existing?.icon_plate || 'none';
-  }
-  if (document.getElementById('tileBgStyleSelect')) {
-    document.getElementById('tileBgStyleSelect').value = existing?.bg_style || 'default';
-  }
 
   // Probe inputs
   const probe = existing?.probe || {};
@@ -2915,9 +2933,6 @@ function openTileModal(catId = null, tileId = null) {
       return;
     }
 
-    const icon_plate = document.getElementById('tileIconPlateSelect')?.value || 'none';
-    const bg_style = document.getElementById('tileBgStyleSelect')?.value || 'default';
-
     const tileData = {
       id: existing ? existing.id : 'tile-' + Date.now(),
       title,
@@ -2927,8 +2942,6 @@ function openTileModal(catId = null, tileId = null) {
       visibility: document.getElementById('tileVisibilitySelect')?.value || 'public',
       icon_type: selectedIconType,
       icon_value: selectedIconValue,
-      icon_plate: icon_plate !== 'none' ? icon_plate : undefined,
-      bg_style: bg_style !== 'default' ? bg_style : undefined,
       bg_color: document.getElementById('tileColorInput').value.trim() || undefined,
       probe: {
         type: document.getElementById('probeTypeSelect').value,
@@ -2963,11 +2976,30 @@ function openTileModal(catId = null, tileId = null) {
       targetCategory.tiles.push(tileData);
     }
 
+    // Sync with v2 AppState.board immediately so Stage view reflects changes instantaneously
+    if (AppState.board?.config?.items) {
+      const bItem = AppState.board.config.items.find(i => i.id === tileData.id);
+      if (bItem) {
+        bItem.title = tileData.title;
+        bItem.subtitle = tileData.subtitle;
+        bItem.visibility = tileData.visibility;
+        bItem.props = bItem.props || {};
+        bItem.props.target_url = tileData.target_url;
+        bItem.props.open_in_new_tab = tileData.open_in_new_tab;
+        bItem.props.icon_type = tileData.icon_type;
+        bItem.props.icon_value = tileData.icon_value;
+        bItem.props.icon_plate = tileData.icon_plate;
+        bItem.props.bg_style = tileData.bg_style;
+        bItem.props.bg_color = tileData.bg_color;
+      }
+    }
+
     saveConfigToServer(isEdit ? 'Service tile updated' : 'New service tile added');
     modal.classList.remove('open');
     renderDashboard();
   };
 }
+window.openTileModal = openTileModal;
 
 function deleteTile(catId, tileId) {
   if (!confirm('Are you sure you want to delete this service?')) return;
@@ -3060,11 +3092,26 @@ function openCategoryModal(catId = null) {
       });
     }
 
+    // Sync with v2 AppState.board immediately so Stage view reflects category transparency/plate changes instantaneously
+    if (isEdit && AppState.board?.config?.items) {
+      const bIsl = AppState.board.config.items.find(i => i.id === catId);
+      if (bIsl) {
+        bIsl.title = name;
+        bIsl.props = bIsl.props || {};
+        bIsl.props.tint = color;
+        bIsl.props.bgStyle = bg_style;
+        bIsl.props.bg_style = bg_style;
+        bIsl.props.iconPlate = icon_plate !== 'none' ? icon_plate : undefined;
+        bIsl.props.icon_plate = icon_plate !== 'none' ? icon_plate : undefined;
+      }
+    }
+
     saveConfigToServer(isEdit ? 'Category updated' : 'Category created');
     modal.classList.remove('open');
     renderDashboard();
   };
 }
+window.openCategoryModal = openCategoryModal;
 
 function deleteCategory(catId) {
   const cat = AppState.config?.categories.find(c => c.id === catId);
@@ -3106,6 +3153,20 @@ function openThemeModal() {
   document.getElementById('themeAccentInput').value = theme.accent_color || '#6366f1';
   document.getElementById('themeBlurInput').value = theme.glass_blur || 16;
   document.getElementById('themeBlurVal').textContent = `${theme.glass_blur || 16}px`;
+
+  const opPct = theme.glass_opacity !== undefined ? Math.round(Number(theme.glass_opacity) * 100) : 75;
+  const opInput = document.getElementById('themeOpacityInput');
+  const opVal = document.getElementById('themeOpacityVal');
+  if (opInput) {
+    opInput.value = opPct;
+    if (opVal) opVal.textContent = `${opPct}%`;
+    opInput.oninput = (e) => {
+      if (opVal) opVal.textContent = `${e.target.value}%`;
+      const ratio = Number(e.target.value) / 100;
+      document.documentElement.style.setProperty('--glass-opacity', String(ratio));
+      document.documentElement.style.setProperty('--card-bg', `rgba(20, 24, 38, ${ratio})`);
+    };
+  }
   document.getElementById('themeDensitySelect').value = theme.tile_density || 'normal';
   document.getElementById('themeCardStyleSelect').value = theme.card_style || 'pill';
   
@@ -3373,6 +3434,7 @@ function openThemeModal() {
     AppState.config.settings.theme = {
       ...AppState.config.settings.theme,
       accent_color: document.getElementById('themeAccentInput').value,
+      glass_opacity: document.getElementById('themeOpacityInput') ? Number(document.getElementById('themeOpacityInput').value) / 100 : (theme.glass_opacity !== undefined ? theme.glass_opacity : 0.75),
       glass_blur: parseInt(document.getElementById('themeBlurInput').value, 10),
       tile_density: document.getElementById('themeDensitySelect').value,
       card_style: document.getElementById('themeCardStyleSelect').value,
