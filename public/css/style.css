@@ -1091,8 +1091,44 @@ body.page-view-apps .sub-nav {
   display: flex !important;
 }
 
-body.page-view-apps #statsOverviewBar {
-  display: flex !important;
+body.page-view-apps #statsOverviewBar:not(.is-hidden) {
+  display: flex;
+}
+
+.stats-overview-bar.is-hidden,
+#statsOverviewBar.is-hidden {
+  display: none !important;
+}
+
+.restore-stats-bar-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0.75rem auto;
+  z-index: 40;
+}
+
+#btnRestoreStatsBarFloating {
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #94a3b8;
+  font-size: 0.82rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+#btnRestoreStatsBarFloating:hover {
+  background: rgba(30, 41, 59, 0.85);
+  color: #f8fafc;
+  border-color: var(--accent-color, #6366f1);
+  transform: translateY(-1px);
 }
 
 body.page-view-apps .cluster-selector-bar,
@@ -1226,7 +1262,7 @@ body.page-view-apps .widgets-grid .widget-card {
   color: #64748b !important;
 }
 
-/* 3. Icon Contrast Plates for Dark & Black Logos */
+/* 3. Icon Contrast Plates & Transparency Modes */
 .tile-icon-box.plate-light,
 .category-section.cat-icon-plate-light .tile-icon-box {
   background: #ffffff !important;
@@ -1246,6 +1282,30 @@ body.page-view-apps .widgets-grid .widget-card {
 .category-section.cat-icon-plate-invert .tile-icon-box img,
 .category-section.cat-icon-plate-invert .tile-icon-box svg {
   filter: invert(1) brightness(1.2) drop-shadow(0 2px 4px rgba(0,0,0,0.6)) !important;
+}
+
+/* Transparent Icon Plate (No background box around icon) */
+.tile-icon-box.plate-icon-transparent,
+.category-section.cat-icon-plate-icon-transparent .tile-icon-box {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Transparent Cards & Icons (100% Transparent Card Surface) */
+.tile-card.card-transparent,
+.category-section.cat-icon-plate-cards-transparent .tile-card {
+  background: transparent !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.tile-card.card-transparent .tile-icon-box,
+.category-section.cat-icon-plate-cards-transparent .tile-icon-box {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 /* Category Quick Control Buttons in Island Header */

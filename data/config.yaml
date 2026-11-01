@@ -25,6 +25,7 @@ settings:
     focus_hotkey: /
     instant_filter: true
   displays: []
+  show_stats_bar: true
 servers:
   - id: local
     name: Master Node (Local)
@@ -159,6 +160,7 @@ items:
       tileStyle: grid
       bgStyle: transparent
       colStart: "1"
+      iconPlate: none
     acl:
       visibility: public
     rev: 1
@@ -248,6 +250,7 @@ items:
       tileStyle: grid
       bgStyle: transparent
       colStart: "3"
+      iconPlate: none
     acl:
       visibility: public
     rev: 1

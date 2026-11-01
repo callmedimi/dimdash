@@ -107,6 +107,7 @@
     return {
       version: '1.0',
       settings: {
+        ...(settings || {}),
         dashboard_title: settings.title || 'DimDash',
         locale: settings.locale || 'fa',
         calendar: settings.calendar || 'both',

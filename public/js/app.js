@@ -486,13 +486,18 @@ function renderStatsBarVisibility() {
   const isMonitoring = AppState.currentView === 'server-monitor';
   const statsBar = document.getElementById('statsOverviewBar');
   const restoreBtn = document.getElementById('btnRestoreStatsBar');
+  const restoreWrapper = document.getElementById('restoreStatsBarWrapper');
   const hideBtn = document.getElementById('btnHideStatsBar');
+  const labelMenu = document.getElementById('labelToggleStatsBar');
+  const hintMenu = document.getElementById('hintToggleStatsBar');
 
   if (statsBar) {
     if (!showStats || isMonitoring) {
       statsBar.style.setProperty('display', 'none', 'important');
+      statsBar.classList.add('is-hidden');
     } else {
       statsBar.style.removeProperty('display');
+      statsBar.classList.remove('is-hidden');
     }
   }
 
@@ -500,8 +505,18 @@ function renderStatsBarVisibility() {
     hideBtn.style.display = (AppState.authRole === 'admin' && showStats && !isMonitoring) ? 'inline-flex' : 'none';
   }
 
+  const shouldShowRestore = !showStats && AppState.authRole === 'admin' && !isMonitoring;
   if (restoreBtn) {
-    restoreBtn.style.display = (!showStats && AppState.authRole === 'admin' && !isMonitoring) ? 'inline-flex' : 'none';
+    restoreBtn.style.display = shouldShowRestore ? 'inline-flex' : 'none';
+  }
+  if (restoreWrapper) {
+    restoreWrapper.style.display = shouldShowRestore ? 'flex' : 'none';
+  }
+  if (labelMenu) {
+    labelMenu.textContent = showStats ? 'مخفی‌سازی نوار وضعیت سرویس‌ها' : 'نمایش نوار وضعیت سرویس‌ها';
+  }
+  if (hintMenu) {
+    hintMenu.textContent = showStats ? 'در حال حاضر نمایان است. کلیک جهت مخفی‌سازی.' : 'در حال حاضر مخفی است. کلیک جهت بازگردانی.';
   }
 }
 
@@ -1673,8 +1688,12 @@ function renderGrid() {
 
       const hasLightPlate = tile.icon_plate === 'light' || cat.icon_plate === 'light';
       const hasInvert = tile.icon_plate === 'invert' || cat.icon_plate === 'invert';
-      const plateClass = hasLightPlate ? 'plate-light' : (hasInvert ? 'filter-invert' : '');
-      const cardClass = tile.bg_style === 'transparent' ? 'card-transparent' : (tile.bg_style === 'light' ? 'card-light' : '');
+      const hasIconTrans = tile.icon_plate === 'icon-transparent' || cat.icon_plate === 'icon-transparent';
+      const hasCardTrans = tile.icon_plate === 'cards-transparent' || cat.icon_plate === 'cards-transparent';
+      const plateClass = hasLightPlate ? 'plate-light' 
+                       : (hasInvert ? 'filter-invert' 
+                       : ((hasIconTrans || hasCardTrans) ? 'plate-icon-transparent' : ''));
+      const cardClass = (tile.bg_style === 'transparent' || hasCardTrans) ? 'card-transparent' : (tile.bg_style === 'light' ? 'card-light' : '');
 
       html += `
         <div class="tile-card ${cardClass}" 
@@ -2330,6 +2349,10 @@ async function saveConfigToServer(successMsg = 'Settings saved') {
     const data = await res.json();
     if (data && data.board) {
       AppState.board = data.board;
+      const compat = window.DimDashCompat || window.CompatV1;
+      if (compat) {
+        AppState.config = compat.deriveV1FromV2(data.board);
+      }
       if (AppState.stageRenderer) {
         AppState.stageRenderer.setBoard(AppState.board);
       }
@@ -2448,21 +2471,57 @@ function setupEventListeners() {
       e.stopPropagation();
       AppState.config.settings = AppState.config.settings || {};
       AppState.config.settings.show_stats_bar = false;
-      await saveConfigToServer();
+      if (AppState.board?.config?.settings) {
+        AppState.board.config.settings.show_stats_bar = false;
+      }
+      renderStatsBarVisibility();
+      await saveConfigToServer('نوار وضعیت سرویس‌ها ذخیره و مخفی شد');
       renderDashboard();
-      showToast('نوار وضعیت سرویس‌ها مخفی شد (از طریق دکمه "نمایش نوار وضعیت" یا در تنظیمات قابل بازگردانی است)', 'info');
+      showToast('نوار وضعیت سرویس‌ها مخفی شد (از منوی ابزارها یا دکمه بازیابی قابل نمایش مجدد است)', 'info');
     });
   }
 
+  const restoreStatsAction = async (e) => {
+    if (e) e.stopPropagation();
+    AppState.config.settings = AppState.config.settings || {};
+    AppState.config.settings.show_stats_bar = true;
+    if (AppState.board?.config?.settings) {
+      AppState.board.config.settings.show_stats_bar = true;
+    }
+    renderStatsBarVisibility();
+    await saveConfigToServer('نوار وضعیت سرویس‌ها ذخیره و نمایان شد');
+    renderDashboard();
+    showToast('نوار وضعیت سرویس‌ها بازگردانی و نمایان شد', 'success');
+  };
+
   const btnRestoreStats = document.getElementById('btnRestoreStatsBar');
   if (btnRestoreStats) {
-    btnRestoreStats.addEventListener('click', async (e) => {
+    btnRestoreStats.addEventListener('click', restoreStatsAction);
+  }
+
+  const btnRestoreFloating = document.getElementById('btnRestoreStatsBarFloating');
+  if (btnRestoreFloating) {
+    btnRestoreFloating.addEventListener('click', restoreStatsAction);
+  }
+
+  const btnToggleMenu = document.getElementById('btnToggleStatsBarMenu');
+  if (btnToggleMenu) {
+    btnToggleMenu.addEventListener('click', async (e) => {
       e.stopPropagation();
-      AppState.config.settings = AppState.config.settings || {};
-      AppState.config.settings.show_stats_bar = true;
-      await saveConfigToServer();
-      renderDashboard();
-      showToast('نوار وضعیت سرویس‌ها بازگردانی و نمایان شد', 'success');
+      const current = AppState.config?.settings?.show_stats_bar !== false;
+      if (current) {
+        AppState.config.settings = AppState.config.settings || {};
+        AppState.config.settings.show_stats_bar = false;
+        if (AppState.board?.config?.settings) {
+          AppState.board.config.settings.show_stats_bar = false;
+        }
+        renderStatsBarVisibility();
+        await saveConfigToServer('نوار وضعیت سرویس‌ها پنهان شد');
+        renderDashboard();
+        showToast('نوار وضعیت سرویس‌ها مخفی شد', 'info');
+      } else {
+        await restoreStatsAction(e);
+      }
     });
   }
 
@@ -2905,6 +2964,9 @@ function openTileModal(catId = null, tileId = null) {
   document.getElementById('tileUrlInput').value = existing?.target_url || '';
   document.getElementById('tileNewTabInput').checked = existing ? existing.open_in_new_tab !== false : true;
   document.getElementById('tileColorInput').value = existing?.bg_color || '';
+  if (document.getElementById('tileIconPlateSelect')) {
+    document.getElementById('tileIconPlateSelect').value = existing?.icon_plate || 'inherit';
+  }
   if (document.getElementById('tileVisibilitySelect')) {
     document.getElementById('tileVisibilitySelect').value = existing?.visibility || 'public';
   }
@@ -2927,6 +2989,7 @@ function openTileModal(catId = null, tileId = null) {
     const title = document.getElementById('tileTitleInput').value.trim();
     const url = document.getElementById('tileUrlInput').value.trim();
     const targetCatId = catSelect.value;
+    const tilePlate = document.getElementById('tileIconPlateSelect')?.value || 'inherit';
 
     if (!title || !url) {
       showToast('Please enter service title and URL', 'error');
@@ -2942,6 +3005,7 @@ function openTileModal(catId = null, tileId = null) {
       visibility: document.getElementById('tileVisibilitySelect')?.value || 'public',
       icon_type: selectedIconType,
       icon_value: selectedIconValue,
+      icon_plate: (tilePlate && tilePlate !== 'inherit') ? tilePlate : undefined,
       bg_color: document.getElementById('tileColorInput').value.trim() || undefined,
       probe: {
         type: document.getElementById('probeTypeSelect').value,
@@ -2988,6 +3052,7 @@ function openTileModal(catId = null, tileId = null) {
         bItem.props.open_in_new_tab = tileData.open_in_new_tab;
         bItem.props.icon_type = tileData.icon_type;
         bItem.props.icon_value = tileData.icon_value;
+        bItem.props.iconPlate = tileData.icon_plate;
         bItem.props.icon_plate = tileData.icon_plate;
         bItem.props.bg_style = tileData.bg_style;
         bItem.props.bg_color = tileData.bg_color;

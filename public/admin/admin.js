@@ -536,6 +536,11 @@ function initThemeStudio() {
     document.getElementById('adminWpDimVal').textContent = `${theme.wallpaper_dim ?? 45}%`;
   }
 
+  const chkStats = document.getElementById('adminShowStatsBarInput');
+  if (chkStats) chkStats.checked = AdminState.config?.settings?.show_stats_bar !== false;
+  const chkClock = document.getElementById('adminShowClockInput');
+  if (chkClock) chkClock.checked = AdminState.config?.settings?.show_clock !== false;
+
   function setAdminWpBlur(px) {
     const input = document.getElementById('adminWpBlurInput');
     const valEl = document.getElementById('adminWpBlurVal');
@@ -869,6 +874,12 @@ function setupEventListeners() {
   document.getElementById('btnSaveThemeStudio')?.addEventListener('click', async () => {
     AdminState.config.settings = AdminState.config.settings || {};
     AdminState.config.settings.dashboard_title = document.getElementById('adminThemeTitleInput').value.trim() || 'DimDash Homelab';
+    
+    const chkStats = document.getElementById('adminShowStatsBarInput');
+    if (chkStats) AdminState.config.settings.show_stats_bar = chkStats.checked;
+    const chkClock = document.getElementById('adminShowClockInput');
+    if (chkClock) AdminState.config.settings.show_clock = chkClock.checked;
+
     AdminState.config.settings.theme = {
       ...AdminState.config.settings.theme,
       accent_color: document.getElementById('adminThemeAccentInput').value,

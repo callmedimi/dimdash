@@ -537,11 +537,23 @@
                 </select>
               </div>
             </div>
-          </div>
+            <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.85rem; margin-top: 0.85rem;">
+              <label class="form-label" style="font-size:0.85rem; margin-bottom: 0.5rem;">Dashboard Visibility</label>
+              <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; cursor: pointer;">
+                  <input type="checkbox" id="adminShowStatsBarInput" style="width: 16px; height: 16px; accent-color: var(--accent);">
+                  <span>Show Services Status Overview Bar (Total / Online / Offline)</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; cursor: pointer;">
+                  <input type="checkbox" id="adminShowClockInput" style="width: 16px; height: 16px; accent-color: var(--accent);">
+                  <span>Show Digital Clock & Calendar</span>
+                </label>
+              </div>
+            </div>
 
-          <button class="btn btn-primary" id="btnSaveThemeStudio" style="margin-top: 1rem;">
-            <span>Save Theme Settings</span>
-          </button>
+            <button class="btn btn-primary" id="btnSaveThemeStudio" style="margin-top: 1rem;">
+              <span>Save Theme Settings</span>
+            </button>
         </div>
 
         <div class="glass-box" style="display:flex; flex-direction:column; align-items:center; justify-content:center;">

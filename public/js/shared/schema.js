@@ -223,6 +223,8 @@
           locale: { type: 'string', enum: ['fa', 'en'], default: 'fa' },
           calendar: { type: 'string', enum: ['persian', 'gregorian', 'both'], default: 'both' },
           quality: { type: 'string', enum: ['auto', 'high', 'medium', 'low'], default: 'auto' },
+          show_stats_bar: { type: 'boolean', default: true },
+          show_clock: { type: 'boolean', default: true },
           theme: { type: 'object' },
           search: { type: 'object' },
           displays: { type: 'array' }

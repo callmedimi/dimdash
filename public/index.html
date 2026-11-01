@@ -150,6 +150,13 @@
                 <small>Agent nodes & HTTP pull remotes</small>
               </div>
             </button>
+            <button class="submenu-item admin-only-ui" id="btnToggleStatsBarMenu">
+              <span class="submenu-icon">📊</span>
+              <div class="submenu-text">
+                <strong id="labelToggleStatsBar">مخفی‌سازی نوار وضعیت سرویس‌ها</strong>
+                <small id="hintToggleStatsBar">نمایش یا مخفی‌سازی کپسول آمار و وضعیت سرویس‌ها</small>
+              </div>
+            </button>
           </div>
         </div>
       </nav>
@@ -257,6 +264,16 @@
           </button>
         </div>
       </section>
+
+      <!-- Restorable Stats Overview Bar Floating Button (Visible when hidden in Stage / Grid modes) -->
+      <div class="restore-stats-bar-wrapper" id="restoreStatsBarWrapper" style="display: none;">
+        <button type="button" class="btn btn-glass btn-sm" id="btnRestoreStatsBarFloating" title="نمایش مجدد نوار وضعیت سرویس‌ها (Restore Services Status Bar)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: 6px; margin-right: 6px;">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+          <span>نمایش نوار وضعیت سرویس‌ها</span>
+        </button>
+      </div>
 
       <!-- Modular Live Monitoring & Gauges Section -->
       <section class="widgets-section" id="widgetsSection">
@@ -665,9 +682,22 @@
           </div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Custom Background Color (Optional)</label>
-          <input type="text" id="tileColorInput" class="form-input" placeholder="rgba(99, 102, 241, 0.15)">
+        <div class="form-row">
+          <div class="form-group" style="flex:1;">
+            <label class="form-label">Transparency & Style (شفافیت کارت و آیکون)</label>
+            <select id="tileIconPlateSelect" class="form-select">
+              <option value="inherit">پیش‌فرض دسته‌بندی (Inherit Category)</option>
+              <option value="none">کارت عادی (Standard)</option>
+              <option value="icon-transparent">🫥 آیکون کاملاً شفاف بدون کادر (Transparent Icon)</option>
+              <option value="cards-transparent">🫥 کارت و آیکون کاملاً شفاف (100% Transparent Card)</option>
+              <option value="light">💡 بستر سفید (Light Plate - حل مشکل آیکون مشکی)</option>
+              <option value="invert">🔄 معکوس‌سازی رنگ آیکون (Invert Dark Icons)</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label class="form-label">Custom Background Color (Optional)</label>
+            <input type="text" id="tileColorInput" class="form-input" placeholder="rgba(99, 102, 241, 0.15)">
+          </div>
         </div>
 
         <!-- Icon Picker & Custom Upload -->

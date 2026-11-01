@@ -63,7 +63,8 @@ function migrateV1toV2(v1Data) {
 
   // 2. Settings migration (without secrets)
   const settings = {
-    title: v1Settings.dashboard_title || 'DimDash',
+    ...v1Settings,
+    title: v1Settings.dashboard_title || v1Settings.title || 'DimDash',
     locale: v1Settings.locale || 'fa',
     calendar: v1Settings.calendar || 'both',
     quality: v1Settings.quality || 'auto',
@@ -71,6 +72,9 @@ function migrateV1toV2(v1Data) {
     search: v1Settings.search ? JSON.parse(JSON.stringify(v1Settings.search)) : { enabled: true, focus_hotkey: '/', instant_filter: true },
     displays: v1Settings.displays || []
   };
+  delete settings.dashboard_title;
+  delete settings.admin_pin;
+  delete settings.user_pin;
 
   // 3. Servers migration (strip tokens into secrets)
   const servers = v1Servers.map(srv => {
@@ -270,6 +274,7 @@ function migrateV2toV1({ config, layout, secrets = {} }) {
   }
 
   const v1Settings = {
+    ...(config.settings || {}),
     dashboard_title: config.settings?.title || 'DimDash',
     locale: config.settings?.locale || 'fa',
     calendar: config.settings?.calendar || 'both',

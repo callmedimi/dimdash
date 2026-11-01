@@ -298,5 +298,28 @@ describe('v1 to v2 and v2 to v1 Migration', () => {
     assert.strictEqual(v1.categories.length, 1);
     assert.strictEqual(v1.categories[0].name, 'Island No Layout');
   });
+
+  test('bidirectional migration preserves show_stats_bar and show_clock settings', () => {
+    const v1 = {
+      version: '1.0',
+      settings: {
+        dashboard_title: 'Stats Test',
+        show_stats_bar: false,
+        show_clock: false
+      },
+      categories: [],
+      widgets: []
+    };
+
+    // v1 -> v2
+    const v2 = migrateV1toV2(v1);
+    assert.strictEqual(v2.config.settings.show_stats_bar, false);
+    assert.strictEqual(v2.config.settings.show_clock, false);
+
+    // v2 -> v1
+    const v1Roundtrip = migrateV2toV1(v2);
+    assert.strictEqual(v1Roundtrip.settings.show_stats_bar, false);
+    assert.strictEqual(v1Roundtrip.settings.show_clock, false);
+  });
 });
 

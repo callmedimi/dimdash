@@ -644,11 +644,13 @@
           ? this.board.config.items.find(i => i.id === parentId)
           : null;
         const catIconPlate = parentIsl?.props?.iconPlate || parentIsl?.props?.icon_plate || 'none';
+        const tilePlate = item.props?.iconPlate || item.props?.icon_plate;
+        const effectivePlate = (tilePlate && tilePlate !== 'inherit') ? tilePlate : catIconPlate;
 
-        const tileBgClass = (catIconPlate === 'cards-transparent') ? 'card-transparent' : '';
-        const iconPlateClass = (catIconPlate === 'icon-transparent' || catIconPlate === 'cards-transparent') ? 'plate-transparent'
-                             : (catIconPlate === 'light') ? 'plate-light'
-                             : (catIconPlate === 'invert') ? 'filter-invert'
+        const tileBgClass = (effectivePlate === 'cards-transparent') ? 'card-transparent' : '';
+        const iconPlateClass = (effectivePlate === 'icon-transparent' || effectivePlate === 'cards-transparent') ? 'plate-transparent'
+                             : (effectivePlate === 'light') ? 'plate-light'
+                             : (effectivePlate === 'invert') ? 'filter-invert'
                              : '';
 
         let iconMarkup = '';
