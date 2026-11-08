@@ -4237,3 +4237,9 @@ html:not([data-quality="high"]) *::after {
 
 
 
+
+/* No probes configured: health counters and "Probe All" carry no information, so hide them */
+#statsOverviewBar.no-probes .stat-item:has(.stat-dot.online),
+#statsOverviewBar.no-probes .stat-item:has(.stat-dot.warning),
+#statsOverviewBar.no-probes .stat-item:has(.stat-dot.offline),
+#statsOverviewBar.no-probes .quick-probe-btn { display: none !important; }

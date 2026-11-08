@@ -482,8 +482,17 @@ async function fetchSystemTelemetry() {
 }
 
 // Stats Overview Bar Visibility (Total / Online / Warning / Offline Capsule)
+// Per-browser "hide the bar" preference so any viewer (not only admins) can dismiss it.
+function isStatsBarLocallyHidden() {
+  try { return localStorage.getItem('dd_hide_stats_bar') === '1'; } catch (_) { return false; }
+}
+function setStatsBarLocallyHidden(v) {
+  try { if (v) localStorage.setItem('dd_hide_stats_bar', '1'); else localStorage.removeItem('dd_hide_stats_bar'); } catch (_) {}
+}
+
 function renderStatsBarVisibility() {
-  const showStats = AppState.config?.settings?.show_stats_bar !== false;
+  const globalShow = AppState.config?.settings?.show_stats_bar !== false;
+  const showStats = globalShow && !isStatsBarLocallyHidden();
   const isMonitoring = AppState.currentView === 'server-monitor';
   const statsBar = document.getElementById('statsOverviewBar');
   const restoreBtn = document.getElementById('btnRestoreStatsBar');
@@ -503,10 +512,11 @@ function renderStatsBarVisibility() {
   }
 
   if (hideBtn) {
-    hideBtn.style.display = (AppState.authRole === 'admin' && showStats && !isMonitoring) ? 'inline-flex' : 'none';
+    hideBtn.style.display = (showStats && !isMonitoring) ? 'inline-flex' : 'none';
   }
 
-  const shouldShowRestore = !showStats && AppState.authRole === 'admin' && !isMonitoring;
+  // Anyone can restore their own local hide; only an admin can undo the global hide.
+  const shouldShowRestore = !showStats && !isMonitoring && (AppState.authRole === 'admin' || globalShow);
   if (restoreBtn) {
     restoreBtn.style.display = shouldShowRestore ? 'inline-flex' : 'none';
   }
@@ -1819,6 +1829,27 @@ function updateProbeBadges() {
   let warningCount = 0;
   let offlineCount = 0;
 
+  // Count first, independent of the DOM: in Stage mode there are no per-tile footer elements,
+  // so counting inside the DOM loop left Online/Warning/Offline stuck at 0.
+  let monitoredCount = 0;
+  categories.forEach(cat => {
+    (cat.tiles || []).forEach(tile => {
+      if (!tile.probe || tile.probe.type === 'none') return;
+      monitoredCount++;
+    });
+  });
+  const statsCounts = { total: 0, online: 0, warning: 0, offline: 0 };
+  categories.forEach(cat => {
+    (cat.tiles || []).forEach(tile => {
+      statsCounts.total++;
+      if (!tile.probe || tile.probe.type === 'none') return;
+      const st = probes[tile.id] && probes[tile.id].status;
+      if (st === 'online') statsCounts.online++;
+      else if (st === 'warning') statsCounts.warning++;
+      else if (st === 'offline') statsCounts.offline++;
+    });
+  });
+
   categories.forEach(cat => {
     (cat.tiles || []).forEach(tile => {
       totalCount++;
@@ -1875,11 +1906,14 @@ function updateProbeBadges() {
     });
   });
 
-  // Update Stats Overview Bar
-  if (elements.statTotalVal) elements.statTotalVal.textContent = totalCount;
-  if (elements.statOnlineVal) elements.statOnlineVal.textContent = onlineCount;
-  if (elements.statWarningVal) elements.statWarningVal.textContent = warningCount;
-  if (elements.statOfflineVal) elements.statOfflineVal.textContent = offlineCount;
+  // Update Stats Overview Bar (real probe results only; services without a probe are not "online")
+  if (elements.statTotalVal) elements.statTotalVal.textContent = statsCounts.total;
+  if (elements.statOnlineVal) elements.statOnlineVal.textContent = statsCounts.online;
+  if (elements.statWarningVal) elements.statWarningVal.textContent = statsCounts.warning;
+  if (elements.statOfflineVal) elements.statOfflineVal.textContent = statsCounts.offline;
+  // With no probes configured the health counters and "Probe All" are meaningless: hide them.
+  const bar = document.getElementById('statsOverviewBar');
+  if (bar) bar.classList.toggle('no-probes', monitoredCount === 0);
 }
 
 // Drag & Drop & Tile Interactions
@@ -2470,6 +2504,12 @@ function setupEventListeners() {
   if (btnHideStats) {
     btnHideStats.addEventListener('click', async (e) => {
       e.stopPropagation();
+      if (AppState.authRole !== 'admin') {
+        setStatsBarLocallyHidden(true);
+        renderStatsBarVisibility();
+        showToast('نوار وضعیت برای این مرورگر مخفی شد', 'info');
+        return;
+      }
       AppState.config.settings = AppState.config.settings || {};
       AppState.config.settings.show_stats_bar = false;
       if (AppState.board?.config?.settings) {
@@ -2484,6 +2524,11 @@ function setupEventListeners() {
 
   const restoreStatsAction = async (e) => {
     if (e) e.stopPropagation();
+    setStatsBarLocallyHidden(false);
+    if (AppState.authRole !== 'admin' || AppState.config?.settings?.show_stats_bar !== false) {
+      renderStatsBarVisibility();
+      return;
+    }
     AppState.config.settings = AppState.config.settings || {};
     AppState.config.settings.show_stats_bar = true;
     if (AppState.board?.config?.settings) {
@@ -2509,8 +2554,12 @@ function setupEventListeners() {
   if (btnToggleMenu) {
     btnToggleMenu.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const current = AppState.config?.settings?.show_stats_bar !== false;
-      if (current) {
+      const current = AppState.config?.settings?.show_stats_bar !== false && !isStatsBarLocallyHidden();
+      if (current && AppState.authRole !== 'admin') {
+        setStatsBarLocallyHidden(true);
+        renderStatsBarVisibility();
+        showToast('نوار وضعیت برای این مرورگر مخفی شد', 'info');
+      } else if (current) {
         AppState.config.settings = AppState.config.settings || {};
         AppState.config.settings.show_stats_bar = false;
         if (AppState.board?.config?.settings) {
