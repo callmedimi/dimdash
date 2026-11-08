@@ -602,7 +602,72 @@
     };
   }
 
+  /**
+   * Balanced auto-alignment of every group (island) on the board.
+   * Children of an island are re-flowed into an even grid that fills the island's inner width, with
+   * uniform gaps/padding, equal tile sizes per row, and the island height trimmed to its content.
+   * Pure function: takes solved rects (children have ABSOLUTE coordinates, as produced by the solver)
+   * and returns new rects. Islands with props.autoLayout === false or layoutMode 'free' are untouched.
+   * @param {Array<Object>} rects solved rects { id, kind, x, y, w, h, parent }
+   * @param {Array<Object>} items board items (for island props)
+   * @param {Object} opts { isRtl, padX, padTop, padBottom, gap, header, minTileW, minWidgetW, maxCols }
+   */
+  function applyIslandAutoLayout(rects, items, opts = {}) {
+    const padX = opts.padX !== undefined ? opts.padX : 20;
+    const padTop = opts.padTop !== undefined ? opts.padTop : 16;
+    const padBottom = opts.padBottom !== undefined ? opts.padBottom : 20;
+    const gap = opts.gap !== undefined ? opts.gap : 16;
+    const headerH = opts.header !== undefined ? opts.header : 44;
+    const maxCols = opts.maxCols || 8;
+    const itemById = new Map((items || []).map(i => [i.id, i]));
+    const out = rects.map(r => ({ ...r }));
+    const byId = new Map(out.map(r => [r.id, r]));
+
+    for (const isl of out) {
+      if (isl.kind !== 'island' || isl.parent) continue;
+      const item = itemById.get(isl.id);
+      const props = (item && item.props) || {};
+      const mode = props.layoutMode || 'flow';
+      if (props.autoLayout === false || mode === 'free' || mode === 'canvas') continue;
+
+      const kids = out.filter(r => r.parent === isl.id && !r.pinned);
+      if (kids.length === 0) continue;
+
+      // Keep reading order: row by row (y bucket), then x (mirrored for RTL)
+      const rowTol = Math.max(10, Math.min(...kids.map(k => k.h)) / 2);
+      kids.sort((a, b) => (Math.abs(a.y - b.y) > rowTol) ? a.y - b.y : (opts.isRtl ? b.x - a.x : a.x - b.x));
+
+      const hasHeader = props.headerStyle !== 'none';
+      const top = (hasHeader ? headerH : 0) + padTop;
+      const availW = Math.max(60, isl.w - padX * 2);
+      const allWidgets = kids.every(k => k.kind === 'widget');
+      const minW = allWidgets ? (opts.minWidgetW || 190) : (opts.minTileW || 210);
+      const cellH = Math.round(Math.max(...kids.map(k => k.h)));
+      let cols = Math.max(1, Math.min(maxCols, kids.length, Math.floor((availW + gap) / (minW + gap))));
+      // Balance rows: avoid a lonely last item when the count divides more evenly with fewer columns
+      const rowsFor = c => Math.ceil(kids.length / c);
+      while (cols > 1 && rowsFor(cols) === rowsFor(cols - 1) && (kids.length % cols) !== 0 && (kids.length % (cols - 1)) === 0) cols--;
+      const cellW = (availW - gap * (cols - 1)) / cols;
+      const rows = rowsFor(cols);
+
+      kids.forEach((k, i) => {
+        const c = i % cols;
+        const rIdx = Math.floor(i / cols);
+        const cx = opts.isRtl ? (cols - 1 - c) : c;
+        const t = byId.get(k.id);
+        t.x = Math.round(isl.x + padX + cx * (cellW + gap));
+        t.y = Math.round(isl.y + top + rIdx * (cellH + gap));
+        t.w = Math.round(cellW);
+        t.h = cellH;
+      });
+
+      isl.h = Math.round(top + rows * cellH + (rows - 1) * gap + padBottom);
+    }
+    return out;
+  }
+
   return {
+    applyIslandAutoLayout,
     solveAutoLayout,
     solveFlowLayout,
     solveGridLayout,

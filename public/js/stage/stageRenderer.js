@@ -322,9 +322,21 @@
       });
 
       // Only run collision relief when NOT actively editing in Blueprint Mode
-      const activeRects = (this.interaction && this.interaction.isEditing)
-        ? solved.rects
-        : solver.relieveCollisions(solved.rects, { w: designW, h: designH }).rects;
+      // Balanced auto-alignment of items inside each group (skipped while the user is editing positions
+      // in Blueprint Mode, and in phone/tablet flow mode where items are stacked individually).
+      let baseRects = solved.rects;
+      const isEditingNow = !!(this.interaction && this.interaction.isEditing);
+      if (!isEditingNow && this.currentMode !== 'flow' && window.DimDashAutoLayout && window.DimDashAutoLayout.applyIslandAutoLayout) {
+        try {
+          baseRects = window.DimDashAutoLayout.applyIslandAutoLayout(solved.rects, items, {
+            isRtl: document.documentElement.dir === 'rtl'
+          });
+        } catch (e) { baseRects = solved.rects; }
+      }
+
+      const activeRects = isEditingNow
+        ? baseRects
+        : solver.relieveCollisions(baseRects, { w: designW, h: designH }).rects;
 
       let finalRects = activeRects;
 

@@ -1339,3 +1339,72 @@ body.tenfoot-idle * {
 }
 
 
+
+/* ==========================================================================
+   Balanced tile anatomy: icon | text | status, evenly padded in every size/direction
+   ========================================================================== */
+.stage-item .stage-service-tile.tile-main-link {
+  grid-template-columns: var(--tile-icon-size, calc(40px * var(--wu))) minmax(0, 1fr) auto;
+  min-height: 0; /* the 44px tap minimum made tiles overflow when the stage is scaled down */
+  gap: 0;
+  column-gap: var(--tile-gap, calc(12px * var(--wu)));
+  padding-block: var(--tile-pad-y, calc(10px * var(--wu)));
+  padding-inline: var(--tile-pad-x, calc(14px * var(--wu)));
+  text-align: start;
+}
+.stage-tile-icon {
+  box-sizing: border-box;
+  padding: calc(var(--tile-icon-size, 36px) * 0.1);
+  align-self: center;
+  justify-self: center;
+  overflow: hidden;
+}
+.stage-tile-icon img,
+.stage-tile-icon svg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  display: block;
+}
+.stage-tile-icon.plate-transparent { padding: calc(var(--tile-icon-size, 36px) * 0.06) !important; }
+.stage-tile-icon .tile-fallback-plate { padding: 0; }
+.stage-tile-info {
+  justify-content: center;
+  align-items: flex-start;
+  text-align: start;
+  gap: calc(2px * var(--wu));
+  align-self: center;
+}
+.stage-tile-title,
+.stage-tile-subtitle {
+  display: block;
+  width: 100%;
+  text-align: start;
+  line-height: 1.3;
+}
+.tile-status-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  padding-inline-start: calc(2px * var(--wu));
+}
+/* Stacked (large) cards: everything centred on one axis with even spacing */
+.stage-item[data-card-layout="stacked"] .stage-tile-icon { margin-inline: auto; }
+.stage-item[data-card-layout="stacked"] .stage-tile-title,
+.stage-item[data-card-layout="stacked"] .stage-tile-subtitle { text-align: center; }
+.stage-item[data-card-layout="stacked"] .tile-status-indicator {
+  inset-block-start: calc(12px * var(--wu));
+  inset-inline-end: calc(14px * var(--wu));
+  right: auto;
+  top: auto;
+}
+/* Very small tiles: tighter, symmetric padding */
+.stage-item[data-size="xs"] .stage-service-tile { --tile-pad-y: calc(6px * var(--wu)); --tile-pad-x: calc(10px * var(--wu)); }
+.stage-item .stage-service-tile .stage-tile-icon.tile-icon-box {
+  height: var(--tile-icon-size, calc(36px * var(--wu)));
+  min-height: 0;
+  max-height: 100%;
+  aspect-ratio: 1 / 1;
+}

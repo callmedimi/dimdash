@@ -2404,7 +2404,7 @@ body.card-style-pill .tile-card:hover {
   box-shadow: 0 14px 35px rgba(0, 0, 0, 0.65), 0 0 20px var(--accent-glow);
 }
 
-body.card-style-pill .tile-main-link {
+body.card-style-pill .tile-main-link:not(.stage-service-tile) {
   display: flex !important;
   flex-direction: row !important;
   align-items: center !important;
