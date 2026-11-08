@@ -251,6 +251,29 @@
         el.setAttribute('data-card-layout', layoutVal);
       }
 
+      // Service tiles in row layout: size icon/text/padding continuously from the tile's own height,
+      // so the icon keeps the SAME distance to the left, top and bottom edges at any size (the old
+      // S/M/L buckets made the gap jump whenever a tile was resized across a threshold).
+      if (item && item.kind === 'service') {
+        const ids = ['--tile-icon-size', '--tile-title-size', '--tile-subtitle-size', '--tile-gap',
+                     '--tile-pad-x', '--tile-pad-y', '--tile-status-size'];
+        if (layoutVal === 'row') {
+          const icon = Math.max(20, Math.min(h * 0.5, w * 0.26, 84));
+          const pad = Math.max(6, Math.min((h - icon) / 2, 36));
+          const title = Math.max(11, Math.min(icon * 0.38 + 2, 24));
+          const px = (v) => `calc(${v.toFixed(2)}px * var(--wu))`;
+          el.style.setProperty('--tile-icon-size', px(icon));
+          el.style.setProperty('--tile-title-size', px(title));
+          el.style.setProperty('--tile-subtitle-size', px(title * 0.78));
+          el.style.setProperty('--tile-gap', px(Math.max(8, pad)));
+          el.style.setProperty('--tile-pad-x', px(pad));
+          el.style.setProperty('--tile-pad-y', px(pad));
+          el.style.setProperty('--tile-status-size', px(Math.max(6, icon * 0.2)));
+        } else {
+          ids.forEach(v => el.style.removeProperty(v));
+        }
+      }
+
       if (!item || item.kind === 'widget' || el.classList.contains('stage-kind-widget')) {
         const scaleW = w / 220;
         const scaleH = h / 175;

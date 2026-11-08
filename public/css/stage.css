@@ -1400,8 +1400,7 @@ body.tenfoot-idle * {
   right: auto;
   top: auto;
 }
-/* Very small tiles: tighter, symmetric padding */
-.stage-item[data-size="xs"] .stage-service-tile { --tile-pad-y: calc(6px * var(--wu)); --tile-pad-x: calc(10px * var(--wu)); }
+/* Icon box: height follows the continuously computed icon size */
 .stage-item .stage-service-tile .stage-tile-icon.tile-icon-box {
   height: var(--tile-icon-size, calc(36px * var(--wu)));
   min-height: 0;
