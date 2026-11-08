@@ -13,7 +13,7 @@ const YAML = require('yaml');
 const { validate, ConfigV2Schema, LayoutV2Schema, SecretsV2Schema, safeClone } = require('./schema');
 const { migrateV1toV2, migrateV2toV1, isV2, DEFAULT_PROFILES } = require('./migrate');
 const PatchEngine = require('./patchEngine');
-const { verifySecret, checkSecretsPermissions } = require('./auth');
+const { verifySecret, hashSecret, checkSecretsPermissions } = require('./auth');
 
 class BoardManager extends EventEmitter {
   constructor(dataDir) {
@@ -355,8 +355,36 @@ class BoardManager extends EventEmitter {
       }
       this.state.layout = migrated.layout;
     }
-    if (migrated.secrets) {
-      this.state.secrets = migrated.secrets;
+    // Secrets must be MERGED, never rebuilt from the client payload: the config the UI holds has the PINs
+    // and agent tokens stripped (sanitizeConfig), so rebuilding wiped them on every ordinary save.
+    {
+      const prev = this.state.secrets || {};
+      const st = (v1Config && v1Config.settings) || {};
+      const mergePin = (key) => {
+        const v = st[key];
+        if (v === undefined) return prev[key] || null;         // client does not know it: keep
+        if (v === null || v === '') return null;                // explicit disable
+        const str = String(v);
+        if (str.startsWith('scrypt$')) return { value: str, hashed: true };
+        return { value: hashSecret(str), hashed: true };        // new PIN is stored hashed
+      };
+      const prevTokens = prev.server_tokens || {};
+      const tokens = {};
+      for (const srv of (v1Config && Array.isArray(v1Config.servers) ? v1Config.servers : [])) {
+        if (!srv || !srv.id || srv.type === 'local') continue;
+        if (srv.token === undefined) {
+          if (prevTokens[srv.id]) tokens[srv.id] = prevTokens[srv.id];
+        } else if (srv.token) {
+          tokens[srv.id] = String(srv.token);
+        }
+      }
+      this.state.secrets = {
+        version: 2,
+        admin_pin: mergePin('admin_pin'),
+        user_pin: mergePin('user_pin'),
+        server_tokens: tokens,
+        session_secret: prev.session_secret || crypto.randomBytes(16).toString('hex')
+      };
       this.saveSecretsSync();
     }
     this.state.rev += 1;
@@ -488,6 +516,58 @@ class BoardManager extends EventEmitter {
         });
       }
     } catch (_) {}
+  }
+
+  /**
+   * Snapshots (history/): list and restore
+   */
+  listSnapshots() {
+    try {
+      return fs.readdirSync(this.historyDir)
+        .map(f => /^snap_(\d+)_rev(\d+)\.yaml$/.exec(f))
+        .filter(Boolean)
+        .map(m => {
+          let size = 0;
+          try { size = fs.statSync(path.join(this.historyDir, m[0])).size; } catch (_) {}
+          return { name: m[0], time: Number(m[1]), rev: Number(m[2]), size };
+        })
+        .sort((a, b) => b.time - a.time);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  restoreSnapshot(name) {
+    if (!/^snap_\d+_rev\d+\.yaml$/.test(String(name))) {
+      throw { status: 400, message: 'Invalid snapshot name' };
+    }
+    const file = path.join(this.historyDir, name);
+    if (!fs.existsSync(file)) throw { status: 404, message: 'Snapshot not found' };
+
+    let snap;
+    try {
+      snap = YAML.parse(fs.readFileSync(file, 'utf8'), { merge: false, maxAliasCount: 50, schema: 'core' });
+    } catch (e) {
+      throw { status: 422, message: 'Snapshot is not valid YAML' };
+    }
+    const okCfg = snap && validate(ConfigV2Schema, snap.config).ok;
+    const okLay = snap && validate(LayoutV2Schema, snap.layout).ok;
+    if (!okCfg || !okLay) throw { status: 422, message: 'Snapshot failed validation' };
+
+    // Always keep a way back: snapshot the current state first (bypass the 60s throttle)
+    this.lastSnapshotTime = 0;
+    this.createRollingSnapshot();
+    this.lastSnapshotTime = 0;
+
+    this.state.config = snap.config;
+    this.state.layout = snap.layout;
+    this.state.rev += 1;
+    this.state.layout.rev = this.state.rev;
+    this.markDirty('config');
+    this.markDirty('layout');
+    this.emit('reload', { key: 'config', rev: this.state.rev });
+    this.emit('change', this.getConfig());
+    return { rev: this.state.rev, restored: name };
   }
 
   /**

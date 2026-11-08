@@ -76,6 +76,79 @@ function switchTab(tabId) {
 }
 
 // Load Data
+// ---------- Admin API helpers ----------
+function adminHeaders(extra = {}) {
+  const pin = sessionStorage.getItem('dimdash_pin') || AdminState.adminPin || '';
+  const h = { ...extra };
+  if (pin) h['x-pin'] = pin;
+  return h;
+}
+function escHtml(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ---------- Recent activity (audit log) ----------
+async function loadAudit() {
+  const tbody = document.getElementById('auditTbody');
+  if (!tbody) return;
+  try {
+    const res = await fetch('/api/audit', { headers: adminHeaders() });
+    if (!res.ok) throw new Error(res.status === 403 ? 'Admin role required' : 'HTTP ' + res.status);
+    const { logs = [] } = await res.json();
+    if (!logs.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty-cell">No activity recorded yet.</td></tr>'; return; }
+    tbody.innerHTML = logs.slice().reverse().slice(0, 25).map(l => {
+      const ok = l.status === 'success';
+      const when = l.ts ? new Date(l.ts).toLocaleString() : '--';
+      return `<tr><td>${escHtml(when)}</td><td>${escHtml(l.action)}${l.resource ? ' · ' + escHtml(l.resource) : ''}</td><td>${escHtml(l.role || '-')}</td><td>${escHtml(l.ip || '-')}</td><td><span class="pill ${ok ? 'pill-ok' : 'pill-bad'}">${escHtml(l.status || '-')}</span></td></tr>`;
+    }).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-cell">Unavailable: ${escHtml(err.message)}</td></tr>`;
+  }
+}
+
+// ---------- Automatic snapshots ----------
+function fmtBytes(n) { return n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; }
+async function loadSnapshots() {
+  const tbody = document.getElementById('snapshotsTbody');
+  if (!tbody) return;
+  try {
+    const res = await fetch('/api/admin/snapshots', { headers: adminHeaders() });
+    if (!res.ok) throw new Error(res.status === 403 ? 'Admin role required' : 'HTTP ' + res.status);
+    const { snapshots = [] } = await res.json();
+    if (!snapshots.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty-cell">No snapshots yet. One is created after the first change.</td></tr>'; return; }
+    tbody.innerHTML = snapshots.slice(0, 15).map(sn => `<tr>
+      <td>${escHtml(new Date(sn.time).toLocaleString())}</td><td>rev ${sn.rev}</td><td>${fmtBytes(sn.size)}</td>
+      <td style="text-align:end;"><button class="btn btn-secondary btn-sm" data-restore="${escHtml(sn.name)}">Restore</button></td></tr>`).join('');
+    tbody.querySelectorAll('[data-restore]').forEach(btn => btn.addEventListener('click', async () => {
+      if (!confirm('Restore this snapshot? The current state is saved as a new snapshot first.')) return;
+      btn.disabled = true;
+      try {
+        const r = await fetch('/api/admin/snapshots/restore', { method: 'POST', headers: adminHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ name: btn.dataset.restore }) });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Restore failed');
+        showAdminToast('Snapshot restored', 'success');
+        await loadAdminData();
+      } catch (e) { showAdminToast(e.message, 'error'); btn.disabled = false; }
+    }));
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="4" class="empty-cell">Unavailable: ${escHtml(err.message)}</td></tr>`;
+  }
+}
+
+// ---------- Security status ----------
+function renderSecurityStatus() {
+  const c = AdminState.config || {};
+  const env = c.pin_env_locked || {};
+  const set = (id, on, fromEnv) => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = `<span class="pill ${on ? 'pill-ok' : 'pill-warn'}">${on ? 'Enabled' : 'Not set'}</span>${fromEnv ? ' <span class="pill pill-info">from environment</span>' : ''}`;
+  };
+  set('secAdminState', !!c.is_pin_protected, env.admin);
+  set('secUserState', !!c.is_user_pin_protected, env.user);
+  const notice = document.getElementById('secEnvNotice');
+  if (notice) notice.style.display = (env.admin || env.user) ? 'block' : 'none';
+}
+
 async function loadAdminData() {
   try {
     const [cfgRes, statsRes, probesRes] = await Promise.all([
@@ -102,6 +175,9 @@ async function loadAdminData() {
     if (probesRes.ok) AdminState.probes = await probesRes.json();
 
     renderOverview();
+    renderSecurityStatus();
+    loadAudit();
+    loadSnapshots();
     renderTilesTable();
     renderCategoriesTable();
     renderWidgetsTable();
@@ -116,23 +192,20 @@ async function loadAdminData() {
 // TAB 1: OVERVIEW
 function renderOverview() {
   const stats = AdminState.stats || {};
-  let total = 0, online = 0, warning = 0, offline = 0;
+  let total = 0, online = 0, warning = 0, offline = 0, unmonitored = 0;
 
   for (const cat of AdminState.config?.categories || []) {
     for (const t of cat.tiles || []) {
       total++;
-      const p = AdminState.probes[t.id];
-      if (!t.probe || t.probe.type === 'none' || p?.status === 'online') {
-        online++;
-      } else if (p?.status === 'warning') {
-        warning++;
-      } else if (p?.status === 'offline') {
-        offline++;
-      } else {
-        online++;
-      }
+      if (!t.probe || t.probe.type === 'none') { unmonitored++; continue; }
+      const st = AdminState.probes[t.id]?.status;
+      if (st === 'online') online++;
+      else if (st === 'warning') warning++;
+      else if (st === 'offline') offline++;
     }
   }
+  const unEl = document.getElementById('metricUnmonitored');
+  if (unEl) unEl.textContent = unmonitored ? `· ${unmonitored} without probe` : '';
 
   document.getElementById('metricTotal').textContent = total;
   document.getElementById('metricOnline').textContent = online;
@@ -944,6 +1017,7 @@ function setupEventListeners() {
   });
 
   // Security: PIN Save
+  document.getElementById('btnRefreshAudit')?.addEventListener('click', loadAudit);
   document.getElementById('btnSavePin')?.addEventListener('click', async () => {
     const pin = document.getElementById('newPinInput').value;
     const confirm = document.getElementById('confirmPinInput').value;
@@ -956,6 +1030,13 @@ function setupEventListeners() {
     AdminState.config.settings = AdminState.config.settings || {};
     AdminState.config.settings.admin_pin = pin;
     await saveConfigToServer('Security PIN saved successfully');
+    // our own credential changed: keep this admin session valid
+    sessionStorage.setItem('dimdash_pin', pin);
+    AdminState.adminPin = pin;
+    delete AdminState.config.settings.admin_pin;
+    document.getElementById('newPinInput').value = '';
+    document.getElementById('confirmPinInput').value = '';
+    await loadAdminData();
   });
 
   document.getElementById('btnRemovePin')?.addEventListener('click', async () => {
@@ -963,6 +1044,10 @@ function setupEventListeners() {
     AdminState.config.settings = AdminState.config.settings || {};
     AdminState.config.settings.admin_pin = '';
     await saveConfigToServer('PIN protection disabled');
+    sessionStorage.removeItem('dimdash_pin');
+    AdminState.adminPin = '';
+    delete AdminState.config.settings.admin_pin;
+    await loadAdminData();
   });
 
   // Security: User / Member PIN Save
@@ -978,6 +1063,10 @@ function setupEventListeners() {
     AdminState.config.settings = AdminState.config.settings || {};
     AdminState.config.settings.user_pin = pin;
     await saveConfigToServer('Member / User PIN saved successfully');
+    delete AdminState.config.settings.user_pin;
+    document.getElementById('newUserPinInput').value = '';
+    document.getElementById('confirmUserPinInput').value = '';
+    await loadAdminData();
   });
 
   document.getElementById('btnRemoveUserPin')?.addEventListener('click', async () => {
@@ -985,6 +1074,8 @@ function setupEventListeners() {
     AdminState.config.settings = AdminState.config.settings || {};
     AdminState.config.settings.user_pin = '';
     await saveConfigToServer('Member / User PIN disabled');
+    delete AdminState.config.settings.user_pin;
+    await loadAdminData();
   });
 
   // Admin Studio Lock Gate Handlers

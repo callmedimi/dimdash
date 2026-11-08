@@ -62,3 +62,56 @@ describe('Hardening: BoardManager.authorize', () => {
     } finally { restore(); }
   });
 });
+
+describe('Secrets survive ordinary config saves (regression)', () => {
+  const { verifySecret } = require('../server/auth');
+
+  function boardWithSecrets() {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dd-sec-'));
+    delete process.env.ADMIN_PIN; delete process.env.USER_PIN;
+    const bm = new BoardManager(dir);
+    bm.close();
+    return { bm, dir };
+  }
+
+  test('saving without pin fields keeps stored PINs and agent tokens', () => {
+    const { bm, dir } = boardWithSecrets();
+    try {
+      const cfg = bm.getConfig();
+      cfg.servers = [{ id: 'local', type: 'local', name: 'L' }, { id: 'n1', type: 'agent_push', name: 'N1', token: 'tok-1' }];
+      cfg.settings.admin_pin = 'secret-admin';
+      cfg.settings.user_pin = 'secret-user';
+      bm.saveConfig(cfg);
+      assert.ok(verifySecret('secret-admin', bm.getEffectiveAdminPin()));
+      assert.ok(String(bm.state.secrets.admin_pin.value).startsWith('scrypt$'), 'PIN must be stored hashed');
+
+      // what the UI holds: PINs and tokens stripped (see sanitizeConfig)
+      const ui = bm.getConfig();
+      delete ui.settings.admin_pin; delete ui.settings.user_pin;
+      ui.servers = ui.servers.map(({ token, ...s }) => s);
+      ui.categories = [];
+      bm.saveConfig(ui);
+
+      assert.ok(verifySecret('secret-admin', bm.getEffectiveAdminPin()), 'admin PIN wiped by a normal save');
+      assert.ok(verifySecret('secret-user', bm.getEffectiveUserPin()), 'user PIN wiped by a normal save');
+      assert.equal(bm.state.secrets.server_tokens.n1, 'tok-1', 'agent token wiped by a normal save');
+    } finally { bm.close(); fs.rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  test('empty string disables a PIN, a new token replaces, a removed server drops its token', () => {
+    const { bm, dir } = boardWithSecrets();
+    try {
+      const cfg = bm.getConfig();
+      cfg.servers = [{ id: 'local', type: 'local', name: 'L' }, { id: 'n1', type: 'agent_push', name: 'N1', token: 'a' }];
+      cfg.settings.admin_pin = 'secret-admin';
+      bm.saveConfig(cfg);
+
+      const c2 = bm.getConfig();
+      c2.settings.admin_pin = '';
+      c2.servers = [{ id: 'local', type: 'local', name: 'L' }];
+      bm.saveConfig(c2);
+      assert.equal(bm.getEffectiveAdminPin(), '');
+      assert.deepEqual(bm.state.secrets.server_tokens, {});
+    } finally { bm.close(); fs.rmSync(dir, { recursive: true, force: true }); }
+  });
+});

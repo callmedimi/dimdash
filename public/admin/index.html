@@ -163,7 +163,7 @@
           </div>
           <div>
             <div class="metric-val" id="metricTotal">0</div>
-            <div class="metric-title">Total Configured Services</div>
+            <div class="metric-title">Total Configured Services <span id="metricUnmonitored" class="metric-sub"></span></div>
           </div>
         </div>
 
@@ -175,7 +175,7 @@
           </div>
           <div>
             <div class="metric-val" style="color: #34d399;" id="metricOnline">0</div>
-            <div class="metric-title">Healthy & Online</div>
+            <div class="metric-title">Healthy &amp; Online <span class="metric-sub">(probed)</span></div>
           </div>
         </div>
 
@@ -258,6 +258,21 @@
             <button class="btn btn-secondary" onclick="switchTab('theme')">Theme & Wallpaper Studio</button>
             <button class="btn btn-secondary" onclick="switchTab('backup')">Export Configuration YAML</button>
           </div>
+        </div>
+      </div>
+
+      <!-- Recent privileged activity (from /api/audit) -->
+      <div class="glass-box" style="margin-top:1.5rem;">
+        <h3>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"></path><circle cx="12" cy="12" r="10"></circle></svg>
+          <span>Recent Activity</span>
+          <button class="btn btn-secondary btn-sm" id="btnRefreshAudit" style="margin-inline-start:auto;">Refresh</button>
+        </h3>
+        <div class="table-scroll">
+          <table class="data-table" id="auditTable">
+            <thead><tr><th>Time</th><th>Action</th><th>Role</th><th>IP</th><th>Result</th></tr></thead>
+            <tbody id="auditTbody"><tr><td colspan="5" class="empty-cell">Loading…</td></tr></tbody>
+          </table>
         </div>
       </div>
     </section>
@@ -631,6 +646,17 @@
         </div>
       </div>
 
+      <div class="glass-box" style="margin-bottom: 1.5rem;">
+        <h3>Automatic Snapshots</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">The server keeps rolling snapshots of the board and layout (at most one per minute, last 30). Restoring one first saves the current state as a new snapshot, so you can always go back.</p>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead><tr><th>Date</th><th>Revision</th><th>Size</th><th style="text-align:end;">Action</th></tr></thead>
+            <tbody id="snapshotsTbody"><tr><td colspan="4" class="empty-cell">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="glass-box">
         <h3>Direct Configuration Editor (Raw JSON)</h3>
         <textarea id="adminRawConfig" class="form-textarea" rows="16" style="font-family: monospace; font-size: 0.82rem; margin-bottom: 1rem; width:100%; border-radius:12px;"></textarea>
@@ -640,6 +666,18 @@
 
     <!-- TAB 8: SECURITY -->
     <section class="admin-tab-content" id="tabSecurity">
+      <div class="glass-box security-status" id="securityStatus" style="max-width: 550px; margin-bottom:1.5rem;">
+        <h3>Protection Status</h3>
+        <div class="key-value-list">
+          <div class="key-value-item"><span class="key-label">Admin PIN:</span><span class="key-val" id="secAdminState">--</span></div>
+          <div class="key-value-item"><span class="key-label">Member / User PIN:</span><span class="key-val" id="secUserState">--</span></div>
+        </div>
+        <p id="secEnvNotice" class="notice-warn" style="display:none;">
+          A PIN is defined by the <code>ADMIN_PIN</code> / <code>USER_PIN</code> environment variable of this container. The environment value always wins, so changing it here has no effect until the variable is removed from the compose file.
+        </p>
+        <p class="notice-info">New PINs are stored hashed (scrypt). Repeated wrong PINs from one address are temporarily locked out.</p>
+      </div>
+
       <div class="glass-box" style="max-width: 550px;">
         <h3>Admin Access PIN & Lockdown</h3>
         <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">When an admin PIN is set, entering edit mode or accessing sensitive management features requires PIN confirmation.</p>

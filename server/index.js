@@ -263,6 +263,9 @@ function sanitizeConfig(cfg, role = 'admin') {
   }
   const effectiveAdminPin = boardManager.getEffectiveAdminPin();
   const effectiveUserPin = boardManager.getEffectiveUserPin();
+  // When a PIN comes from the ADMIN_PIN / USER_PIN environment variable it overrides the stored one,
+  // so the Security tab must tell the admin that changing it in the UI has no effect.
+  clone.pin_env_locked = { admin: !!process.env.ADMIN_PIN, user: !!process.env.USER_PIN };
   clone.is_pin_protected = !!effectiveAdminPin;
   clone.is_user_pin_protected = !!effectiveUserPin;
   // Mask admin and user PINs from client
@@ -375,8 +378,15 @@ app.post('/api/config', (req, res) => {
     return res.status(400).json({ error: 'Invalid configuration payload' });
   }
 
+  const st = config.settings || {};
   const result = boardManager.saveConfig(config);
   if (result.success) {
+    auditLogger.log({ ip: req.ip, role: auth.role, action: 'config_save', status: 'success' });
+    if (st.admin_pin !== undefined || st.user_pin !== undefined) {
+      auditLogger.log({ ip: req.ip, role: auth.role, action: 'pin_change',
+        details: { admin: st.admin_pin === undefined ? 'unchanged' : (st.admin_pin ? 'set' : 'disabled'),
+                   user: st.user_pin === undefined ? 'unchanged' : (st.user_pin ? 'set' : 'disabled') }, status: 'success' });
+    }
     prober.runCycle();
     res.json({ success: true, board: boardManager.getSanitizedBoard('admin') });
   } else {
@@ -621,10 +631,32 @@ app.post('/api/admin/bulk-delete', (req, res) => {
   const result = boardManager.saveConfig(currentConfig);
 
   if (result.success) {
+    auditLogger.log({ ip: req.ip, role: auth.role, action: 'bulk_delete', status: 'success',
+      details: { tiles: tileIds.length, categories: categoryIds.length } });
     prober.runCycle();
     res.json({ success: true, deletedTiles: tileIds.length, deletedCategories: categoryIds.length });
   } else {
     res.status(500).json({ error: result.error });
+  }
+});
+
+// Admin: automatic snapshots (history/) with one-click restore
+app.get('/api/admin/snapshots', (req, res) => {
+  const auth = boardManager.authorize(req, 'admin');
+  if (!auth.authorized) return res.status(403).json({ error: 'Admin role required' });
+  res.json({ snapshots: boardManager.listSnapshots().slice(0, 50) });
+});
+
+app.post('/api/admin/snapshots/restore', (req, res) => {
+  const auth = boardManager.authorize(req, 'admin');
+  if (!auth.authorized) return res.status(403).json({ error: 'Admin role required' });
+  try {
+    const result = boardManager.restoreSnapshot(req.body && req.body.name);
+    auditLogger.log({ ip: req.ip, role: auth.role, action: 'snapshot_restore', resource: result.restored, status: 'success' });
+    prober.runCycle();
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Restore failed' });
   }
 });
 
