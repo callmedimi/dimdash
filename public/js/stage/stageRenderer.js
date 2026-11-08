@@ -284,6 +284,10 @@
       if (!profile) {
         if (vwPx <= 640) {
           profile = profiles.find(p => p.id === 'xs') || { id: 'xs', mode: 'flow', design: [390, 844] };
+        } else if (vwPx <= 900 && profiles.find(p => p.id === 'sm' && p.mode === 'flow')) {
+          // Portrait tablets: the 1920-wide canvas cannot be shrunk to fit without clipping or tiny text,
+          // so stack islands full-width exactly like phones do.
+          profile = profiles.find(p => p.id === 'sm');
         } else {
           profile = profiles.find(p => p.id === 'lg') || { id: 'lg', mode: 'fit', design: [1920, 1080] };
         }
@@ -325,7 +329,7 @@
       let finalRects = activeRects;
 
       if (this.currentMode === 'flow') {
-        this.updatePixelScale(vwPx, vhPx, 390, 844);
+        this.updatePixelScale(vwPx, vhPx, profile.id === 'sm' ? designW : 390, profile.id === 'sm' ? designH : 844);
         const wu = this.metrics ? this.metrics.wu : 1.0;
         const flowResult = solver.solveMode('flow', activeRects, {
           w: Math.round(vwPx / wu),

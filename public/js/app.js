@@ -22,6 +22,7 @@ const AppState = {
   draggedCatId: null,
   draggedWidgetId: null
 };
+window.AppState = AppState;
 
 // DOM References
 const elements = {
@@ -2942,7 +2943,7 @@ function openTileModal(catId = null, tileId = null) {
           const res = await fetch('/api/upload', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename: cleanName, base64Data: base64 })
+            body: JSON.stringify({ filename: cleanName, base64Data: base64, pin: AppState.adminPin || sessionStorage.getItem('dimdash_pin') || '' })
           });
           const data = await res.json();
           if (data.url) {
@@ -3329,7 +3330,7 @@ function openThemeModal() {
           const res = await fetch('/api/upload', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename: file.name, base64Data: evt.target.result })
+            body: JSON.stringify({ filename: file.name, base64Data: evt.target.result, pin: AppState.adminPin || sessionStorage.getItem('dimdash_pin') || '' })
           });
           const data = await res.json();
           if (data.url) {
@@ -3462,7 +3463,7 @@ function openThemeModal() {
           const res = await fetch('/api/upload', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename: cleanName, base64Data: base64 })
+            body: JSON.stringify({ filename: cleanName, base64Data: base64, pin: AppState.adminPin || sessionStorage.getItem('dimdash_pin') || '' })
           });
           const data = await res.json();
           if (data.url) {

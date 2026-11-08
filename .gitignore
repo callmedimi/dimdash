@@ -38,3 +38,6 @@ skills
 # Docker archives & temporary tarballs
 *.tar
 *.tar.gz
+
+# Secrets must never be committed or baked into the image
+data/secrets.yaml

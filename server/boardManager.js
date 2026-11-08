@@ -198,20 +198,46 @@ class BoardManager extends EventEmitter {
     const adminPin = this.getEffectiveAdminPin();
     const userPin = this.getEffectiveUserPin();
 
-    const clientPin = req.headers['x-pin'] || (req.body && req.body.pin) || '';
+    let clientPin = req.headers['x-pin'] || (req.body && req.body.pin) || '';
+    if (typeof clientPin !== 'string') clientPin = String(clientPin || '');
+
+    // PIN guesses on any endpoint share the login brute-force limiter, so
+    // x-pin / body.pin cannot be used to bypass login throttling (and a locked
+    // client does not burn CPU on scrypt).
+    const limiter = this.pinLimiter || null;
+    const ip = (req.ip || (req.socket && req.socket.remoteAddress) || 'unknown');
+    const locked = !!(limiter && clientPin && !limiter.check(ip).allowed);
+
+    // A valid login session (cookie dd_sid / x-session-id) is honoured too.
+    // Only 'admin' and 'user' sessions are trusted; anything else is ignored.
+    const sessRole = req.session && (req.session.role === 'admin' || req.session.role === 'user')
+      ? req.session.role : null;
 
     let role = 'guest';
     if (!adminPin && !userPin) {
       role = 'admin';
-    } else if (adminPin && verifySecret(clientPin, adminPin)) {
+    } else if (sessRole === 'admin' && adminPin) {
       role = 'admin';
-    } else if (userPin && verifySecret(clientPin, userPin)) {
+    } else if (!locked && clientPin && adminPin && verifySecret(clientPin, adminPin)) {
+      role = 'admin';
+    } else if (sessRole === 'user') {
+      role = 'user';
+    } else if (!locked && clientPin && userPin && verifySecret(clientPin, userPin)) {
       role = 'user';
     } else if (!userPin && adminPin) {
       role = 'user';
     }
 
-    if (action === 'write' || action === 'patch' || action === 'admin') {
+    if (limiter && clientPin && !locked && role !== 'admin') {
+      // A PIN was supplied but did not unlock admin. Count it only when it also
+      // failed the user PIN (so a correct user PIN is not treated as an attack).
+      const okUser = userPin && verifySecret(clientPin, userPin);
+      if (!okUser) limiter.recordFailure(ip);
+    }
+
+    // Everything that mutates state or touches secrets/files needs admin.
+    if (action === 'write' || action === 'patch' || action === 'admin' ||
+        action === 'upload' || action === 'secrets' || action === 'code_widgets') {
       return { authorized: role === 'admin', role };
     }
 

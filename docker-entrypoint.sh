@@ -19,6 +19,8 @@ if [ -d "/app/data" ]; then
   if [ "$(id -u)" = "0" ]; then
     chown -R node:node /app/data 2>/dev/null || true
     chmod -R 775 /app/data 2>/dev/null || true
+    # secrets.yaml holds PIN hashes/tokens: keep it private to the app user
+    [ -f /app/data/secrets.yaml ] && chmod 600 /app/data/secrets.yaml 2>/dev/null || true
   fi
 fi
 

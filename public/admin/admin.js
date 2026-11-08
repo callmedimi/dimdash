@@ -616,7 +616,7 @@ function initThemeStudio() {
         const res = await fetch('/api/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename: file.name, base64Data: evt.target.result })
+          body: JSON.stringify({ filename: file.name, base64Data: evt.target.result, pin: AdminState.adminPin || sessionStorage.getItem('dimdash_pin') || '' })
         });
         const data = await res.json();
         if (data.url) {
@@ -703,7 +703,8 @@ function initThemeStudio() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               filename: file.name.replace(/\.[^/.]+$/, "") + ".png",
-              base64Data: finalDataUrl
+              base64Data: finalDataUrl,
+              pin: AdminState.adminPin || sessionStorage.getItem('dimdash_pin') || ''
             })
           });
           const data = await res.json();
@@ -1151,7 +1152,8 @@ function openTileEditModal(catId = null, tileId = null) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               filename: file.name.replace(/\.[^/.]+$/, "") + ".png",
-              base64Data: finalDataUrl
+              base64Data: finalDataUrl,
+              pin: AdminState.adminPin || sessionStorage.getItem('dimdash_pin') || ''
             })
           });
           const data = await res.json();

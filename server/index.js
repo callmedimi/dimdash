@@ -12,6 +12,11 @@ const { validate, PatchRequestSchema } = require('./schema');
 
 const app = express();
 const PORT = process.env.PORT || 3080;
+// Behind a reverse proxy set TRUST_PROXY=1 so req.ip (brute-force limiter, audit) is the real client.
+if (process.env.TRUST_PROXY) {
+  const tp = process.env.TRUST_PROXY;
+  app.set('trust proxy', /^\d+$/.test(tp) ? parseInt(tp, 10) : (tp === 'true' ? true : tp));
+}
 
 // Setup directories
 const dataDir = path.resolve(__dirname, '../data');
@@ -60,6 +65,13 @@ const { saveUpload } = require('./uploads');
 const auditLogger = new AuditLogger(dataDir);
 const sessionStore = new SessionStore();
 const bruteForceLimiter = new BruteForceLimiter();
+boardManager.pinLimiter = bruteForceLimiter;
+
+// Session cookie flags (Secure when served over https / behind a TLS proxy)
+function sessionCookie(req, value, extra = '') {
+  const secure = req.secure || String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https';
+  return `dd_sid=${value}; HttpOnly; SameSite=Strict; Path=/${secure ? '; Secure' : ''}${extra}`;
+}
 
 // First-run setup check: if no admin credential is set, generate one-time setup token
 let setupToken = null;
@@ -82,7 +94,10 @@ app.use((req, res, next) => {
   if (rc) {
     rc.split(';').forEach((cookie) => {
       const parts = cookie.split('=');
-      list[parts.shift().trim()] = decodeURI(parts.join('='));
+      const name = parts.shift().trim();
+      if (!name) return;
+      const raw = parts.join('=');
+      try { list[name] = decodeURIComponent(raw); } catch (_) { list[name] = raw; }
     });
   }
   req.cookies = list;
@@ -93,6 +108,7 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use('/api/upload', express.json({ limit: '20mb' }));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
@@ -123,13 +139,26 @@ try {
   elDelayHistogram.enable();
 } catch (e) {}
 
-function broadcastSSE(event, data, id = null) {
+// `data` may be a function (role) => payload for events whose content depends on the viewer's role.
+// Payloads are built once per distinct role, not once per client.
+function broadcastSSE(event, data, id = null, adminOnly = false) {
   const idLine = id !== null ? `id: ${id}\n` : '';
-  const payloadStr = `${idLine}event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-  const payloadBuf = Buffer.from(payloadStr);
+  const perRole = typeof data === 'function';
+  const bufCache = new Map();
+  const bufFor = (role) => {
+    const key = perRole ? role : '*';
+    if (!bufCache.has(key)) {
+      const payload = perRole ? data(role) : data;
+      bufCache.set(key, Buffer.from(`${idLine}event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`));
+    }
+    return bufCache.get(key);
+  };
 
   for (const client of sseClients) {
     try {
+      const role = client.ddRole || 'guest';
+      if (adminOnly && role !== 'admin') continue;
+      const payloadBuf = bufFor(role);
       // Backpressure check: drop telemetry/probe deltas if client write buffer > 256KB
       if (client.writableLength > 256 * 1024 && (event.includes('delta') || event.includes('telemetry'))) {
         continue;
@@ -143,7 +172,8 @@ function broadcastSSE(event, data, id = null) {
 
 // BoardManager Event Listeners
 boardManager.on('patch', (data) => {
-  broadcastSSE('patch', data, data.rev);
+  // Patch ops can contain items hidden from lower roles; non-admins get the filtered 'board' event instead.
+  broadcastSSE('patch', data, data.rev, true);
 });
 
 boardManager.on('config_error', (data) => {
@@ -152,12 +182,12 @@ boardManager.on('config_error', (data) => {
 
 boardManager.on('reload', (data) => {
   broadcastSSE('reload', data);
-  broadcastSSE('config', sanitizeConfig(boardManager.getConfig()));
+  broadcastSSE('config', (role) => sanitizeConfig(boardManager.getConfig(), role));
 });
 
 boardManager.on('change', (cfg) => {
-  broadcastSSE('config', sanitizeConfig(cfg));
-  broadcastSSE('board', boardManager.getSanitizedBoard('admin'));
+  broadcastSSE('config', (role) => sanitizeConfig(cfg, role));
+  broadcastSSE('board', (role) => boardManager.getSanitizedBoard(role));
 });
 
 // 15s Heartbeat comment to keep connections alive through proxies and firewalls
@@ -213,7 +243,7 @@ clusterManager.on('telemetry_updated', () => {
   }
 });
 
-function sanitizeConfig(cfg) {
+function sanitizeConfig(cfg, role = 'admin') {
   const clone = JSON.parse(JSON.stringify(cfg || {}));
   clone.settings = clone.settings || {};
   clone.categories = Array.isArray(clone.categories) ? clone.categories : [];
@@ -224,6 +254,13 @@ function sanitizeConfig(cfg) {
         return { ...safe, hasToken: !!token };
       })
     : [{ id: 'local', name: 'Master Node (Local)', type: 'local', color: '#6366f1' }];
+  if (role !== 'admin' && role !== 'user') {
+    // Guests (a user PIN exists and they have not entered it) must not receive pin-protected tiles.
+    clone.categories = clone.categories.map(c => ({
+      ...c,
+      tiles: (c.tiles || []).filter(t => t.visibility !== 'pin_protected')
+    }));
+  }
   const effectiveAdminPin = boardManager.getEffectiveAdminPin();
   const effectiveUserPin = boardManager.getEffectiveUserPin();
   clone.is_pin_protected = !!effectiveAdminPin;
@@ -302,6 +339,11 @@ app.get('/api/board/since/:rev', (req, res) => {
     return res.status(400).json({ error: 'Invalid rev parameter' });
   }
 
+  // Journal ops may include items hidden from lower roles: only admins get deltas,
+  // everyone else is told to fetch the role-filtered full snapshot.
+  if (boardManager.authorize(req, 'read').role !== 'admin') {
+    return res.status(410).json({ error: 'Delta sync is admin-only. Please fetch the full /api/board snapshot.' });
+  }
   if (boardManager.patchEngine.isPurged(fromRev)) {
     return res.status(410).json({ error: 'Requested rev has been purged from journal. Please fetch full /api/board snapshot.' });
   }
@@ -318,17 +360,16 @@ app.get('/api/board/health', (req, res) => {
 app.get('/api/config', (req, res) => {
   res.setHeader('Deprecation', '@deprecated Use /api/board');
   const v1Config = boardManager.getConfig();
-  res.json(sanitizeConfig(v1Config));
+  res.json(sanitizeConfig(v1Config, boardManager.authorize(req, 'read').role));
 });
 
 app.post('/api/config', (req, res) => {
   res.setHeader('Deprecation', '@deprecated Use /api/board/patch');
-  const { config, pin } = req.body;
-  const currentPin = boardManager.getEffectiveAdminPin();
-
-  if (currentPin && String(pin) !== String(currentPin)) {
+  const auth = boardManager.authorize(req, 'admin');
+  if (!auth.authorized) {
     return res.status(401).json({ error: 'Unauthorized: Invalid Admin PIN' });
   }
+  const { config } = req.body || {};
 
   if (!config || typeof config !== 'object') {
     return res.status(400).json({ error: 'Invalid configuration payload' });
@@ -382,7 +423,10 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(429).json({ error: 'Too many failed login attempts', retryAfter: check.retryAfterSec });
   }
 
-  const { secret, role = 'admin' } = req.body || {};
+  const { secret } = req.body || {};
+  // Only 'admin' and 'user' can be requested. Never let the client pick any other role
+  // (a user-PIN login must not be able to become 'editor').
+  const role = (req.body && req.body.role === 'user') ? 'user' : 'admin';
   const adminPin = boardManager.getEffectiveAdminPin();
   const userPin = boardManager.getEffectiveUserPin();
 
@@ -393,7 +437,7 @@ app.post('/api/auth/login', (req, res) => {
   if (isValid) {
     bruteForceLimiter.recordSuccess(clientIp);
     const session = sessionStore.createSession(role, { ip: clientIp, userAgent: req.headers['user-agent'] });
-    res.setHeader('Set-Cookie', `dd_sid=${session.id}; HttpOnly; SameSite=Strict; Path=/`);
+    res.setHeader('Set-Cookie', sessionCookie(req, session.id));
     auditLogger.log({ ip: clientIp, action: 'login', role, status: 'success' });
     return res.json({ success: true, role, token: session.id, csrfToken: session.csrfToken });
   }
@@ -416,7 +460,7 @@ app.post('/api/auth/logout', (req, res) => {
   if (req.session) {
     sessionStore.revokeSession(req.session.id);
   }
-  res.setHeader('Set-Cookie', 'dd_sid=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
+  res.setHeader('Set-Cookie', sessionCookie(req, '', '; Max-Age=0'));
   res.json({ success: true });
 });
 
@@ -471,7 +515,7 @@ app.post('/api/verify-pin', (req, res) => {
   if (!currentPin || verifySecret(pin, currentPin)) {
     bruteForceLimiter.recordSuccess(clientIp);
     const session = sessionStore.createSession('admin', { ip: clientIp });
-    res.setHeader('Set-Cookie', `dd_sid=${session.id}; HttpOnly; SameSite=Strict; Path=/`);
+    res.setHeader('Set-Cookie', sessionCookie(req, session.id));
     return res.json({ valid: true, role: 'admin', token: session.id, csrfToken: session.csrfToken });
   }
 
@@ -494,20 +538,20 @@ app.post('/api/verify-user-pin', (req, res) => {
   if (adminPin && verifySecret(pin, adminPin)) {
     bruteForceLimiter.recordSuccess(clientIp);
     const session = sessionStore.createSession('admin', { ip: clientIp });
-    res.setHeader('Set-Cookie', `dd_sid=${session.id}; HttpOnly; SameSite=Strict; Path=/`);
+    res.setHeader('Set-Cookie', sessionCookie(req, session.id));
     return res.json({ valid: true, role: 'admin', token: session.id, csrfToken: session.csrfToken });
   }
 
   if (userPin && verifySecret(pin, userPin)) {
     bruteForceLimiter.recordSuccess(clientIp);
     const session = sessionStore.createSession('user', { ip: clientIp });
-    res.setHeader('Set-Cookie', `dd_sid=${session.id}; HttpOnly; SameSite=Strict; Path=/`);
+    res.setHeader('Set-Cookie', sessionCookie(req, session.id));
     return res.json({ valid: true, role: 'user', token: session.id, csrfToken: session.csrfToken });
   }
 
   if (!userPin && !adminPin) {
     const session = sessionStore.createSession('user', { ip: clientIp });
-    res.setHeader('Set-Cookie', `dd_sid=${session.id}; HttpOnly; SameSite=Strict; Path=/`);
+    res.setHeader('Set-Cookie', sessionCookie(req, session.id));
     return res.json({ valid: true, role: 'user', token: session.id, csrfToken: session.csrfToken });
   }
 
@@ -540,7 +584,13 @@ app.get('/api/probes/:id', async (req, res) => {
   res.json(result);
 });
 
+let lastTestAll = 0;
 app.post('/api/probes/test-all', async (req, res) => {
+  const nowTs = Date.now();
+  if (nowTs - lastTestAll < 5000) {
+    return res.status(429).json({ error: 'Probe run already requested recently. Try again in a few seconds.' });
+  }
+  lastTestAll = nowTs;
   try {
     const results = await prober.runForceAll();
     broadcastSSE('probes', results);
@@ -551,12 +601,13 @@ app.post('/api/probes/test-all', async (req, res) => {
 });
 
 app.post('/api/admin/bulk-delete', (req, res) => {
-  const { tileIds = [], categoryIds = [], pin } = req.body;
-  const currentPin = boardManager.getEffectiveAdminPin();
-
-  if (currentPin && String(pin) !== String(currentPin)) {
+  const auth = boardManager.authorize(req, 'admin');
+  if (!auth.authorized) {
     return res.status(401).json({ error: 'Unauthorized: Invalid Admin PIN' });
   }
+  const body = req.body || {};
+  const tileIds = Array.isArray(body.tileIds) ? body.tileIds : [];
+  const categoryIds = Array.isArray(body.categoryIds) ? body.categoryIds : [];
 
   const currentConfig = boardManager.getConfig();
   const updatedCategories = (currentConfig.categories || [])
@@ -633,24 +684,25 @@ app.get('/api/icons/heimdall', (req, res) => {
 });
 
 app.post('/api/upload', (req, res) => {
+  // Legacy base64 upload used by the dashboard/admin UI. Admin only, and it goes through the
+  // same magic-byte validation, size limits, SVG sanitizer and quota as PUT /api/upload/:kind.
   try {
-    const { filename, base64Data } = req.body;
-    if (!filename || !base64Data) {
+    const auth = boardManager.authorize(req, 'upload');
+    if (!auth.authorized) {
+      return res.status(403).json({ error: 'Forbidden: Admin role required' });
+    }
+    const { base64Data } = req.body || {};
+    if (!base64Data || typeof base64Data !== 'string') {
       return res.status(400).json({ error: 'Filename and base64Data are required' });
     }
-
-    const safeName = Date.now() + '-' + filename.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const targetPath = path.join(uploadsDir, safeName);
-
-    const cleanBase64 = base64Data.replace(/^data:([A-Za-z-+/]+);base64,/, '');
-    fs.writeFileSync(targetPath, Buffer.from(cleanBase64, 'base64'));
-
-    res.json({
-      success: true,
-      url: `/uploads/${safeName}`
-    });
+    const cleanBase64 = base64Data.replace(/^data:([A-Za-z0-9.+\-/]+);base64,/, '');
+    const buf = Buffer.from(cleanBase64, 'base64');
+    const kind = ['icon', 'logo', 'wallpaper'].includes(req.body.kind) ? req.body.kind : 'wallpaper';
+    const result = saveUpload(uploadsDir, buf, kind);
+    auditLogger.log({ ip: req.ip, role: auth.role, action: 'upload', resource: result.fileName, status: 'success' });
+    res.json({ success: true, url: result.url, ...result });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(400).json({ error: err.message });
   }
 });
 
@@ -734,7 +786,7 @@ app.get('/api/events', (req, res) => {
   // Check Last-Event-ID for missed patch replay
   const lastEventId = req.headers['last-event-id'];
   let replayed = false;
-  if (lastEventId) {
+  if (lastEventId && auth.role === 'admin') {
     const lastRev = parseInt(lastEventId, 10);
     const earliest = boardManager.patchEngine.getEarliestRev();
     if (!isNaN(lastRev) && lastRev >= earliest && lastRev < boardManager.state.rev) {
@@ -752,7 +804,8 @@ app.get('/api/events', (req, res) => {
   }
 
   // Send legacy config event for backwards compatibility
-  res.write(`event: config\ndata: ${JSON.stringify(sanitizeConfig(boardManager.getConfig()))}\n\n`);
+  res.ddRole = auth.role;
+  res.write(`event: config\ndata: ${JSON.stringify(sanitizeConfig(boardManager.getConfig(), auth.role))}\n\n`);
   res.write(`event: probes\ndata: ${JSON.stringify(prober.getAllResults())}\n\n`);
   res.write(`event: system_telemetry\ndata: ${JSON.stringify(clusterManager.getAllTelemetry())}\n\n`);
 

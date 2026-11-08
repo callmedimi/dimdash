@@ -702,3 +702,32 @@ body::before {
     max-width: 100%;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Phone fixes: never let the workspace be wider than the viewport
+   -------------------------------------------------------------------------- */
+.admin-workspace, .workspace-title-group { min-width: 0; }
+.workspace-title-group h1, .workspace-title-group p { overflow-wrap: anywhere; }
+.workspace-actions { flex-wrap: wrap; }
+
+@media (max-width: 580px) {
+  :root { --sidebar-width: 56px; }
+  .admin-workspace { padding: 1rem 0.75rem; }
+  .workspace-header { width: 100%; }
+  .workspace-title-group { width: 100%; }
+  .workspace-title-group h1 { font-size: 1.25rem; }
+  .workspace-actions { width: 100%; }
+  .workspace-actions > * { flex: 1 1 auto; justify-content: center; }
+  .admin-tab-content table, .admin-tab-content .data-table { display: block; max-width: 100%; overflow-x: auto; }
+  .admin-tab-content img, .admin-tab-content canvas, .admin-tab-content select, .admin-tab-content input { max-width: 100%; }
+}
+
+/* Grid children must be allowed to shrink below their content width */
+.theme-studio-layout > *, .system-info-grid > * { min-width: 0; }
+@media (max-width: 1024px) {
+  .system-info-grid, .theme-studio-layout { grid-template-columns: minmax(0, 1fr); }
+}
+.theme-controls { max-width: 100%; }
+.color-presets-row { flex-wrap: wrap; }
+.wallpaper-picker-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
+.admin-tab-content .btn { max-width: 100%; white-space: normal; }

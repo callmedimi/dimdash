@@ -16,3 +16,6 @@ data/uploads/*
 !data/uploads/.gitkeep
 *.tar
 *.tar.gz
+data/secrets.yaml
+data/layout.yaml.bak
+data/history/snap_*.yaml
