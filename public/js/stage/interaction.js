@@ -1431,9 +1431,16 @@
       if (typeof fetch === 'undefined') return;
       const rev = this.stage.board?.layout?.rev || 1;
 
+      // Send the admin PIN with every patch: the login session cookie is in memory on the server and is
+      // lost on every restart/redeploy, which made Blueprint edits fail with 401 until the next login.
+      let pin = '';
+      try { pin = (window.AppState && window.AppState.adminPin) || sessionStorage.getItem('dimdash_pin') || ''; } catch (_) {}
+      const headers = { 'Content-Type': 'application/json' };
+      if (pin) headers['x-pin'] = pin;
+
       fetch('/api/board/patch', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           client: 'ui_blueprint',
           base: rev,
